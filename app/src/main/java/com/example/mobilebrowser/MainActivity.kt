@@ -13,17 +13,20 @@ import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoSession
 
 class MainActivity : ComponentActivity() {
-    private lateinit var geckoSession: GeckoSession
     private lateinit var geckoRuntime: GeckoRuntime
+    private lateinit var geckoSession: GeckoSession
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Initialize GeckoRuntime
+        geckoRuntime = GeckoRuntime.getDefault(this)
+
         setContent {
             MobileBrowserTheme {
                 var currentUrl by remember { mutableStateOf("https://www.mozilla.org") }
-                val canGoBack by remember { mutableStateOf(false) }
-                val canGoForward by remember { mutableStateOf(false) }
+                var canGoBack by remember { mutableStateOf(false) }
+                var canGoForward by remember { mutableStateOf(false) }
 
                 BrowserContent(
                     onNavigate = { url ->
