@@ -3,45 +3,32 @@ package com.example.mobilebrowser
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import com.example.mobilebrowser.ui.theme.MobileBrowserTheme
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.example.mobilebrowser.ui.composables.BrowserContent
+import com.example.mobilebrowser.ui.theme.MobileBrowserTheme  // Updated import
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         setContent {
-            MobileBrowserTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+            MobileBrowserTheme {  // Updated theme name
+                val currentUrl by remember { mutableStateOf("https://www.mozilla.org") }
+                val canGoBack by remember { mutableStateOf(false) }
+                val canGoForward by remember { mutableStateOf(false) }
+
+                BrowserContent(
+                    onNavigate = { url -> /* Will implement in next step */ },
+                    onBack = { /* Will implement in next step */ },
+                    onForward = { /* Will implement in next step */ },
+                    onReload = { /* Will implement in next step */ },
+                    canGoBack = canGoBack,
+                    canGoForward = canGoForward,
+                    currentUrl = currentUrl
+                )
             }
         }
-    }
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    MobileBrowserTheme {
-        Greeting("Android")
     }
 }
