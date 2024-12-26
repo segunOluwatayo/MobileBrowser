@@ -78,6 +78,17 @@ fun BrowserContent(
                 singleLine = true,
                 label = { Text("Enter URL") }
             )
+
+            // Added the GeckoView component
+            GeckoViewComponent(
+                url = currentUrl,
+                onUrlChange = onNavigate,
+                onCanGoBackChange = { canGoBack -> /* Update state */ },
+                onCanGoForwardChange = { canGoForward -> /* Update state */ },
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            )
         }
 
         // GeckoView will be added here in the next step
