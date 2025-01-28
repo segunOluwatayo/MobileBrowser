@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -17,11 +19,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController // Import this
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.ui.text.input.ImeAction // Import this
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,6 +43,7 @@ fun BrowserContent(
         modifier = modifier.fillMaxSize()
     ) {
         var urlText by remember { mutableStateOf(currentUrl) }
+        val softwareKeyboardController = LocalSoftwareKeyboardController.current // Get keyboard controller
 
         // Navigation bar
         Row(
@@ -76,21 +81,26 @@ fun BrowserContent(
                     .weight(1f)
                     .padding(horizontal = 8.dp),
                 singleLine = true,
-                label = { Text("Enter URL") }
-            )
-
-            // Added the GeckoView component
-            GeckoViewComponent(
-                url = currentUrl,
-                onUrlChange = onNavigate,
-                onCanGoBackChange = { canGoBack -> /* Update state */ },
-                onCanGoForwardChange = { canGoForward -> /* Update state */ },
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
+                label = { Text("Enter URL") },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go), // Use KeyboardOptions
+                keyboardActions = KeyboardActions( // Use KeyboardActions
+                    onGo = { // Define action for ImeAction.Go
+                        onNavigate(urlText)
+                        softwareKeyboardController?.hide()
+                    }
+                )
             )
         }
 
-        // GeckoView will be added here in the next step
+        // GeckoView component - Moved OUTSIDE and BELOW the Row
+        GeckoViewComponent(
+            url = currentUrl,
+            onUrlChange = onNavigate,
+            onCanGoBackChange = { canGoBack -> /* Update state - will be handled in MainActivity */ },
+            onCanGoForwardChange = { canGoForward -> /* Update state - will be handled in MainActivity */ },
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+        )
     }
 }
