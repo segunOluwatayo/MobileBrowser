@@ -19,27 +19,22 @@ interface BookmarkDao {
     suspend fun insertBookmark(bookmark: BookmarkEntity): Long
 
     // Update an existing bookmark in the database.
-    // Requires the BookmarkEntity object to already exist in the database.
     @Update
     suspend fun updateBookmark(bookmark: BookmarkEntity)
 
     // Delete a bookmark from the database.
-    // Requires the exact BookmarkEntity object to be passed.
     @Delete
     suspend fun deleteBookmark(bookmark: BookmarkEntity)
 
     // Check if a specific URL is already bookmarked.
-    // Returns true if the URL exists in the database, false otherwise.
     @Query("SELECT EXISTS(SELECT 1 FROM bookmarks WHERE url = :url)")
     suspend fun isUrlBookmarked(url: String): Boolean
 
     // Search for bookmarks whose title or URL matches the given query string.
-    // Uses SQL's LIKE operator to perform partial matching.
     @Query("SELECT * FROM bookmarks WHERE title LIKE :query OR url LIKE :query")
     fun searchBookmarks(query: String): Flow<List<BookmarkEntity>>
 
     // Retrieve bookmarks filtered by a specific tag.
-    // Assumes tags are stored as a single string and performs a simple LIKE query for matching.
     @Query("SELECT * FROM bookmarks WHERE tags LIKE :tag")
     fun getBookmarksByTag(tag: String): Flow<List<BookmarkEntity>>
 }
