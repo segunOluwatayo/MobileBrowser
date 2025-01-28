@@ -12,6 +12,7 @@ import com.example.mobilebrowser.ui.viewmodels.BookmarkViewModel
 import com.example.mobilebrowser.data.entity.BookmarkEntity
 import java.util.Date
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BookmarkEditScreen(
     bookmarkId: Long?,
