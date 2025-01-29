@@ -5,9 +5,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -15,8 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.mobilebrowser.ui.viewmodels.TabViewModel
 import org.mozilla.geckoview.GeckoSession
 
 @Composable
@@ -36,14 +34,16 @@ fun BrowserContent(
     currentUrl: String,
     onCanGoBackChange: (Boolean) -> Unit,
     onCanGoForwardChange: (Boolean) -> Unit,
-    modifier: Modifier = Modifier,
-    tabViewModel: TabViewModel = hiltViewModel()
+    tabCount: Int,
+    onNewTab: () -> Unit,
+    onCloseAllTabs: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     var urlText by remember { mutableStateOf(currentUrl) }
     var isEditing by remember { mutableStateOf(false) }
+    var showTabMenu by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
-    val tabCount by tabViewModel.tabCount.collectAsState()
 
     LaunchedEffect(currentUrl) {
         if (!isEditing) {
@@ -85,23 +85,6 @@ fun BrowserContent(
                 Icon(Icons.Default.Refresh, contentDescription = "Reload")
             }
 
-            // Tabs button with counter
-            Badge(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.padding(end = 8.dp)
-            ) {
-                IconButton(onClick = onShowTabs) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(Icons.Default.Tab, contentDescription = "Tabs")
-                        Text(text = tabCount.toString())
-                    }
-                }
-            }
-
             // URL bar
             OutlinedTextField(
                 value = urlText,
@@ -124,8 +107,62 @@ fun BrowserContent(
                 )
             )
 
-            // Bookmark/Star button
-            if (currentUrl.isNotBlank() && !currentUrl.startsWith("about:")) {
+            // Tab button with counter and dropdown menu
+            Box {
+                BadgedBox(
+                    badge = {
+                        Badge {
+                            Text(
+                                text = tabCount.toString(),
+                                modifier = Modifier.padding(horizontal = 4.dp)
+                            )
+                        }
+                    }
+                ) {
+                    IconButton(onClick = { showTabMenu = true }) {
+                        Icon(Icons.Default.Tab, contentDescription = "Tabs")
+                    }
+                }
+
+                DropdownMenu(
+                    expanded = showTabMenu,
+                    onDismissRequest = { showTabMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("View Tabs") },
+                        onClick = {
+                            showTabMenu = false
+                            onShowTabs()
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Default.Tab, contentDescription = null)
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("New Tab") },
+                        onClick = {
+                            showTabMenu = false
+                            onNewTab()
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Default.Add, contentDescription = null)
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Close All Tabs") },
+                        onClick = {
+                            showTabMenu = false
+                            onCloseAllTabs()
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Default.Close, contentDescription = null)
+                        }
+                    )
+                }
+            }
+
+            // CHANGED: Star button is shown if the URL is not blank (no more "&& !currentUrl.startsWith('about:')")
+            if (currentUrl.isNotBlank()) {
                 IconButton(
                     onClick = {
                         if (!isCurrentUrlBookmarked) {
@@ -162,7 +199,6 @@ fun BrowserContent(
                             Icon(Icons.Default.Star, contentDescription = null)
                         }
                     )
-                    // Add more menu items here as needed
                 }
             }
         }

@@ -69,6 +69,18 @@ class TabViewModel @Inject constructor(
         }
     }
 
+    // Initialize the browser with a default tab if needed
+    fun initializeDefaultTab() {
+        viewModelScope.launch {
+            if (tabCount.value == 0) {
+                createTab(
+                    url = "https://www.mozilla.org",
+                    title = "Mozilla"
+                )
+            }
+        }
+    }
+
     /**
      * Switches to a specific tab
      */

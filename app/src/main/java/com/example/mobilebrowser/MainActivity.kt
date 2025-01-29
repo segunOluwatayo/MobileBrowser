@@ -5,26 +5,27 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.*
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.example.mobilebrowser.ui.composables.BrowserContent
-import com.example.mobilebrowser.ui.screens.BookmarkScreen
 import com.example.mobilebrowser.ui.screens.BookmarkEditScreen
+import com.example.mobilebrowser.ui.screens.BookmarkScreen
 import com.example.mobilebrowser.ui.screens.TabScreen
 import com.example.mobilebrowser.ui.theme.MobileBrowserTheme
 import com.example.mobilebrowser.ui.viewmodels.BookmarkViewModel
 import com.example.mobilebrowser.ui.viewmodels.TabViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoSession
-import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
     private lateinit var geckoRuntime: GeckoRuntime
     private lateinit var geckoSession: GeckoSession
 
@@ -39,19 +40,20 @@ class MainActivity : ComponentActivity() {
             open(geckoRuntime)
             Log.d("MainActivity", "GeckoSession opened in onCreate")
 
-            var currentPageTitle = ""
-            // Set up content delegate to capture page title
+            // Load the Mozilla homepage by default
+            loadUri("https://www.mozilla.org")
+
+            // Capture page title if needed
             contentDelegate = object : GeckoSession.ContentDelegate {
                 override fun onTitleChange(session: GeckoSession, title: String?) {
-                    currentPageTitle = title ?: ""
+                    // You could use this to track the current page title
                 }
             }
         }
 
         setContent {
             MobileBrowserTheme {
-                // State management
-                var currentUrl by remember { mutableStateOf("about:blank") }
+                var currentUrl by remember { mutableStateOf("https://www.mozilla.org") }
                 var currentPageTitle by remember { mutableStateOf("") }
                 var canGoBack by remember { mutableStateOf(false) }
                 var canGoForward by remember { mutableStateOf(false) }
@@ -68,6 +70,8 @@ class MainActivity : ComponentActivity() {
                 ) {
                     // Browser screen
                     composable("browser") {
+                        val tabCount by tabViewModel.tabCount.collectAsState()
+
                         BrowserContent(
                             geckoSession = geckoSession,
                             onNavigate = { url ->
@@ -108,6 +112,23 @@ class MainActivity : ComponentActivity() {
                             onCanGoForwardChange = { isForward ->
                                 canGoForward = isForward
                                 Log.d("MainActivity", "onCanGoForwardChange: $isForward")
+                            },
+                            tabCount = tabCount,
+                            onNewTab = {
+                                scope.launch {
+                                    val newTabId = tabViewModel.createTab()
+                                    tabViewModel.switchToTab(newTabId)
+
+                                    currentUrl = "https://www.mozilla.org"
+                                    currentPageTitle = "New Tab"
+                                    geckoSession.loadUri(currentUrl)
+                                }
+                            },
+                            onCloseAllTabs = {
+                                tabViewModel.closeAllTabs()
+                                currentUrl = "https://www.mozilla.org"
+                                currentPageTitle = "New Tab"
+                                geckoSession.loadUri(currentUrl)
                             }
                         )
                     }
@@ -151,6 +172,8 @@ class MainActivity : ComponentActivity() {
                                         currentUrl = tab.url
                                         currentPageTitle = tab.title
                                         bookmarkViewModel.updateCurrentUrl(tab.url)
+                                        // Also load the tab's URL in our single geckoSession:
+                                        geckoSession.loadUri(tab.url)
                                     }
                                 }
                             }
