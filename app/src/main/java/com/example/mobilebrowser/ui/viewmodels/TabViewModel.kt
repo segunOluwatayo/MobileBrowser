@@ -142,6 +142,31 @@ class TabViewModel @Inject constructor(
     }
 
     /**
+     * Moves a tab from one position to another
+     */
+    fun moveTab(fromIndex: Int, toIndex: Int) {
+        viewModelScope.launch {
+            val tabList = tabs.value.toMutableList()
+            if (fromIndex in tabList.indices && toIndex in tabList.indices) {
+                val tab = tabList.removeAt(fromIndex)
+                tabList.add(toIndex, tab)
+
+                // Update positions for all affected tabs
+                tabList.forEachIndexed { index, tabEntity ->
+                    repository.updateTabPosition(tabEntity.id, index)
+                }
+            }
+        }
+    }
+
+    /**
+     * Get a specific tab by its ID
+     */
+    suspend fun getTabById(tabId: Long): TabEntity? {
+        return repository.getTabById(tabId)
+    }
+
+    /**
      * Updates the URL and title of the active tab
      */
     fun updateActiveTabContent(url: String, title: String) {
