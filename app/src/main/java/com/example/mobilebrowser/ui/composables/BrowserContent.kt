@@ -114,7 +114,7 @@ fun BrowserContent(
                     }
                 ) {
                     Icon(
-                        if (isCurrentUrlBookmarked) Icons.Default.Star else Icons.Default.StarBorder,
+                        if (isCurrentUrlBookmarked) Icons.Default.Star else Icons.Default.Star,
                         contentDescription = if (isCurrentUrlBookmarked) "Bookmarked" else "Add bookmark",
                         tint = if (isCurrentUrlBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                     )
@@ -139,7 +139,7 @@ fun BrowserContent(
                             onShowBookmarks()
                         },
                         leadingIcon = {
-                            Icon(Icons.Default.Bookmarks, contentDescription = null)
+                            Icon(Icons.Default.Star, contentDescription = null)
                         }
                     )
                     // Add more menu items here as needed.

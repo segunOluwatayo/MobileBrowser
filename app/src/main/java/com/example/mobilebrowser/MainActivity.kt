@@ -40,6 +40,7 @@ class MainActivity : ComponentActivity() {
             open(geckoRuntime)
             Log.d("MainActivity", "GeckoSession opened in onCreate")
 
+            var currentPageTitle = ""
             // Set up a content delegate to capture the page title.
             contentDelegate = object : GeckoSession.ContentDelegate {
                 override fun onTitleChange(session: GeckoSession, title: String?) {
