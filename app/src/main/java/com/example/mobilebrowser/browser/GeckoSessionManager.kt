@@ -7,7 +7,7 @@ import org.mozilla.geckoview.GeckoSession
 import java.util.concurrent.ConcurrentHashMap
 
 class GeckoSessionManager(private val context: Context) {
-    private val geckoRuntime: GeckoRuntime = GeckoRuntime.getDefault(context)
+    private val geckoRuntime: GeckoRuntime by lazy { GeckoRuntime.getDefault(context) }
     private val sessions = ConcurrentHashMap<Long, GeckoSession>()
     private var currentSession: GeckoSession? = null
 

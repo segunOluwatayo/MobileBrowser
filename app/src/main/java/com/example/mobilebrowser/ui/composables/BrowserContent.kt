@@ -169,39 +169,57 @@ fun BrowserContent(
                     expanded = showOverflowMenu,
                     onDismissRequest = { showOverflowMenu = false }
                 ) {
-                    DropdownMenuItem(
-                        text = { Text("Back") },
-                        onClick = {
-                            showOverflowMenu = false
-                            onBack()
-                        },
-                        enabled = canGoBack,
-                        leadingIcon = {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
+                    // Navigation icons in a horizontal row
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        IconButton(
+                            onClick = {
+                                showOverflowMenu = false
+                                onBack()
+                            },
+                            enabled = canGoBack
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = if (canGoBack) LocalContentColor.current
+                                else LocalContentColor.current.copy(alpha = 0.38f)
+                            )
                         }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Forward") },
-                        onClick = {
-                            showOverflowMenu = false
-                            onForward()
-                        },
-                        enabled = canGoForward,
-                        leadingIcon = {
-                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
+
+                        IconButton(
+                            onClick = {
+                                showOverflowMenu = false
+                                onForward()
+                            },
+                            enabled = canGoForward
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = "Forward",
+                                tint = if (canGoForward) LocalContentColor.current
+                                else LocalContentColor.current.copy(alpha = 0.38f)
+                            )
                         }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Refresh") },
-                        onClick = {
-                            showOverflowMenu = false
-                            onReload()
-                        },
-                        leadingIcon = {
-                            Icon(Icons.Default.Refresh, contentDescription = null)
+
+                        IconButton(
+                            onClick = {
+                                showOverflowMenu = false
+                                onReload()
+                            }
+                        ) {
+                            Icon(
+                                Icons.Default.Refresh,
+                                contentDescription = "Refresh"
+                            )
                         }
-                    )
-                    HorizontalDivider()
+                    }
+
+                    Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+                    // Bookmarks item
                     DropdownMenuItem(
                         text = { Text("Bookmarks") },
                         onClick = {
