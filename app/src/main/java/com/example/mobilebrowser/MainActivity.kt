@@ -6,11 +6,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.*
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
+import com.example.mobilebrowser.browser.GeckoSessionManager
 import com.example.mobilebrowser.ui.composables.BrowserContent
 import com.example.mobilebrowser.ui.screens.BookmarkEditScreen
 import com.example.mobilebrowser.ui.screens.BookmarkScreen
@@ -20,36 +19,17 @@ import com.example.mobilebrowser.ui.viewmodels.BookmarkViewModel
 import com.example.mobilebrowser.ui.viewmodels.TabViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
-import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoSession
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-
-    private lateinit var geckoRuntime: GeckoRuntime
-    private lateinit var geckoSession: GeckoSession
+    private lateinit var sessionManager: GeckoSessionManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Initialize GeckoRuntime
-        geckoRuntime = GeckoRuntime.getDefault(this)
-
-        // Initialize GeckoSession
-        geckoSession = GeckoSession().apply {
-            open(geckoRuntime)
-            Log.d("MainActivity", "GeckoSession opened in onCreate")
-
-            // Load the Mozilla homepage by default
-            loadUri("https://www.mozilla.org")
-
-            // Capture page title if needed
-            contentDelegate = object : GeckoSession.ContentDelegate {
-                override fun onTitleChange(session: GeckoSession, title: String?) {
-                    // You could use this to track the current page title
-                }
-            }
-        }
+        // Initialize GeckoSessionManager
+        sessionManager = GeckoSessionManager(this)
 
         setContent {
             MobileBrowserTheme {
@@ -57,6 +37,7 @@ class MainActivity : ComponentActivity() {
                 var currentPageTitle by remember { mutableStateOf("") }
                 var canGoBack by remember { mutableStateOf(false) }
                 var canGoForward by remember { mutableStateOf(false) }
+                var currentSession by remember { mutableStateOf<GeckoSession?>(null) }
 
                 val navController = rememberNavController()
                 val bookmarkViewModel: BookmarkViewModel = hiltViewModel()
@@ -64,73 +45,100 @@ class MainActivity : ComponentActivity() {
                 val isCurrentUrlBookmarked by bookmarkViewModel.isCurrentUrlBookmarked.collectAsState()
                 val scope = rememberCoroutineScope()
 
-                NavHost(
-                    navController = navController,
-                    startDestination = "browser"
-                ) {
-                    // Browser screen
-                    composable("browser") {
-                        val tabCount by tabViewModel.tabCount.collectAsState()
+                // Monitor active tab and update session accordingly
+                val activeTab by tabViewModel.activeTab.collectAsState()
 
-                        BrowserContent(
-                            geckoSession = geckoSession,
-                            onNavigate = { url ->
+                LaunchedEffect(activeTab) {
+                    activeTab?.let { tab ->
+                        currentSession = sessionManager.getOrCreateSession(
+                            tabId = tab.id,
+                            url = tab.url,
+                            onUrlChange = { url ->
                                 currentUrl = url
                                 bookmarkViewModel.updateCurrentUrl(url)
                                 tabViewModel.updateActiveTabContent(url, currentPageTitle)
                             },
-                            onBack = {
-                                Log.d("MainActivity", "Go Back Button Clicked")
-                                geckoSession.goBack()
-                            },
-                            onForward = {
-                                Log.d("MainActivity", "Go Forward Button Clicked")
-                                geckoSession.goForward()
-                            },
-                            onReload = {
-                                Log.d("MainActivity", "Reload Button Clicked")
-                                geckoSession.reload()
-                            },
-                            onShowBookmarks = {
-                                navController.navigate("bookmarks")
-                            },
-                            onShowTabs = {
-                                navController.navigate("tabs")
-                            },
-                            onAddBookmark = { url, title ->
-                                bookmarkViewModel.quickAddBookmark(url, title)
-                            },
-                            isCurrentUrlBookmarked = isCurrentUrlBookmarked,
-                            currentPageTitle = currentPageTitle,
-                            canGoBack = canGoBack,
-                            canGoForward = canGoForward,
-                            currentUrl = currentUrl,
-                            onCanGoBackChange = { isBack ->
-                                canGoBack = isBack
-                                Log.d("MainActivity", "onCanGoBackChange: $isBack")
-                            },
-                            onCanGoForwardChange = { isForward ->
-                                canGoForward = isForward
-                                Log.d("MainActivity", "onCanGoForwardChange: $isForward")
-                            },
-                            tabCount = tabCount,
-                            onNewTab = {
-                                scope.launch {
-                                    val newTabId = tabViewModel.createTab()
-                                    tabViewModel.switchToTab(newTabId)
-
-                                    currentUrl = "https://www.mozilla.org"
-                                    currentPageTitle = "New Tab"
-                                    geckoSession.loadUri(currentUrl)
-                                }
-                            },
-                            onCloseAllTabs = {
-                                tabViewModel.closeAllTabs()
-                                currentUrl = "https://www.mozilla.org"
-                                currentPageTitle = "New Tab"
-                                geckoSession.loadUri(currentUrl)
-                            }
+                            onCanGoBack = { canGoBack = it },
+                            onCanGoForward = { canGoForward = it }
                         )
+                    }
+                }
+
+                NavHost(navController = navController, startDestination = "browser") {
+                    composable("browser") {
+                        val tabCount by tabViewModel.tabCount.collectAsState()
+
+                        currentSession?.let { session ->
+                            BrowserContent(
+                                geckoSession = session,
+                                onNavigate = { url ->
+                                    currentUrl = url
+                                    bookmarkViewModel.updateCurrentUrl(url)
+                                    tabViewModel.updateActiveTabContent(url, currentPageTitle)
+                                    Log.d("Browser", "Navigating to: $url")
+                                    if (currentSession == null) {
+                                        Log.e("Browser", "GeckoSession is null!")
+                                    }
+
+                                },
+                                onBack = {
+                                    session.goBack()
+                                },
+                                onForward = {
+                                    session.goForward()
+                                },
+                                onReload = {
+                                    session.reload()
+                                },
+                                onShowBookmarks = {
+                                    navController.navigate("bookmarks")
+                                },
+                                onShowTabs = {
+                                    navController.navigate("tabs")
+                                },
+                                onAddBookmark = { url, title ->
+                                    bookmarkViewModel.quickAddBookmark(url, title)
+                                },
+                                isCurrentUrlBookmarked = isCurrentUrlBookmarked,
+                                currentPageTitle = currentPageTitle,
+                                canGoBack = canGoBack,
+                                canGoForward = canGoForward,
+                                currentUrl = currentUrl,
+                                tabCount = tabCount,
+                                onNewTab = {
+                                    scope.launch {
+                                        val newTabId = tabViewModel.createTab()
+                                        val newSession = sessionManager.getOrCreateSession(newTabId)
+                                        currentSession = newSession
+                                        tabViewModel.switchToTab(newTabId)
+                                    }
+                                },
+                                onCloseAllTabs = {
+                                    sessionManager.removeAllSessions()
+                                    tabViewModel.closeAllTabs()
+                                    scope.launch {
+                                        val newTabId = tabViewModel.createTab()
+                                        val newSession = sessionManager.getOrCreateSession(
+                                            newTabId,
+                                            onUrlChange = { url ->
+                                                currentUrl = url
+                                                bookmarkViewModel.updateCurrentUrl(url)
+                                                tabViewModel.updateActiveTabContent(url, currentPageTitle)
+                                            },
+                                            onCanGoBack = { canGoBack = it },
+                                            onCanGoForward = { canGoForward = it }
+                                        )
+                                        currentSession = newSession
+                                        tabViewModel.switchToTab(newTabId)
+                                        currentUrl = "https://www.mozilla.org"
+                                        currentPageTitle = "New Tab"
+                                        newSession.loadUri(currentUrl)
+                                    }
+                                },
+                                onCanGoBackChange = { canGoBack = it },
+                                onCanGoForwardChange = { canGoForward = it }
+                            )
+                        }
                     }
 
                     // Bookmarks screen
@@ -145,7 +153,7 @@ class MainActivity : ComponentActivity() {
                             onNavigateToUrl = { url ->
                                 scope.launch {
                                     currentUrl = url
-                                    geckoSession.loadUri(url)
+                                    currentSession?.loadUri(url)
                                     bookmarkViewModel.updateCurrentUrl(url)
                                     navController.popBackStack()
                                 }
@@ -154,11 +162,8 @@ class MainActivity : ComponentActivity() {
                     }
 
                     // Bookmark edit screen
-                    composable(
-                        route = "bookmark/edit/{bookmarkId}",
-                        arguments = listOf(navArgument("bookmarkId") { type = NavType.LongType })
-                    ) { backStackEntry ->
-                        val bookmarkId = backStackEntry.arguments?.getLong("bookmarkId")
+                    composable("bookmark/edit/{bookmarkId}") { backStackEntry ->
+                        val bookmarkId = backStackEntry.arguments?.getString("bookmarkId")?.toLongOrNull()
                         BookmarkEditScreen(
                             bookmarkId = bookmarkId,
                             onNavigateBack = {
@@ -180,8 +185,7 @@ class MainActivity : ComponentActivity() {
                                         currentUrl = tab.url
                                         currentPageTitle = tab.title
                                         bookmarkViewModel.updateCurrentUrl(tab.url)
-                                        // Also load the tab's URL in our single geckoSession:
-                                        geckoSession.loadUri(tab.url)
+                                        currentSession?.loadUri(tab.url)
                                     }
                                 }
                             }

@@ -1,6 +1,6 @@
 package com.example.mobilebrowser.ui.composables
 
-import androidx.compose.animation.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -12,6 +12,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -109,18 +111,20 @@ fun BrowserContent(
 
             // Tab button with counter and dropdown menu
             Box {
-                BadgedBox(
-                    badge = {
-                        Badge {
-                            Text(
-                                text = tabCount.toString(),
-                                modifier = Modifier.padding(horizontal = 4.dp)
-                            )
-                        }
-                    }
-                ) {
-                    IconButton(onClick = { showTabMenu = true }) {
-                        Icon(Icons.Default.Tab, contentDescription = "Tabs")
+                IconButton(onClick = { showTabMenu = true }) {
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp) // Ensure consistent size
+                            .background(MaterialTheme.colorScheme.primary, shape = MaterialTheme.shapes.small)
+                            .clip(MaterialTheme.shapes.small),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = tabCount.toString(),
+                            color = Color.White,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(4.dp)
+                        )
                     }
                 }
 
@@ -160,6 +164,7 @@ fun BrowserContent(
                     )
                 }
             }
+
 
             // CHANGED: Star button is shown if the URL is not blank (no more "&& !currentUrl.startsWith('about:')")
             if (currentUrl.isNotBlank()) {

@@ -1,6 +1,7 @@
 package com.example.mobilebrowser.ui.screens
 
 import androidx.compose.animation.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -11,6 +12,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewModelScope
@@ -26,12 +29,12 @@ fun TabScreen(
     onNavigateBack: () -> Unit,
     onTabSelected: (Long) -> Unit,
     viewModel: TabViewModel = hiltViewModel(),
-    // NEW: Inject a BookmarkViewModel to handle bookmark actions
     bookmarkViewModel: BookmarkViewModel = hiltViewModel()
 ) {
     val tabs by viewModel.tabs.collectAsState()
     val isSelectionMode by viewModel.isSelectionModeActive.collectAsState()
     val selectedTabs by viewModel.selectedTabs.collectAsState()
+    val tabCount by viewModel.tabCount.collectAsState()
 
     var showMenu by remember { mutableStateOf(false) }
     var draggingTabId by remember { mutableStateOf<Long?>(null) }
@@ -66,57 +69,26 @@ fun TabScreen(
                         }
                     },
                     actions = {
-                        if (isSelectionMode) {
-                            // Selection mode actions
-                            IconButton(onClick = { viewModel.closeSelectedTabs() }) {
-                                Icon(Icons.Default.Delete, "Close selected tabs")
+                        if (!isSelectionMode) {
+                            // **New Tab Count Box**
+                            Box(
+                                modifier = Modifier
+                                    .padding(end = 8.dp)
+                                    .background(MaterialTheme.colorScheme.primary, shape = MaterialTheme.shapes.small)
+                                    .clip(MaterialTheme.shapes.small)
+                                    .size(28.dp), // Adjust size
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = tabCount.toString(),
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.padding(4.dp)
+                                )
                             }
-                            IconButton(onClick = { viewModel.toggleSelectionMode() }) {
-                                Icon(Icons.Default.Close, "Exit selection mode")
-                            }
-                        } else {
-                            // Normal mode actions
+
                             IconButton(onClick = { showMenu = true }) {
                                 Icon(Icons.Default.MoreVert, "More options")
-                            }
-                            DropdownMenu(
-                                expanded = showMenu,
-                                onDismissRequest = { showMenu = false }
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text("New Tab") },
-                                    onClick = {
-                                        showMenu = false
-                                        viewModel.viewModelScope.launch {
-                                            val newTabId = viewModel.createTab()
-                                            onTabSelected(newTabId)
-                                            onNavigateBack()
-                                        }
-                                    },
-                                    leadingIcon = {
-                                        Icon(Icons.Default.Add, "New tab")
-                                    }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Close All Tabs") },
-                                    onClick = {
-                                        showMenu = false
-                                        viewModel.closeAllTabs()
-                                    },
-                                    leadingIcon = {
-                                        Icon(Icons.Default.Clear, "Close all tabs")
-                                    }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Select Tabs") },
-                                    onClick = {
-                                        showMenu = false
-                                        viewModel.toggleSelectionMode()
-                                    },
-                                    leadingIcon = {
-                                        Icon(Icons.Default.CheckBox, "Select tabs")
-                                    }
-                                )
                             }
                         }
                     }
@@ -124,7 +96,6 @@ fun TabScreen(
             }
         ) { padding ->
             if (tabs.isEmpty()) {
-                // Empty state with a fadeIn/expand animation
                 AnimatedVisibility(
                     visible = true,
                     enter = fadeIn() + expandVertically(),
@@ -155,7 +126,6 @@ fun TabScreen(
                     }
                 }
             } else {
-                // Show the list of tabs
                 LazyColumn(
                     state = lazyListState,
                     modifier = Modifier
@@ -185,7 +155,6 @@ fun TabScreen(
                                     draggingTabId = tab.id
                                 }
                             },
-                            // NEW: pass a callback for “Bookmark Tab”
                             onBookmarkTab = {
                                 bookmarkViewModel.quickAddBookmark(tab.url, tab.title)
                             }
