@@ -49,13 +49,16 @@ class MainActivity : ComponentActivity() {
                 val activeTab by tabViewModel.activeTab.collectAsState()
 
                 LaunchedEffect(activeTab) {
+                    Log.d("MainActivity", "LaunchedEffect: activeTab = $activeTab")
                     activeTab?.let { tab ->
+                        Log.d("MainActivity", "activeTab url = ${tab.url}, title = ${tab.title}")
                         currentSession = sessionManager.getOrCreateSession(
                             tabId = tab.id,
                             url = tab.url,
                             onUrlChange = { url ->
                                 currentUrl = url
                                 bookmarkViewModel.updateCurrentUrl(url)
+                                // Keep the page title updated, if needed:
                                 tabViewModel.updateActiveTabContent(url, currentPageTitle)
                             },
                             onCanGoBack = { canGoBack = it },
@@ -76,10 +79,6 @@ class MainActivity : ComponentActivity() {
                                     bookmarkViewModel.updateCurrentUrl(url)
                                     tabViewModel.updateActiveTabContent(url, currentPageTitle)
                                     Log.d("Browser", "Navigating to: $url")
-                                    if (currentSession == null) {
-                                        Log.e("Browser", "GeckoSession is null!")
-                                    }
-
                                 },
                                 onBack = {
                                     session.goBack()
@@ -108,12 +107,14 @@ class MainActivity : ComponentActivity() {
                                 onNewTab = {
                                     scope.launch {
                                         val newTabId = tabViewModel.createTab()
-                                        val newSession = sessionManager.getOrCreateSession(newTabId, "https://www.mozilla.org")
+                                        val newSession = sessionManager.getOrCreateSession(
+                                            tabId = newTabId,
+                                            url = "https://www.mozilla.org"
+                                        )
                                         currentSession = newSession
                                         tabViewModel.switchToTab(newTabId)
                                     }
-                                }
-                                ,
+                                },
                                 onCloseAllTabs = {
                                     sessionManager.removeAllSessions()
                                     tabViewModel.closeAllTabs()
@@ -134,7 +135,10 @@ class MainActivity : ComponentActivity() {
                                 navController.popBackStack()
                             },
                             onNavigateToUrl = { url ->
+                                Log.d("BookmarkScreen", "onNavigateToUrl clicked with: $url")
                                 scope.launch {
+                                    tabViewModel.updateActiveTabContent(url, "")
+
                                     currentUrl = url
                                     currentSession?.loadUri(url)
                                     bookmarkViewModel.updateCurrentUrl(url)

@@ -108,6 +108,7 @@ class TabViewModel @Inject constructor(
     }
 
     fun updateActiveTabContent(url: String, title: String) {
+        Log.d("TabViewModel", "updateActiveTabContent with URL=$url, title=$title")
         viewModelScope.launch {
             try {
                 activeTab.value?.let { tab ->
