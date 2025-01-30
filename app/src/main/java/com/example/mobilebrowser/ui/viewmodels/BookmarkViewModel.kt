@@ -72,8 +72,19 @@ class BookmarkViewModel @Inject constructor(
     // Quickly adds a new bookmark using just a URL and title
     fun quickAddBookmark(url: String, title: String) {
         viewModelScope.launch {
+            // Use the URL's domain as fallback title if title is empty
+            val bookmarkTitle = if (title.isBlank()) {
+                try {
+                    java.net.URL(url).host.removePrefix("www.")
+                } catch (e: Exception) {
+                    "Untitled"
+                }
+            } else {
+                title
+            }
+
             val bookmark = BookmarkEntity(
-                title = title,
+                title = bookmarkTitle,
                 url = url,
                 favicon = null, // TODO: Implement favicon fetching
                 lastVisited = Date(),
