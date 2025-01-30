@@ -63,30 +63,6 @@ fun BrowserContent(
                 .padding(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Back button
-            IconButton(
-                onClick = onBack,
-                enabled = canGoBack
-            ) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Go back")
-            }
-
-            // Forward button
-            IconButton(
-                onClick = onForward,
-                enabled = canGoForward
-            ) {
-                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Go forward")
-            }
-
-            // Reload button
-            IconButton(onClick = {
-                onReload()
-                softwareKeyboardController?.hide()
-            }) {
-                Icon(Icons.Default.Refresh, contentDescription = "Reload")
-            }
-
             // URL bar
             OutlinedTextField(
                 value = urlText,
@@ -114,7 +90,7 @@ fun BrowserContent(
                 IconButton(onClick = { showTabMenu = true }) {
                     Box(
                         modifier = Modifier
-                            .size(28.dp) // Ensure consistent size
+                            .size(28.dp)
                             .background(MaterialTheme.colorScheme.primary, shape = MaterialTheme.shapes.small)
                             .clip(MaterialTheme.shapes.small),
                         contentAlignment = Alignment.Center
@@ -165,8 +141,7 @@ fun BrowserContent(
                 }
             }
 
-
-            // CHANGED: Star button is shown if the URL is not blank (no more "&& !currentUrl.startsWith('about:')")
+            // Bookmark star button
             if (currentUrl.isNotBlank()) {
                 IconButton(
                     onClick = {
@@ -194,6 +169,39 @@ fun BrowserContent(
                     expanded = showOverflowMenu,
                     onDismissRequest = { showOverflowMenu = false }
                 ) {
+                    DropdownMenuItem(
+                        text = { Text("Back") },
+                        onClick = {
+                            showOverflowMenu = false
+                            onBack()
+                        },
+                        enabled = canGoBack,
+                        leadingIcon = {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Forward") },
+                        onClick = {
+                            showOverflowMenu = false
+                            onForward()
+                        },
+                        enabled = canGoForward,
+                        leadingIcon = {
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Refresh") },
+                        onClick = {
+                            showOverflowMenu = false
+                            onReload()
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Default.Refresh, contentDescription = null)
+                        }
+                    )
+                    HorizontalDivider()
                     DropdownMenuItem(
                         text = { Text("Bookmarks") },
                         onClick = {
