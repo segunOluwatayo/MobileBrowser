@@ -108,32 +108,15 @@ class MainActivity : ComponentActivity() {
                                 onNewTab = {
                                     scope.launch {
                                         val newTabId = tabViewModel.createTab()
-                                        val newSession = sessionManager.getOrCreateSession(newTabId)
+                                        val newSession = sessionManager.getOrCreateSession(newTabId, "https://www.mozilla.org")
                                         currentSession = newSession
                                         tabViewModel.switchToTab(newTabId)
                                     }
-                                },
+                                }
+                                ,
                                 onCloseAllTabs = {
                                     sessionManager.removeAllSessions()
                                     tabViewModel.closeAllTabs()
-                                    scope.launch {
-                                        val newTabId = tabViewModel.createTab()
-                                        val newSession = sessionManager.getOrCreateSession(
-                                            newTabId,
-                                            onUrlChange = { url ->
-                                                currentUrl = url
-                                                bookmarkViewModel.updateCurrentUrl(url)
-                                                tabViewModel.updateActiveTabContent(url, currentPageTitle)
-                                            },
-                                            onCanGoBack = { canGoBack = it },
-                                            onCanGoForward = { canGoForward = it }
-                                        )
-                                        currentSession = newSession
-                                        tabViewModel.switchToTab(newTabId)
-                                        currentUrl = "https://www.mozilla.org"
-                                        currentPageTitle = "New Tab"
-                                        newSession.loadUri(currentUrl)
-                                    }
                                 },
                                 onCanGoBackChange = { canGoBack = it },
                                 onCanGoForwardChange = { canGoForward = it }

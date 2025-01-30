@@ -74,7 +74,10 @@ fun TabScreen(
                             Box(
                                 modifier = Modifier
                                     .padding(end = 8.dp)
-                                    .background(MaterialTheme.colorScheme.primary, shape = MaterialTheme.shapes.small)
+                                    .background(
+                                        MaterialTheme.colorScheme.primary,
+                                        shape = MaterialTheme.shapes.small
+                                    )
                                     .clip(MaterialTheme.shapes.small)
                                     .size(28.dp), // Adjust size
                                 contentAlignment = Alignment.Center
@@ -89,6 +92,29 @@ fun TabScreen(
 
                             IconButton(onClick = { showMenu = true }) {
                                 Icon(Icons.Default.MoreVert, "More options")
+                            }
+                            DropdownMenu(
+                                expanded = showMenu,
+                                onDismissRequest = { showMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Close all tabs") },
+                                    onClick = {
+                                        showMenu = false
+                                        viewModel.closeAllTabs()
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("New tab") },
+                                    onClick = {
+                                        showMenu = false
+                                        viewModel.viewModelScope.launch {
+                                            val newTabId = viewModel.createTab()
+                                            onTabSelected(newTabId)
+                                            onNavigateBack()
+                                        }
+                                    }
+                                )
                             }
                         }
                     }

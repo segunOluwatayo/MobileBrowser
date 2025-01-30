@@ -64,37 +64,24 @@ class TabViewModel @Inject constructor(
     private fun initializeDefaultTab() {
         viewModelScope.launch {
             try {
-                val count = repository.getTabCount().first() // Fetch actual tab count
-
-                if (!_isInitialized.value && count == 0) {
-                    Log.d("TabViewModel", "Initializing browser with default tab...")
-
-                    // Create default tab
-                    val newTabId = createTab(
-                        url = "https://www.mozilla.org",
-                        title = "Mozilla"
-                    )
-
-                    // Switch to the new tab
-                    switchToTab(newTabId)
-
-                    // Mark initialization as complete
+                val count = repository.getTabCount().first()
+                if (count == 0) {
+                    Log.d("TabViewModel", "Initializing with default tab...")
+                    val newTabId = createTab()
+                    switchToTab(newTabId)  // Ensuring it's set as active
                     _isInitialized.value = true
-                    _error.value = null
-
-                    Log.d("TabViewModel", "Browser initialized successfully with tab: $newTabId")
                 }
             } catch (e: Exception) {
                 Log.e("TabViewModel", "Failed to initialize browser: ${e.message}")
                 _error.value = "Failed to initialize browser: ${e.message}"
-                _isInitialized.value = false
             }
         }
     }
 
 
+
     suspend fun createTab(
-        url: String = "about:blank",
+        url: String = "https://www.mozilla.org",
         title: String = "New Tab"
     ): Long {
         return try {
@@ -106,6 +93,7 @@ class TabViewModel @Inject constructor(
             throw e
         }
     }
+
 
     fun switchToTab(tabId: Long) {
         viewModelScope.launch {
@@ -160,13 +148,16 @@ class TabViewModel @Inject constructor(
                 repository.deleteAllTabs()
                 Log.d("TabViewModel", "Closed all tabs")
 
-                // Create a new default tab after closing all
-                createTab()
+                // Ensure a new tab is created and set as active
+                val newTabId = createTab()
+                switchToTab(newTabId)  // Ensuring it's set as active
+
             } catch (e: Exception) {
                 Log.e("TabViewModel", "Failed to close all tabs: ${e.message}")
             }
         }
     }
+
 
     private fun toggleSelectionMode() {
         _isSelectionModeActive.value = !_isSelectionModeActive.value
