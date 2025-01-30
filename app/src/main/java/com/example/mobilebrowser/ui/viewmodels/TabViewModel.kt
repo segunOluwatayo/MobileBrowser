@@ -1,5 +1,6 @@
 package com.example.mobilebrowser.ui.viewmodels
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.mobilebrowser.data.entity.TabEntity
@@ -10,13 +11,18 @@ import kotlinx.coroutines.launch
 import java.util.Date
 import javax.inject.Inject
 
-/**
- * ViewModel responsible for managing tab-related operations and state.
- */
 @HiltViewModel
 class TabViewModel @Inject constructor(
     private val repository: TabRepository
 ) : ViewModel() {
+    // Initialization state
+    private val _isInitialized = MutableStateFlow(false)
+    val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
+
+    // Error state
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
+
     // Stream of all tabs
     val tabs = repository.getAllTabs()
         .stateIn(
@@ -41,86 +47,134 @@ class TabViewModel @Inject constructor(
             initialValue = 0
         )
 
-    // State for tab selection mode
+    // Selection mode state
     private val _isSelectionModeActive = MutableStateFlow(false)
     val isSelectionModeActive = _isSelectionModeActive.asStateFlow()
 
-    // Selected tabs in selection mode
     private val _selectedTabs = MutableStateFlow<Set<Long>>(emptySet())
     val selectedTabs = _selectedTabs.asStateFlow()
 
-    /**
-     * Creates a new tab with the given URL and title
-     */
-    suspend fun createTab(url: String = "about:blank", title: String = "New Tab"): Long {
-        return repository.createTab(
-            url = url,
-            title = title,
-            position = tabCount.value
-        )
-    }
-
-    /**
-     * Updates an existing tab's content
-     */
-    fun updateTab(tab: TabEntity) {
+    init {
+        // Initialize browser with default tab on startup
         viewModelScope.launch {
-            repository.updateTab(tab)
+            initializeDefaultTab()
         }
     }
 
-    // Initialize the browser with a default tab if needed
-    fun initializeDefaultTab() {
+    private fun initializeDefaultTab() {
         viewModelScope.launch {
-            if (tabCount.value == 0) {
-                createTab(
-                    url = "https://www.mozilla.org",
-                    title = "Mozilla"
-                )
+            try {
+                val count = repository.getTabCount().first() // Fetch actual tab count
+
+                if (!_isInitialized.value && count == 0) {
+                    Log.d("TabViewModel", "Initializing browser with default tab...")
+
+                    // Create default tab
+                    val newTabId = createTab(
+                        url = "https://www.mozilla.org",
+                        title = "Mozilla"
+                    )
+
+                    // Switch to the new tab
+                    switchToTab(newTabId)
+
+                    // Mark initialization as complete
+                    _isInitialized.value = true
+                    _error.value = null
+
+                    Log.d("TabViewModel", "Browser initialized successfully with tab: $newTabId")
+                }
+            } catch (e: Exception) {
+                Log.e("TabViewModel", "Failed to initialize browser: ${e.message}")
+                _error.value = "Failed to initialize browser: ${e.message}"
+                _isInitialized.value = false
             }
         }
     }
 
-    /**
-     * Switches to a specific tab
-     */
+
+    suspend fun createTab(
+        url: String = "about:blank",
+        title: String = "New Tab"
+    ): Long {
+        return try {
+            val newTabId = repository.createTab(url, title, tabCount.value)
+            Log.d("TabViewModel", "Created new tab: $newTabId")
+            newTabId
+        } catch (e: Exception) {
+            Log.e("TabViewModel", "Failed to create tab: ${e.message}")
+            throw e
+        }
+    }
+
     fun switchToTab(tabId: Long) {
         viewModelScope.launch {
-            repository.switchToTab(tabId)
+            try {
+                repository.switchToTab(tabId)
+                Log.d("TabViewModel", "Switched to tab: $tabId")
+            } catch (e: Exception) {
+                Log.e("TabViewModel", "Failed to switch tab: ${e.message}")
+                _error.value = "Failed to switch tab: ${e.message}"
+            }
         }
     }
 
-    /**
-     * Closes a specific tab
-     */
+    fun updateActiveTabContent(url: String, title: String) {
+        viewModelScope.launch {
+            try {
+                activeTab.value?.let { tab ->
+                    repository.updateTab(
+                        tab.copy(
+                            url = url,
+                            title = title,
+                            lastVisited = Date()
+                        )
+                    )
+                    Log.d("TabViewModel", "Updated tab content - URL: $url, Title: $title")
+                }
+            } catch (e: Exception) {
+                Log.e("TabViewModel", "Failed to update tab content: ${e.message}")
+            }
+        }
+    }
+
     fun closeTab(tab: TabEntity) {
         viewModelScope.launch {
-            repository.deleteTab(tab)
+            try {
+                repository.deleteTab(tab)
+                Log.d("TabViewModel", "Closed tab: ${tab.id}")
+
+                // If we closed the last tab, create a new one
+                if (tabCount.value == 0) {
+                    createTab()
+                }
+            } catch (e: Exception) {
+                Log.e("TabViewModel", "Failed to close tab: ${e.message}")
+            }
         }
     }
 
-    /**
-     * Closes all tabs
-     */
     fun closeAllTabs() {
         viewModelScope.launch {
-            repository.deleteAllTabs()
+            try {
+                repository.deleteAllTabs()
+                Log.d("TabViewModel", "Closed all tabs")
+
+                // Create a new default tab after closing all
+                createTab()
+            } catch (e: Exception) {
+                Log.e("TabViewModel", "Failed to close all tabs: ${e.message}")
+            }
         }
     }
 
-    /**
-     * Toggles selection mode
-     */
-    fun toggleSelectionMode() {
+    private fun toggleSelectionMode() {
         _isSelectionModeActive.value = !_isSelectionModeActive.value
         if (!_isSelectionModeActive.value) {
             clearSelection()
         }
     }
 
-    /**
-     * Toggles selection of a specific tab
-     */
     fun toggleTabSelection(tabId: Long) {
         val currentSelection = _selectedTabs.value.toMutableSet()
         if (currentSelection.contains(tabId)) {
@@ -131,67 +185,63 @@ class TabViewModel @Inject constructor(
         _selectedTabs.value = currentSelection
     }
 
-    /**
-     * Clears all selected tabs
-     */
-    fun clearSelection() {
+    private fun clearSelection() {
         _selectedTabs.value = emptySet()
     }
 
-    /**
-     * Closes selected tabs
-     */
     fun closeSelectedTabs() {
         viewModelScope.launch {
-            _selectedTabs.value.forEach { tabId ->
-                repository.getTabById(tabId)?.let { tab ->
-                    repository.deleteTab(tab)
+            try {
+                _selectedTabs.value.forEach { tabId ->
+                    repository.getTabById(tabId)?.let { tab ->
+                        repository.deleteTab(tab)
+                    }
                 }
+                clearSelection()
+                toggleSelectionMode()
+
+                // If we closed all tabs, create a new one
+                if (tabCount.value == 0) {
+                    createTab()
+                }
+
+                Log.d("TabViewModel", "Closed selected tabs")
+            } catch (e: Exception) {
+                Log.e("TabViewModel", "Failed to close selected tabs: ${e.message}")
             }
-            clearSelection()
-            toggleSelectionMode()
         }
     }
 
-    /**
-     * Moves a tab from one position to another
-     */
     fun moveTab(fromIndex: Int, toIndex: Int) {
         viewModelScope.launch {
-            val tabList = tabs.value.toMutableList()
-            if (fromIndex in tabList.indices && toIndex in tabList.indices) {
-                val tab = tabList.removeAt(fromIndex)
-                tabList.add(toIndex, tab)
+            try {
+                val tabList = tabs.value.toMutableList()
+                if (fromIndex in tabList.indices && toIndex in tabList.indices) {
+                    val tab = tabList.removeAt(fromIndex)
+                    tabList.add(toIndex, tab)
 
-                // Update positions for all affected tabs
-                tabList.forEachIndexed { index, tabEntity ->
-                    repository.updateTabPosition(tabEntity.id, index)
+                    // Update positions for all affected tabs
+                    tabList.forEachIndexed { index, tabEntity ->
+                        repository.updateTabPosition(tabEntity.id, index)
+                    }
+                    Log.d("TabViewModel", "Moved tab from $fromIndex to $toIndex")
                 }
+            } catch (e: Exception) {
+                Log.e("TabViewModel", "Failed to move tab: ${e.message}")
             }
         }
     }
 
-    /**
-     * Get a specific tab by its ID
-     */
     suspend fun getTabById(tabId: Long): TabEntity? {
-        return repository.getTabById(tabId)
+        return try {
+            repository.getTabById(tabId)
+        } catch (e: Exception) {
+            Log.e("TabViewModel", "Failed to get tab by ID: ${e.message}")
+            null
+        }
     }
 
-    /**
-     * Updates the URL and title of the active tab
-     */
-    fun updateActiveTabContent(url: String, title: String) {
-        viewModelScope.launch {
-            activeTab.value?.let { tab ->
-                repository.updateTab(
-                    tab.copy(
-                        url = url,
-                        title = title,
-                        lastVisited = Date()
-                    )
-                )
-            }
-        }
+    fun clearError() {
+        _error.value = null
     }
 }
