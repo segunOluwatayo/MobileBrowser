@@ -159,7 +159,7 @@ class TabViewModel @Inject constructor(
     }
 
 
-    private fun toggleSelectionMode() {
+    fun toggleSelectionMode() {
         _isSelectionModeActive.value = !_isSelectionModeActive.value
         if (!_isSelectionModeActive.value) {
             clearSelection()

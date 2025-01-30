@@ -74,10 +74,7 @@ fun TabScreen(
                             Box(
                                 modifier = Modifier
                                     .padding(end = 8.dp)
-                                    .background(
-                                        MaterialTheme.colorScheme.primary,
-                                        shape = MaterialTheme.shapes.small
-                                    )
+                                    .background(MaterialTheme.colorScheme.primary, shape = MaterialTheme.shapes.small)
                                     .clip(MaterialTheme.shapes.small)
                                     .size(28.dp), // Adjust size
                                 contentAlignment = Alignment.Center
@@ -90,32 +87,38 @@ fun TabScreen(
                                 )
                             }
 
-                            IconButton(onClick = { showMenu = true }) {
-                                Icon(Icons.Default.MoreVert, "More options")
+                            Box {
+                                IconButton(onClick = { showMenu = true }) {
+                                    Icon(Icons.Default.MoreVert, contentDescription = "More options")
+                                }
+
+                                DropdownMenu(
+                                    expanded = showMenu,
+                                    onDismissRequest = { showMenu = false }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text("New Tab") },
+                                        onClick = {
+                                            showMenu = false
+                                            viewModel.viewModelScope.launch {
+                                                val newTabId = viewModel.createTab()
+                                                onTabSelected(newTabId)
+                                                onNavigateBack()
+                                            }
+                                        },
+                                        leadingIcon = { Icon(Icons.Default.Add, contentDescription = "New Tab") }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Close All Tabs") },
+                                        onClick = {
+                                            showMenu = false
+                                            viewModel.closeAllTabs()
+                                        },
+                                        leadingIcon = { Icon(Icons.Default.Close, contentDescription = "Close All Tabs") }
+                                    )
+                                }
                             }
-                            DropdownMenu(
-                                expanded = showMenu,
-                                onDismissRequest = { showMenu = false }
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text("Close all tabs") },
-                                    onClick = {
-                                        showMenu = false
-                                        viewModel.closeAllTabs()
-                                    }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("New tab") },
-                                    onClick = {
-                                        showMenu = false
-                                        viewModel.viewModelScope.launch {
-                                            val newTabId = viewModel.createTab()
-                                            onTabSelected(newTabId)
-                                            onNavigateBack()
-                                        }
-                                    }
-                                )
-                            }
+
                         }
                     }
                 )
@@ -156,7 +159,7 @@ fun TabScreen(
                     state = lazyListState,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(padding)
+                        .padding(padding),
                 ) {
                     items(
                         items = tabs,
@@ -167,6 +170,7 @@ fun TabScreen(
                             isSelected = selectedTabs.contains(tab.id),
                             isSelectionMode = isSelectionMode,
                             isDragging = (tab.id == draggingTabId),
+                            onStartDrag = { draggingTabId = tab.id },
                             onTabClick = {
                                 if (isSelectionMode) {
                                     viewModel.toggleTabSelection(tab.id)
@@ -175,10 +179,12 @@ fun TabScreen(
                                     onNavigateBack()
                                 }
                             },
-                            onCloseTab = { viewModel.closeTab(tab) },
-                            onStartDrag = {
-                                if (!isSelectionMode) {
-                                    draggingTabId = tab.id
+                            onCloseTab = { viewModel.closeTab(tab) }, // Updated callback
+                            onNewTab = {
+                                viewModel.viewModelScope.launch {
+                                    val newTabId = viewModel.createTab()
+                                    onTabSelected(newTabId)
+                                    onNavigateBack()
                                 }
                             },
                             onBookmarkTab = {

@@ -36,6 +36,7 @@ fun LazyItemScope.TabListItem(
     onTabClick: () -> Unit,
     onCloseTab: () -> Unit,
     onStartDrag: () -> Unit,
+    onNewTab: () -> Unit,
     onBookmarkTab: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -43,20 +44,12 @@ fun LazyItemScope.TabListItem(
     var contextMenuPosition by remember { mutableStateOf(Offset.Zero) }
 
     Card(
-        shape = MaterialTheme.shapes.extraSmall, // More subtle rounded corners like Chrome
+        shape = MaterialTheme.shapes.extraSmall,
         elevation = if (isDragging) CardDefaults.elevatedCardElevation(8.dp)
-        else CardDefaults.cardElevation(defaultElevation = 1.dp), // Lighter elevation for normal state
+        else CardDefaults.cardElevation(defaultElevation = 1.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp) // Tighter padding
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onLongPress = { offset ->
-                        contextMenuPosition = offset
-                        showContextMenu = true
-                    }
-                )
-            }
+            .padding(horizontal = 8.dp, vertical = 4.dp)
             .combinedClickable(
                 onClick = onTabClick,
                 onLongClick = {
@@ -71,29 +64,17 @@ fun LazyItemScope.TabListItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(8.dp), // Reduced internal padding
+                .padding(8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Favicon/Icon area
-            Icon(
-                imageVector = Icons.Default.Language,
-                contentDescription = null,
-                modifier = Modifier
-                    .size(20.dp) // Smaller icon
-                    .padding(end = 8.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            // Title and URL
+            // Tab Title & URL
             Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 4.dp)
+                modifier = Modifier.weight(1f)
             ) {
                 Text(
                     text = tab.title.ifEmpty { "New Tab" },
-                    style = MaterialTheme.typography.bodyMedium, // Smaller text
+                    style = MaterialTheme.typography.bodyMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -106,58 +87,38 @@ fun LazyItemScope.TabListItem(
                 )
             }
 
-            // Close button
-            IconButton(
-                onClick = onCloseTab,
-                modifier = Modifier.size(32.dp) // Smaller close button
-            ) {
-                Icon(
-                    Icons.Default.Close,
-                    contentDescription = "Close tab",
-                    modifier = Modifier.size(16.dp)
-                )
+            // Three Vertical Dots Button (Replaces Close Button)
+            Box {
+                IconButton(onClick = { showContextMenu = true }) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "More options")
+                }
+
+                DropdownMenu(
+                    expanded = showContextMenu,
+                    onDismissRequest = { showContextMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Close Tab") },
+                        onClick = {
+                            onCloseTab()
+                            showContextMenu = false
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Default.Close, "Close Tab")
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Bookmark Tab") },
+                        onClick = {
+                            onBookmarkTab()
+                            showContextMenu = false
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Default.BookmarkAdd, "Bookmark Tab")
+                        }
+                    )
+                }
             }
         }
-    }
-
-    // Context menu
-    DropdownMenu(
-        expanded = showContextMenu,
-        onDismissRequest = { showContextMenu = false },
-        offset = DpOffset(
-            x = contextMenuPosition.x.dp,
-            y = contextMenuPosition.y.dp
-        )
-    ) {
-        DropdownMenuItem(
-            text = { Text("New tab") },
-            onClick = {
-                // Handle new tab creation
-                showContextMenu = false
-            },
-            leadingIcon = {
-                Icon(Icons.Default.Add, "New tab")
-            }
-        )
-        DropdownMenuItem(
-            text = { Text("Close tab") },
-            onClick = {
-                onCloseTab()
-                showContextMenu = false
-            },
-            leadingIcon = {
-                Icon(Icons.Default.Close, "Close tab")
-            }
-        )
-        DropdownMenuItem(
-            text = { Text("Bookmark tab") },
-            onClick = {
-                onBookmarkTab()
-                showContextMenu = false
-            },
-            leadingIcon = {
-                Icon(Icons.Default.BookmarkAdd, "Bookmark tab")
-            }
-        )
     }
 }
