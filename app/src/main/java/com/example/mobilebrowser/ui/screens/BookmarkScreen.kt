@@ -1,10 +1,10 @@
 package com.example.mobilebrowser.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -18,34 +18,32 @@ import com.example.mobilebrowser.data.entity.BookmarkEntity
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BookmarkScreen(
-    onNavigateToEdit: (Long) -> Unit, // Callback for navigating to the edit bookmark screen.
-    onNavigateBack: () -> Unit,      // Callback for navigating back to the previous screen.
-    viewModel: BookmarkViewModel = hiltViewModel() // ViewModel instance injected via Hilt.
+    onNavigateToEdit: (Long) -> Unit,
+    onNavigateBack: () -> Unit,
+    onNavigateToUrl: (String) -> Unit,  // Navigate to a URL when a bookmark is clicked
+    viewModel: BookmarkViewModel = hiltViewModel()
 ) {
-    // Observing the list of bookmarks and the search query as state.
     val bookmarks by viewModel.bookmarks.collectAsState(initial = emptyList())
     val searchQuery by viewModel.searchQuery.collectAsState()
 
-    // Scaffolding for the UI, with a top bar and content area.
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Bookmarks") }, // Title displayed in the top bar.
+                title = { Text("Bookmarks") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") // Back button.
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
         }
     ) { padding ->
-        // Main content column.
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Search bar for filtering bookmarks.
+            // Search Bar
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { viewModel.updateSearchQuery(it) },
@@ -57,16 +55,17 @@ fun BookmarkScreen(
                 singleLine = true
             )
 
-            // LazyColumn for displaying a scrollable list of bookmarks.
-            LazyColumn(
-                modifier = Modifier.fillMaxSize()
-            ) {
-                // Dynamically renders each bookmark as a BookmarkItem.
+            // Bookmark List
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
                 items(bookmarks) { bookmark ->
                     BookmarkItem(
                         bookmark = bookmark,
                         onEditClick = { onNavigateToEdit(bookmark.id) },
-                        onDeleteClick = { viewModel.deleteBookmark(bookmark) }
+                        onDeleteClick = { viewModel.deleteBookmark(bookmark) },
+                        onNavigateToUrl = {
+                            onNavigateToUrl(bookmark.url)  // Navigate to the selected bookmark's URL
+                            onNavigateBack()  // Close the bookmarks screen after navigation
+                        }
                     )
                 }
             }
@@ -78,40 +77,35 @@ fun BookmarkScreen(
 fun BookmarkItem(
     bookmark: BookmarkEntity,
     onEditClick: () -> Unit,
-    onDeleteClick: () -> Unit
+    onDeleteClick: () -> Unit,
+    onNavigateToUrl: () -> Unit
 ) {
-    // State to show or hide the delete confirmation dialog.
     var showDeleteDialog by remember { mutableStateOf(false) }
 
-    // Card layout for the bookmark item.
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clickable { onNavigateToUrl() }  // Navigate to URL when clicked
     ) {
         Column(
-            modifier = Modifier
-                .padding(16.dp)
+            modifier = Modifier.padding(16.dp)
         ) {
-            // Row for displaying the bookmark details and action buttons.
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    // Display the bookmark's title.
                     Text(
                         text = bookmark.title,
                         style = MaterialTheme.typography.titleMedium
                     )
-                    // Display the bookmark's URL.
                     Text(
                         text = bookmark.url,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    // If tags exist, display them as chips.
                     bookmark.tags?.let { tags ->
                         Row(
                             modifier = Modifier.padding(top = 4.dp),
@@ -126,8 +120,6 @@ fun BookmarkItem(
                         }
                     }
                 }
-
-                // Edit and delete buttons.
                 Row {
                     IconButton(onClick = onEditClick) {
                         Icon(Icons.Default.Edit, contentDescription = "Edit")
@@ -140,7 +132,6 @@ fun BookmarkItem(
         }
     }
 
-    // AlertDialog for confirming deletion of a bookmark.
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },

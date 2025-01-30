@@ -185,7 +185,7 @@ fun TabScreen(
                                     draggingTabId = tab.id
                                 }
                             },
-
+                            // NEW: pass a callback for “Bookmark Tab”
                             onBookmarkTab = {
                                 bookmarkViewModel.quickAddBookmark(tab.url, tab.title)
                             }

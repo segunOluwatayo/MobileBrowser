@@ -141,6 +141,14 @@ class MainActivity : ComponentActivity() {
                             },
                             onNavigateBack = {
                                 navController.popBackStack()
+                            },
+                            onNavigateToUrl = { url ->
+                                scope.launch {
+                                    currentUrl = url
+                                    geckoSession.loadUri(url)
+                                    bookmarkViewModel.updateCurrentUrl(url)
+                                    navController.popBackStack()
+                                }
                             }
                         )
                     }
