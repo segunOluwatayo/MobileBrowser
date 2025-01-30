@@ -43,7 +43,7 @@ class MainActivity : ComponentActivity() {
             // Set up a content delegate to capture the page title.
             contentDelegate = object : GeckoSession.ContentDelegate {
                 override fun onTitleChange(session: GeckoSession, title: String?) {
-                    currentPageTitle = title ?: "" // Update the current page title.
+//                    currentPageTitle = title ?: "" // Update the current page title.
                 }
             }
         }
