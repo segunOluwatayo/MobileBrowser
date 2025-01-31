@@ -27,27 +27,26 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // Initialize GeckoSessionManager
         sessionManager = GeckoSessionManager(this)
 
         setContent {
             MobileBrowserTheme {
+                // State management
                 var currentUrl by remember { mutableStateOf("https://www.mozilla.org") }
                 var currentPageTitle by remember { mutableStateOf("") }
                 var canGoBack by remember { mutableStateOf(false) }
                 var canGoForward by remember { mutableStateOf(false) }
                 var currentSession by remember { mutableStateOf<GeckoSession?>(null) }
+                var isNavigating by remember { mutableStateOf(false) }
 
                 val navController = rememberNavController()
                 val bookmarkViewModel: BookmarkViewModel = hiltViewModel()
                 val tabViewModel: TabViewModel = hiltViewModel()
                 val isCurrentUrlBookmarked by bookmarkViewModel.isCurrentUrlBookmarked.collectAsState()
+                val activeTab by tabViewModel.activeTab.collectAsState()
                 val scope = rememberCoroutineScope()
 
-                // Monitor active tab and update session accordingly
-                val activeTab by tabViewModel.activeTab.collectAsState()
-
+                // Monitor active tab and update session
                 LaunchedEffect(activeTab) {
                     Log.d("MainActivity", "LaunchedEffect: activeTab = $activeTab")
                     activeTab?.let { tab ->
@@ -58,7 +57,6 @@ class MainActivity : ComponentActivity() {
                             onUrlChange = { url ->
                                 currentUrl = url
                                 bookmarkViewModel.updateCurrentUrl(url)
-                                // Keep the page title updated, if needed:
                                 tabViewModel.updateActiveTabContent(url, currentPageTitle)
                             },
                             onCanGoBack = { canGoBack = it },
@@ -78,17 +76,10 @@ class MainActivity : ComponentActivity() {
                                     currentUrl = url
                                     bookmarkViewModel.updateCurrentUrl(url)
                                     tabViewModel.updateActiveTabContent(url, currentPageTitle)
-                                    Log.d("Browser", "Navigating to: $url")
                                 },
-                                onBack = {
-                                    session.goBack()
-                                },
-                                onForward = {
-                                    session.goForward()
-                                },
-                                onReload = {
-                                    session.reload()
-                                },
+                                onBack = { session.goBack() },
+                                onForward = { session.goForward() },
+                                onReload = { session.reload() },
                                 onShowBookmarks = {
                                     navController.navigate("bookmarks")
                                 },
@@ -125,7 +116,6 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    // Bookmarks screen
                     composable("bookmarks") {
                         BookmarkScreen(
                             onNavigateToEdit = { bookmarkId ->
@@ -135,20 +125,46 @@ class MainActivity : ComponentActivity() {
                                 navController.popBackStack()
                             },
                             onNavigateToUrl = { url ->
-                                Log.d("BookmarkScreen", "onNavigateToUrl clicked with: $url")
-                                scope.launch {
-                                    tabViewModel.updateActiveTabContent(url, "")
+                                if (!isNavigating) {
+                                    scope.launch {
+                                        try {
+                                            isNavigating = true
 
-                                    currentUrl = url
-                                    currentSession?.loadUri(url)
-                                    bookmarkViewModel.updateCurrentUrl(url)
-                                    navController.popBackStack()
+                                            // Update the active tab's content
+                                            tabViewModel.updateActiveTabContent(url, "Loading...")
+
+                                            // Get or create session for the active tab
+                                            activeTab?.let { tab ->
+                                                currentSession = sessionManager.getOrCreateSession(
+                                                    tabId = tab.id,
+                                                    url = url,
+                                                    onUrlChange = { newUrl ->
+                                                        currentUrl = newUrl
+                                                        bookmarkViewModel.updateCurrentUrl(newUrl)
+                                                        tabViewModel.updateActiveTabContent(newUrl, currentPageTitle)
+                                                    },
+                                                    onCanGoBack = { canGoBack = it },
+                                                    onCanGoForward = { canGoForward = it }
+                                                )
+                                            }
+
+                                            // Update the current URL and load it
+                                            currentUrl = url
+                                            currentSession?.loadUri(url)
+
+                                            // Navigate back to browser
+                                            navController.popBackStack()
+                                        } catch (e: Exception) {
+                                            Log.e("MainActivity", "Error navigating to bookmark: ${e.message}")
+                                        } finally {
+                                            isNavigating = false
+                                        }
+                                    }
                                 }
                             }
                         )
                     }
 
-                    // Bookmark edit screen
                     composable("bookmark/edit/{bookmarkId}") { backStackEntry ->
                         val bookmarkId = backStackEntry.arguments?.getString("bookmarkId")?.toLongOrNull()
                         BookmarkEditScreen(
@@ -159,7 +175,6 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    // Tabs screen
                     composable("tabs") {
                         TabScreen(
                             onNavigateBack = {

@@ -20,11 +20,16 @@ import com.example.mobilebrowser.data.entity.BookmarkEntity
 fun BookmarkScreen(
     onNavigateToEdit: (Long) -> Unit,
     onNavigateBack: () -> Unit,
-    onNavigateToUrl: (String) -> Unit,  // Navigate to a URL when a bookmark is clicked
+    onNavigateToUrl: (String) -> Unit,
     viewModel: BookmarkViewModel = hiltViewModel()
 ) {
     val bookmarks by viewModel.bookmarks.collectAsState(initial = emptyList())
     val searchQuery by viewModel.searchQuery.collectAsState()
+
+    LaunchedEffect(Unit) {
+        // Reset any state when entering the screen
+        viewModel.updateSearchQuery("")
+    }
 
     Scaffold(
         topBar = {
@@ -56,16 +61,40 @@ fun BookmarkScreen(
             )
 
             // Bookmark List
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
-                items(bookmarks) { bookmark ->
-                    BookmarkItem(
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(vertical = 8.dp)
+            ) {
+                items(
+                    items = bookmarks,
+                    key = { it.id }
+                ) { bookmark ->
+                    BookmarkListItem(
                         bookmark = bookmark,
                         onEditClick = { onNavigateToEdit(bookmark.id) },
                         onDeleteClick = { viewModel.deleteBookmark(bookmark) },
-                        onNavigateToUrl = {
-                            onNavigateToUrl(bookmark.url)  // Navigate to the selected bookmark's URL
-                            onNavigateBack()  // Close the bookmarks screen after navigation
+                        onItemClick = {
+                            viewModel.updateCurrentUrl(bookmark.url)
+                            onNavigateToUrl(bookmark.url)
                         }
+                    )
+                }
+            }
+
+            if (bookmarks.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (searchQuery.isBlank())
+                            "No bookmarks yet"
+                        else
+                            "No matching bookmarks found",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -73,12 +102,13 @@ fun BookmarkScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BookmarkItem(
+private fun BookmarkListItem(
     bookmark: BookmarkEntity,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
-    onNavigateToUrl: () -> Unit
+    onItemClick: () -> Unit
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
 
@@ -86,7 +116,8 @@ fun BookmarkItem(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
-            .clickable { onNavigateToUrl() }  // Navigate to URL when clicked
+            .clickable(onClick = onItemClick),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
