@@ -3,6 +3,7 @@ package com.example.mobilebrowser.di
 import android.content.Context
 import com.example.mobilebrowser.data.database.BrowserDatabase
 import com.example.mobilebrowser.data.dao.BookmarkDao
+import com.example.mobilebrowser.data.dao.HistoryDao
 import com.example.mobilebrowser.data.dao.TabDao
 import dagger.Module
 import dagger.Provides
@@ -32,5 +33,11 @@ object DatabaseModule {
     @Singleton
     fun provideTabDao(database: BrowserDatabase): TabDao {
         return database.tabDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideHistoryDao(database: BrowserDatabase): HistoryDao {
+        return database.historyDao()
     }
 }
