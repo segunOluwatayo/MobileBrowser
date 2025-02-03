@@ -28,6 +28,7 @@ fun BrowserContent(
     onReload: () -> Unit,
     onShowBookmarks: () -> Unit,
     onShowTabs: () -> Unit,
+    onShowHistory: () -> Unit,
     onAddBookmark: (String, String) -> Unit,
     isCurrentUrlBookmarked: Boolean,
     currentPageTitle: String,
@@ -212,6 +213,17 @@ fun BrowserContent(
                             onShowBookmarks()
                         },
                         leadingIcon = { Icon(Icons.Default.Star, contentDescription = null) }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                    DropdownMenuItem(
+                        text = { Text("History") },
+                        onClick = {
+                            showOverflowMenu = false
+                            onShowHistory()
+                        },
+                        leadingIcon = { Icon(Icons.Default.History, contentDescription = null) }
                     )
                 }
             }

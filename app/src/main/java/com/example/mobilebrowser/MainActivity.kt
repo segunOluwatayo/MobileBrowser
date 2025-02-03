@@ -13,9 +13,11 @@ import com.example.mobilebrowser.browser.GeckoSessionManager
 import com.example.mobilebrowser.ui.composables.BrowserContent
 import com.example.mobilebrowser.ui.screens.BookmarkEditScreen
 import com.example.mobilebrowser.ui.screens.BookmarkScreen
+import com.example.mobilebrowser.ui.screens.HistoryScreen
 import com.example.mobilebrowser.ui.screens.TabScreen
 import com.example.mobilebrowser.ui.theme.MobileBrowserTheme
 import com.example.mobilebrowser.ui.viewmodels.BookmarkViewModel
+import com.example.mobilebrowser.ui.viewmodels.HistoryViewModel
 import com.example.mobilebrowser.ui.viewmodels.TabViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -42,6 +44,7 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 val bookmarkViewModel: BookmarkViewModel = hiltViewModel()
                 val tabViewModel: TabViewModel = hiltViewModel()
+                val historyViewModel: HistoryViewModel = hiltViewModel()
                 val isCurrentUrlBookmarked by bookmarkViewModel.isCurrentUrlBookmarked.collectAsState()
                 val activeTab by tabViewModel.activeTab.collectAsState()
                 val scope = rememberCoroutineScope()
@@ -85,6 +88,9 @@ class MainActivity : ComponentActivity() {
                                 onReload = { session.reload() },
                                 onShowBookmarks = {
                                     navController.navigate("bookmarks")
+                                },
+                                onShowHistory = {
+                                    navController.navigate("history")
                                 },
                                 onShowTabs = {
                                     navController.navigate("tabs")
@@ -179,6 +185,51 @@ class MainActivity : ComponentActivity() {
                         BookmarkEditScreen(
                             bookmarkId = bookmarkId,
                             onNavigateBack = { navController.popBackStack() }
+                        )
+                    }
+
+                    composable("history") {
+                        HistoryScreen(
+                            onNavigateBack = { navController.popBackStack() },
+                            onNavigateToUrl = { url ->
+                                if (!isNavigating) {
+                                    scope.launch {
+                                        try {
+                                            isNavigating = true
+
+                                            // Update the active tab's content before navigating
+                                            tabViewModel.updateActiveTabContent(url, "Loading...")
+
+                                            activeTab?.let { tab ->
+                                                currentSession = sessionManager.getOrCreateSession(
+                                                    tabId = tab.id,
+                                                    url = url,
+                                                    onUrlChange = { newUrl ->
+                                                        currentUrl = newUrl
+                                                        bookmarkViewModel.updateCurrentUrl(newUrl)
+                                                        tabViewModel.updateActiveTabContent(newUrl, currentPageTitle)
+                                                        // Record history entry
+                                                        historyViewModel.addHistoryEntry(url, currentPageTitle)
+                                                    },
+                                                    onCanGoBack = { canGoBack = it },
+                                                    onCanGoForward = { canGoForward = it }
+                                                )
+                                            }
+
+                                            // Update the current URL and load it
+                                            currentUrl = url
+                                            currentSession?.loadUri(url)
+
+                                            // Navigate back to the browser
+                                            navController.popBackStack()
+                                        } catch (e: Exception) {
+                                            Log.e("MainActivity", "Error navigating from history: ${e.message}")
+                                        } finally {
+                                            isNavigating = false
+                                        }
+                                    }
+                                }
+                            }
                         )
                     }
 
