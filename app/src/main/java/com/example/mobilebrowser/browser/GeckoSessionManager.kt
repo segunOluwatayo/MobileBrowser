@@ -1,7 +1,6 @@
 package com.example.mobilebrowser.browser
 
 import android.content.Context
-import androidx.lifecycle.LifecycleOwner
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoSession
 import java.util.concurrent.ConcurrentHashMap
@@ -15,6 +14,7 @@ class GeckoSessionManager(private val context: Context) {
         tabId: Long,
         url: String = "about:blank",
         onUrlChange: (String) -> Unit = {},
+        onTitleChange: (String) -> Unit = {},
         onCanGoBack: (Boolean) -> Unit = {},
         onCanGoForward: (Boolean) -> Unit = {}
     ): GeckoSession {
@@ -22,8 +22,13 @@ class GeckoSessionManager(private val context: Context) {
             GeckoSession().apply {
                 open(geckoRuntime)
                 navigationDelegate = createNavigationDelegate(onUrlChange, onCanGoBack, onCanGoForward)
+                contentDelegate = createContentDelegate(onTitleChange)
                 loadUri(url)
             }
+        }.apply {
+            // For existing sessions, update the delegates to use the latest callbacks.
+            navigationDelegate = createNavigationDelegate(onUrlChange, onCanGoBack, onCanGoForward)
+            contentDelegate = createContentDelegate(onTitleChange)
         }
     }
 
@@ -47,6 +52,7 @@ class GeckoSessionManager(private val context: Context) {
         currentSession = null
     }
 
+    // Create a NavigationDelegate to handle URL changes and navigation state.
     private fun createNavigationDelegate(
         onUrlChange: (String) -> Unit,
         onCanGoBack: (Boolean) -> Unit,
@@ -66,6 +72,15 @@ class GeckoSessionManager(private val context: Context) {
 
         override fun onCanGoForward(session: GeckoSession, canGoForward: Boolean) {
             onCanGoForward(canGoForward)
+        }
+    }
+
+    // Create a ContentDelegate to handle title changes.
+    private fun createContentDelegate(
+        onTitleChange: (String) -> Unit
+    ) = object : GeckoSession.ContentDelegate {
+        override fun onTitleChange(session: GeckoSession, title: String?) {
+            onTitleChange(title ?: "")
         }
     }
 }

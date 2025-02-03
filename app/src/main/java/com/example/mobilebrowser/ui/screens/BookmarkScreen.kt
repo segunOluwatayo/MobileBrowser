@@ -10,6 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.mobilebrowser.ui.viewmodels.BookmarkViewModel
@@ -130,12 +131,16 @@ private fun BookmarkListItem(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = bookmark.title,
-                        style = MaterialTheme.typography.titleMedium
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         text = bookmark.url,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     bookmark.tags?.let { tags ->
                         Row(
@@ -145,7 +150,13 @@ private fun BookmarkListItem(
                             tags.split(",").forEach { tag ->
                                 AssistChip(
                                     onClick = { },
-                                    label = { Text(tag.trim()) }
+                                    label = {
+                                        Text(
+                                            tag.trim(),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
                                 )
                             }
                         }

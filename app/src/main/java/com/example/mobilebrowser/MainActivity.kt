@@ -33,7 +33,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             MobileBrowserTheme {
-                // UI state for URL, title, navigation flags, and the current session
+                // UI state for URL, title, navigation flags, and the current session.
                 var currentUrl by remember { mutableStateOf("https://www.mozilla.org") }
                 var currentPageTitle by remember { mutableStateOf("New Tab") }
                 var canGoBack by remember { mutableStateOf(false) }
@@ -57,15 +57,22 @@ class MainActivity : ComponentActivity() {
                         currentSession = sessionManager.getOrCreateSession(
                             tabId = tab.id,
                             url = tab.url,
-                            onUrlChange = { url ->
-                                currentUrl = url
-                                bookmarkViewModel.updateCurrentUrl(url)
-                                tabViewModel.updateActiveTabContent(url, currentPageTitle)
+                            onUrlChange = { newUrl ->
+                                currentUrl = newUrl
+                                bookmarkViewModel.updateCurrentUrl(newUrl)
+                                tabViewModel.updateActiveTabContent(newUrl, currentPageTitle)
+
+                            },
+                            onTitleChange = { newTitle ->
+                                currentPageTitle = newTitle
+                                tabViewModel.updateActiveTabContent(currentUrl, newTitle)
+                                // Record history with the real title
+                                historyViewModel.addHistoryEntry(currentUrl, newTitle)
                             },
                             onCanGoBack = { canGoBack = it },
                             onCanGoForward = { canGoForward = it }
                         )
-                        // Update the UI state so the BrowserContent shows the correct URL/title.
+                        // Update UI state
                         currentUrl = tab.url
                         currentPageTitle = tab.title
                     }
@@ -82,19 +89,15 @@ class MainActivity : ComponentActivity() {
                                     currentUrl = url
                                     bookmarkViewModel.updateCurrentUrl(url)
                                     tabViewModel.updateActiveTabContent(url, currentPageTitle)
+                                    // Record history immediately upon navigation.
+                                    historyViewModel.addHistoryEntry(url, currentPageTitle)
                                 },
                                 onBack = { session.goBack() },
                                 onForward = { session.goForward() },
                                 onReload = { session.reload() },
-                                onShowBookmarks = {
-                                    navController.navigate("bookmarks")
-                                },
-                                onShowHistory = {
-                                    navController.navigate("history")
-                                },
-                                onShowTabs = {
-                                    navController.navigate("tabs")
-                                },
+                                onShowBookmarks = { navController.navigate("bookmarks") },
+                                onShowHistory = { navController.navigate("history") },
+                                onShowTabs = { navController.navigate("tabs") },
                                 onAddBookmark = { url, title ->
                                     bookmarkViewModel.quickAddBookmark(url, title)
                                 },
@@ -108,18 +111,26 @@ class MainActivity : ComponentActivity() {
                                     scope.launch {
                                         // Create a new tab with the default URL and title.
                                         val newTabId = tabViewModel.createTab()
-                                        // Get a new session for the new tab.
                                         val newSession = sessionManager.getOrCreateSession(
                                             tabId = newTabId,
-                                            url = "https://www.mozilla.org"
+                                            url = "https://www.mozilla.org",
+                                            onUrlChange = { newUrl ->
+                                                currentUrl = newUrl
+                                                bookmarkViewModel.updateCurrentUrl(newUrl)
+                                                tabViewModel.updateActiveTabContent(newUrl, currentPageTitle)
+                                            },
+                                            onTitleChange = { newTitle ->
+                                                currentPageTitle = newTitle
+                                                tabViewModel.updateActiveTabContent(currentUrl, newTitle)
+                                                historyViewModel.addHistoryEntry(currentUrl, newTitle)
+                                            },
+                                            onCanGoBack = { canGoBack = it },
+                                            onCanGoForward = { canGoForward = it }
                                         )
-                                        // Update the current session and switch to the new tab.
                                         currentSession = newSession
                                         tabViewModel.switchToTab(newTabId)
-                                        // Update the UI state.
                                         currentUrl = "https://www.mozilla.org"
                                         currentPageTitle = "New Tab"
-                                        // (Optional) Force a reload—newSession.loadUri("https://www.mozilla.org")
                                     }
                                 },
                                 onCloseAllTabs = {
@@ -137,18 +148,13 @@ class MainActivity : ComponentActivity() {
                             onNavigateToEdit = { bookmarkId ->
                                 navController.navigate("bookmark/edit/$bookmarkId")
                             },
-                            onNavigateBack = {
-                                navController.popBackStack()
-                            },
+                            onNavigateBack = { navController.popBackStack() },
                             onNavigateToUrl = { url ->
                                 if (!isNavigating) {
                                     scope.launch {
                                         try {
                                             isNavigating = true
-
-                                            // Update the active tab’s content before navigating.
                                             tabViewModel.updateActiveTabContent(url, "Loading...")
-
                                             activeTab?.let { tab ->
                                                 currentSession = sessionManager.getOrCreateSession(
                                                     tabId = tab.id,
@@ -158,16 +164,17 @@ class MainActivity : ComponentActivity() {
                                                         bookmarkViewModel.updateCurrentUrl(newUrl)
                                                         tabViewModel.updateActiveTabContent(newUrl, currentPageTitle)
                                                     },
+                                                    onTitleChange = { newTitle ->
+                                                        currentPageTitle = newTitle
+                                                        tabViewModel.updateActiveTabContent(currentUrl, newTitle)
+                                                        historyViewModel.addHistoryEntry(currentUrl, newTitle)
+                                                    },
                                                     onCanGoBack = { canGoBack = it },
                                                     onCanGoForward = { canGoForward = it }
                                                 )
                                             }
-
-                                            // Update the current URL and load it.
                                             currentUrl = url
                                             currentSession?.loadUri(url)
-
-                                            // Navigate back to the browser.
                                             navController.popBackStack()
                                         } catch (e: Exception) {
                                             Log.e("MainActivity", "Error navigating to bookmark: ${e.message}")
@@ -196,10 +203,8 @@ class MainActivity : ComponentActivity() {
                                     scope.launch {
                                         try {
                                             isNavigating = true
-
-                                            // Update the active tab's content before navigating
-                                            tabViewModel.updateActiveTabContent(url, "Loading...")
-
+                                            // Remove the hardcoded "Loading..." title.
+                                            tabViewModel.updateActiveTabContent(url, currentPageTitle)
                                             activeTab?.let { tab ->
                                                 currentSession = sessionManager.getOrCreateSession(
                                                     tabId = tab.id,
@@ -208,19 +213,18 @@ class MainActivity : ComponentActivity() {
                                                         currentUrl = newUrl
                                                         bookmarkViewModel.updateCurrentUrl(newUrl)
                                                         tabViewModel.updateActiveTabContent(newUrl, currentPageTitle)
-                                                        // Record history entry
-                                                        historyViewModel.addHistoryEntry(url, currentPageTitle)
+                                                    },
+                                                    onTitleChange = { newTitle ->
+                                                        currentPageTitle = newTitle
+                                                        tabViewModel.updateActiveTabContent(currentUrl, newTitle)
+                                                        historyViewModel.addHistoryEntry(currentUrl, newTitle)
                                                     },
                                                     onCanGoBack = { canGoBack = it },
                                                     onCanGoForward = { canGoForward = it }
                                                 )
                                             }
-
-                                            // Update the current URL and load it
                                             currentUrl = url
                                             currentSession?.loadUri(url)
-
-                                            // Navigate back to the browser
                                             navController.popBackStack()
                                         } catch (e: Exception) {
                                             Log.e("MainActivity", "Error navigating from history: ${e.message}")

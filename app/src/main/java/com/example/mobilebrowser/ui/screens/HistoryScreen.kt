@@ -9,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.mobilebrowser.ui.viewmodels.HistoryTimeRange
@@ -196,14 +197,20 @@ private fun HistoryItem(
             Column(
                 modifier = Modifier.weight(1f)
             ) {
+                // Display the title from GeckoView
                 Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium
+                    text = title.takeIf { it.isNotBlank() && it != "Loading..." } ?: "Untitled",
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
+                // Display the shortened URL below
                 Text(
                     text = url,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = dateFormat.format(date),
@@ -217,6 +224,7 @@ private fun HistoryItem(
         }
     }
 }
+
 
 @Composable
 private fun DeleteOption(
