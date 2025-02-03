@@ -41,6 +41,10 @@ class MainActivity : ComponentActivity() {
                 var currentSession by remember { mutableStateOf<GeckoSession?>(null) }
                 var isNavigating by remember { mutableStateOf(false) }
 
+                // Track the last recorded history entry to avoid re‑adding it
+                var lastRecordedUrl by remember { mutableStateOf("") }
+                var lastRecordedTitle by remember { mutableStateOf("") }
+
                 val navController = rememberNavController()
                 val bookmarkViewModel: BookmarkViewModel = hiltViewModel()
                 val tabViewModel: TabViewModel = hiltViewModel()
@@ -49,6 +53,19 @@ class MainActivity : ComponentActivity() {
                 val activeTab by tabViewModel.activeTab.collectAsState()
                 val scope = rememberCoroutineScope()
 
+                fun normalizeUrl(url: String): String = url.trim().removeSuffix("/")
+
+                // Helper function: only record if this is a new entry.
+                fun recordHistory(url: String, title: String) {
+                    val normalizedUrl = normalizeUrl(url)
+                    if (title.isNotBlank() && title != "Loading..." &&
+                        (normalizedUrl != lastRecordedUrl || title != lastRecordedTitle)
+                    ) {
+                        lastRecordedUrl = normalizedUrl
+                        lastRecordedTitle = title
+                        historyViewModel.addHistoryEntry(normalizedUrl, title)
+                    }
+                }
                 // Whenever the active tab changes, update the session and UI state.
                 LaunchedEffect(activeTab) {
                     Log.d("MainActivity", "LaunchedEffect: activeTab = $activeTab")
@@ -61,18 +78,18 @@ class MainActivity : ComponentActivity() {
                                 currentUrl = newUrl
                                 bookmarkViewModel.updateCurrentUrl(newUrl)
                                 tabViewModel.updateActiveTabContent(newUrl, currentPageTitle)
-
                             },
                             onTitleChange = { newTitle ->
-                                currentPageTitle = newTitle
-                                tabViewModel.updateActiveTabContent(currentUrl, newTitle)
-                                // Record history with the real title
-                                historyViewModel.addHistoryEntry(currentUrl, newTitle)
+                                if (newTitle.isNotBlank() && newTitle != "Loading...") {
+                                    currentPageTitle = newTitle
+                                    tabViewModel.updateActiveTabContent(currentUrl, newTitle)
+                                    recordHistory(currentUrl, newTitle)
+                                }
                             },
                             onCanGoBack = { canGoBack = it },
                             onCanGoForward = { canGoForward = it }
                         )
-                        // Update UI state
+                        // Update UI state with the active tab’s stored values.
                         currentUrl = tab.url
                         currentPageTitle = tab.title
                     }
@@ -89,8 +106,10 @@ class MainActivity : ComponentActivity() {
                                     currentUrl = url
                                     bookmarkViewModel.updateCurrentUrl(url)
                                     tabViewModel.updateActiveTabContent(url, currentPageTitle)
-                                    // Record history immediately upon navigation.
-                                    historyViewModel.addHistoryEntry(url, currentPageTitle)
+                                    // Only record a new history entry if the title is valid
+                                    if (currentPageTitle.isNotBlank() && currentPageTitle != "Loading...") {
+                                        recordHistory(url, currentPageTitle)
+                                    }
                                 },
                                 onBack = { session.goBack() },
                                 onForward = { session.goForward() },
@@ -120,9 +139,11 @@ class MainActivity : ComponentActivity() {
                                                 tabViewModel.updateActiveTabContent(newUrl, currentPageTitle)
                                             },
                                             onTitleChange = { newTitle ->
-                                                currentPageTitle = newTitle
-                                                tabViewModel.updateActiveTabContent(currentUrl, newTitle)
-                                                historyViewModel.addHistoryEntry(currentUrl, newTitle)
+                                                if (newTitle.isNotBlank() && newTitle != "Loading...") {
+                                                    currentPageTitle = newTitle
+                                                    tabViewModel.updateActiveTabContent(currentUrl, newTitle)
+                                                    recordHistory(currentUrl, newTitle)
+                                                }
                                             },
                                             onCanGoBack = { canGoBack = it },
                                             onCanGoForward = { canGoForward = it }
@@ -154,7 +175,7 @@ class MainActivity : ComponentActivity() {
                                     scope.launch {
                                         try {
                                             isNavigating = true
-                                            tabViewModel.updateActiveTabContent(url, "Loading...")
+                                            tabViewModel.updateActiveTabContent(url, currentPageTitle)
                                             activeTab?.let { tab ->
                                                 currentSession = sessionManager.getOrCreateSession(
                                                     tabId = tab.id,
@@ -165,9 +186,11 @@ class MainActivity : ComponentActivity() {
                                                         tabViewModel.updateActiveTabContent(newUrl, currentPageTitle)
                                                     },
                                                     onTitleChange = { newTitle ->
-                                                        currentPageTitle = newTitle
-                                                        tabViewModel.updateActiveTabContent(currentUrl, newTitle)
-                                                        historyViewModel.addHistoryEntry(currentUrl, newTitle)
+                                                        if (newTitle.isNotBlank() && newTitle != "Loading...") {
+                                                            currentPageTitle = newTitle
+                                                            tabViewModel.updateActiveTabContent(currentUrl, newTitle)
+                                                            recordHistory(currentUrl, newTitle)
+                                                        }
                                                     },
                                                     onCanGoBack = { canGoBack = it },
                                                     onCanGoForward = { canGoForward = it }
@@ -203,7 +226,6 @@ class MainActivity : ComponentActivity() {
                                     scope.launch {
                                         try {
                                             isNavigating = true
-                                            // Remove the hardcoded "Loading..." title.
                                             tabViewModel.updateActiveTabContent(url, currentPageTitle)
                                             activeTab?.let { tab ->
                                                 currentSession = sessionManager.getOrCreateSession(
@@ -215,9 +237,11 @@ class MainActivity : ComponentActivity() {
                                                         tabViewModel.updateActiveTabContent(newUrl, currentPageTitle)
                                                     },
                                                     onTitleChange = { newTitle ->
-                                                        currentPageTitle = newTitle
-                                                        tabViewModel.updateActiveTabContent(currentUrl, newTitle)
-                                                        historyViewModel.addHistoryEntry(currentUrl, newTitle)
+                                                        if (newTitle.isNotBlank() && newTitle != "Loading...") {
+                                                            currentPageTitle = newTitle
+                                                            tabViewModel.updateActiveTabContent(currentUrl, newTitle)
+                                                            recordHistory(currentUrl, newTitle)
+                                                        }
                                                     },
                                                     onCanGoBack = { canGoBack = it },
                                                     onCanGoForward = { canGoForward = it }
