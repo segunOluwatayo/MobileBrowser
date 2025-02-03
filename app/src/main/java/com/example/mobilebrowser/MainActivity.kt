@@ -31,9 +31,9 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             MobileBrowserTheme {
-                // State management
+                // UI state for URL, title, navigation flags, and the current session
                 var currentUrl by remember { mutableStateOf("https://www.mozilla.org") }
-                var currentPageTitle by remember { mutableStateOf("") }
+                var currentPageTitle by remember { mutableStateOf("New Tab") }
                 var canGoBack by remember { mutableStateOf(false) }
                 var canGoForward by remember { mutableStateOf(false) }
                 var currentSession by remember { mutableStateOf<GeckoSession?>(null) }
@@ -46,11 +46,11 @@ class MainActivity : ComponentActivity() {
                 val activeTab by tabViewModel.activeTab.collectAsState()
                 val scope = rememberCoroutineScope()
 
-                // Monitor active tab and update session
+                // Whenever the active tab changes, update the session and UI state.
                 LaunchedEffect(activeTab) {
                     Log.d("MainActivity", "LaunchedEffect: activeTab = $activeTab")
                     activeTab?.let { tab ->
-                        Log.d("MainActivity", "activeTab url = ${tab.url}, title = ${tab.title}")
+                        Log.d("MainActivity", "Active tab URL = ${tab.url}, title = ${tab.title}")
                         currentSession = sessionManager.getOrCreateSession(
                             tabId = tab.id,
                             url = tab.url,
@@ -62,6 +62,9 @@ class MainActivity : ComponentActivity() {
                             onCanGoBack = { canGoBack = it },
                             onCanGoForward = { canGoForward = it }
                         )
+                        // Update the UI state so the BrowserContent shows the correct URL/title.
+                        currentUrl = tab.url
+                        currentPageTitle = tab.title
                     }
                 }
 
@@ -97,13 +100,20 @@ class MainActivity : ComponentActivity() {
                                 tabCount = tabCount,
                                 onNewTab = {
                                     scope.launch {
+                                        // Create a new tab with the default URL and title.
                                         val newTabId = tabViewModel.createTab()
+                                        // Get a new session for the new tab.
                                         val newSession = sessionManager.getOrCreateSession(
                                             tabId = newTabId,
                                             url = "https://www.mozilla.org"
                                         )
+                                        // Update the current session and switch to the new tab.
                                         currentSession = newSession
                                         tabViewModel.switchToTab(newTabId)
+                                        // Update the UI state.
+                                        currentUrl = "https://www.mozilla.org"
+                                        currentPageTitle = "New Tab"
+                                        // (Optional) Force a reload—newSession.loadUri("https://www.mozilla.org")
                                     }
                                 },
                                 onCloseAllTabs = {
@@ -130,10 +140,9 @@ class MainActivity : ComponentActivity() {
                                         try {
                                             isNavigating = true
 
-                                            // Update the active tab's content
+                                            // Update the active tab’s content before navigating.
                                             tabViewModel.updateActiveTabContent(url, "Loading...")
 
-                                            // Get or create session for the active tab
                                             activeTab?.let { tab ->
                                                 currentSession = sessionManager.getOrCreateSession(
                                                     tabId = tab.id,
@@ -148,11 +157,11 @@ class MainActivity : ComponentActivity() {
                                                 )
                                             }
 
-                                            // Update the current URL and load it
+                                            // Update the current URL and load it.
                                             currentUrl = url
                                             currentSession?.loadUri(url)
 
-                                            // Navigate back to browser
+                                            // Navigate back to the browser.
                                             navController.popBackStack()
                                         } catch (e: Exception) {
                                             Log.e("MainActivity", "Error navigating to bookmark: ${e.message}")
@@ -169,17 +178,13 @@ class MainActivity : ComponentActivity() {
                         val bookmarkId = backStackEntry.arguments?.getString("bookmarkId")?.toLongOrNull()
                         BookmarkEditScreen(
                             bookmarkId = bookmarkId,
-                            onNavigateBack = {
-                                navController.popBackStack()
-                            }
+                            onNavigateBack = { navController.popBackStack() }
                         )
                     }
 
                     composable("tabs") {
                         TabScreen(
-                            onNavigateBack = {
-                                navController.popBackStack()
-                            },
+                            onNavigateBack = { navController.popBackStack() },
                             onTabSelected = { tabId ->
                                 scope.launch {
                                     tabViewModel.switchToTab(tabId)

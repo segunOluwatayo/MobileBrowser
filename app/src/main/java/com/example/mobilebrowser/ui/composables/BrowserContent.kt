@@ -56,14 +56,13 @@ fun BrowserContent(
     Column(
         modifier = modifier.fillMaxSize()
     ) {
-        // Navigation bar with URL field
+        // Navigation bar with URL field and buttons
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // URL bar
             OutlinedTextField(
                 value = urlText,
                 onValueChange = {
@@ -114,9 +113,7 @@ fun BrowserContent(
                             showTabMenu = false
                             onShowTabs()
                         },
-                        leadingIcon = {
-                            Icon(Icons.Default.Tab, contentDescription = null)
-                        }
+                        leadingIcon = { Icon(Icons.Default.Tab, contentDescription = null) }
                     )
                     DropdownMenuItem(
                         text = { Text("New Tab") },
@@ -124,9 +121,7 @@ fun BrowserContent(
                             showTabMenu = false
                             onNewTab()
                         },
-                        leadingIcon = {
-                            Icon(Icons.Default.Add, contentDescription = null)
-                        }
+                        leadingIcon = { Icon(Icons.Default.Add, contentDescription = null) }
                     )
                     DropdownMenuItem(
                         text = { Text("Close All Tabs") },
@@ -134,9 +129,7 @@ fun BrowserContent(
                             showTabMenu = false
                             onCloseAllTabs()
                         },
-                        leadingIcon = {
-                            Icon(Icons.Default.Close, contentDescription = null)
-                        }
+                        leadingIcon = { Icon(Icons.Default.Close, contentDescription = null) }
                     )
                 }
             }
@@ -153,13 +146,12 @@ fun BrowserContent(
                     Icon(
                         if (isCurrentUrlBookmarked) Icons.Default.Star else Icons.Default.StarBorder,
                         contentDescription = if (isCurrentUrlBookmarked) "Bookmarked" else "Add bookmark",
-                        tint = if (isCurrentUrlBookmarked) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurface
+                        tint = if (isCurrentUrlBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
 
-            // Overflow menu
+            // Overflow menu for navigation controls
             Box {
                 IconButton(onClick = { showOverflowMenu = true }) {
                     Icon(Icons.Default.MoreVert, contentDescription = "More options")
@@ -169,7 +161,6 @@ fun BrowserContent(
                     expanded = showOverflowMenu,
                     onDismissRequest = { showOverflowMenu = false }
                 ) {
-                    // Navigation icons in a horizontal row
                     Row(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -184,8 +175,7 @@ fun BrowserContent(
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Back",
-                                tint = if (canGoBack) LocalContentColor.current
-                                else LocalContentColor.current.copy(alpha = 0.38f)
+                                tint = if (canGoBack) LocalContentColor.current else LocalContentColor.current.copy(alpha = 0.38f)
                             )
                         }
 
@@ -199,8 +189,7 @@ fun BrowserContent(
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowForward,
                                 contentDescription = "Forward",
-                                tint = if (canGoForward) LocalContentColor.current
-                                else LocalContentColor.current.copy(alpha = 0.38f)
+                                tint = if (canGoForward) LocalContentColor.current else LocalContentColor.current.copy(alpha = 0.38f)
                             )
                         }
 
@@ -210,44 +199,40 @@ fun BrowserContent(
                                 onReload()
                             }
                         ) {
-                            Icon(
-                                Icons.Default.Refresh,
-                                contentDescription = "Refresh"
-                            )
+                            Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                         }
                     }
 
-                    Divider(modifier = Modifier.padding(vertical = 8.dp))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-                    // Bookmarks item
                     DropdownMenuItem(
                         text = { Text("Bookmarks") },
                         onClick = {
                             showOverflowMenu = false
                             onShowBookmarks()
                         },
-                        leadingIcon = {
-                            Icon(Icons.Default.Star, contentDescription = null)
-                        }
+                        leadingIcon = { Icon(Icons.Default.Star, contentDescription = null) }
                     )
                 }
             }
         }
 
-        // Browser view
-        GeckoViewComponent(
-            geckoSession = geckoSession,
-            url = currentUrl,
-            onUrlChange = { newUrl ->
-                if (!isEditing) {
-                    onNavigate(newUrl)
-                }
-            },
-            onCanGoBackChange = onCanGoBackChange,
-            onCanGoForwardChange = onCanGoForwardChange,
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-        )
+        // Browser view area: wrap the GeckoViewComponent with a key based on the geckoSession.
+        key(geckoSession) {
+            GeckoViewComponent(
+                geckoSession = geckoSession,
+                url = currentUrl,
+                onUrlChange = { newUrl ->
+                    if (!isEditing) {
+                        onNavigate(newUrl)
+                    }
+                },
+                onCanGoBackChange = onCanGoBackChange,
+                onCanGoForwardChange = onCanGoForwardChange,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            )
+        }
     }
 }
