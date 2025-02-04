@@ -19,6 +19,9 @@ class DownloadRepository @Inject constructor(
     private val context: Context,
     private val downloadDao: DownloadDao
 ) {
+    // Get download by ID
+    suspend fun getDownloadById(id: Long): DownloadEntity? = downloadDao.getDownloadById(id)
+
     // Get all downloads
     fun getAllDownloads(): Flow<List<DownloadEntity>> = downloadDao.getAllDownloads()
 
