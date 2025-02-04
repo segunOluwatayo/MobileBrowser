@@ -1,7 +1,9 @@
 package com.example.mobilebrowser.ui.viewmodels
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.mobilebrowser.data.entity.DownloadEntity
@@ -12,10 +14,13 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.io.File
 import javax.inject.Inject
+import dagger.hilt.android.qualifiers.ApplicationContext
+
 
 @HiltViewModel
 class DownloadViewModel @Inject constructor(
-    private val repository: DownloadRepository
+    private val repository: DownloadRepository,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
     // UI State for downloads
     private val _downloads = MutableStateFlow<List<DownloadEntity>>(emptyList())
@@ -37,6 +42,41 @@ class DownloadViewModel @Inject constructor(
     // Check if file exists
     suspend fun checkFileExists(filename: String, fileSize: Long): Boolean =
         repository.doesFileExist(filename, fileSize)
+
+    // Function to open downloaded file
+    fun openDownloadedFile(downloadId: Long) {
+        viewModelScope.launch {
+            try {
+                repository.getDownloadForSharing(downloadId)?.let { download ->
+                    val intent = when {
+                        download.mimeType.startsWith("audio/") -> {
+                            Intent(Intent.ACTION_VIEW).apply {
+                                setDataAndType(
+                                    Uri.parse("content://media/external/audio/media"),
+                                    "audio/*"
+                                )
+                            }
+                        }
+                        else -> {
+                            Intent(Intent.ACTION_VIEW).apply {
+                                val uri = FileProvider.getUriForFile(
+                                    context,  // now available
+                                    "${context.packageName}.fileprovider",
+                                    File(download.path)
+                                )
+                                setDataAndType(uri, download.mimeType)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                        }
+                    }
+                    context.startActivity(intent)
+                }
+            } catch (e: Exception) {
+                _error.value = "Failed to open file: ${e.message}"
+            }
+        }
+    }
+
 
     // Start new download
     fun startDownload(
@@ -129,5 +169,12 @@ class DownloadViewModel @Inject constructor(
     // Clear error
     fun clearError() {
         _error.value = null
+    }
+
+    sealed class DownloadState {
+        object Idle : DownloadState()
+        object Started : DownloadState()
+        data class FileExists(val filename: String) : DownloadState()
+        data class Completed(val filename: String) : DownloadState()
     }
 }
