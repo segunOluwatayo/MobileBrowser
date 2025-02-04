@@ -17,6 +17,7 @@ import com.example.mobilebrowser.browser.GeckoSessionManager
 import com.example.mobilebrowser.data.repository.DownloadRepository
 import com.example.mobilebrowser.receiver.DownloadCompleteReceiver
 import com.example.mobilebrowser.ui.composables.BrowserContent
+import com.example.mobilebrowser.ui.composables.DownloadConfirmationDialog
 import com.example.mobilebrowser.ui.screens.BookmarkEditScreen
 import com.example.mobilebrowser.ui.screens.BookmarkScreen
 import com.example.mobilebrowser.ui.screens.DownloadScreen
@@ -25,6 +26,7 @@ import com.example.mobilebrowser.ui.screens.TabScreen
 import com.example.mobilebrowser.ui.theme.MobileBrowserTheme
 import com.example.mobilebrowser.ui.viewmodels.BookmarkViewModel
 import com.example.mobilebrowser.ui.viewmodels.HistoryViewModel
+import com.example.mobilebrowser.ui.viewmodels.MainViewModel
 import com.example.mobilebrowser.ui.viewmodels.TabViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -72,6 +74,8 @@ class MainActivity : ComponentActivity() {
                 val isCurrentUrlBookmarked by bookmarkViewModel.isCurrentUrlBookmarked.collectAsState()
                 val activeTab by tabViewModel.activeTab.collectAsState()
                 val scope = rememberCoroutineScope()
+                val mainViewModel: MainViewModel = hiltViewModel()
+                val pendingDownload by mainViewModel.pendingDownload.collectAsState()
 
                 fun normalizeUrl(url: String): String = url.trim().removeSuffix("/")
 
@@ -89,6 +93,9 @@ class MainActivity : ComponentActivity() {
 
                 // Whenever the active tab changes, update the session and UI state.
                 LaunchedEffect(activeTab) {
+                    sessionManager.onDownloadRequested = { filename, mimeType, sourceUrl, contentDisposition ->
+                        mainViewModel.setPendingDownload(filename, mimeType, sourceUrl, contentDisposition)
+                    }
                     Log.d("MainActivity", "LaunchedEffect: activeTab = $activeTab")
                     activeTab?.let { tab ->
                         Log.d("MainActivity", "Active tab URL = ${tab.url}, title = ${tab.title}")
@@ -114,6 +121,14 @@ class MainActivity : ComponentActivity() {
                         currentUrl = tab.url
                         currentPageTitle = tab.title
                     }
+                }
+                // Show download confirmation dialog when needed
+                pendingDownload?.let { download ->
+                    DownloadConfirmationDialog(
+                        download = download,
+                        onConfirm = { mainViewModel.confirmDownload(download) },
+                        onDismiss = { mainViewModel.clearPendingDownload() }
+                    )
                 }
 
                 NavHost(navController = navController, startDestination = "browser") {
@@ -308,6 +323,8 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+
+
         }
     }
 

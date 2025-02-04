@@ -1,4 +1,3 @@
-
 package com.example.mobilebrowser.browser
 
 import android.app.DownloadManager
@@ -31,6 +30,44 @@ class GeckoSessionManager @Inject constructor(
     private val sessions = ConcurrentHashMap<Long, GeckoSession>()
     private var currentSession: GeckoSession? = null
 
+    // New callback for download confirmation
+    var onDownloadRequested: (
+        filename: String,
+        mimeType: String,
+        sourceUrl: String,
+        contentDisposition: String?
+    ) -> Unit = { _, _, _, _ -> }
+
+    // Function to initiate download after confirmation
+    fun initiateDownload(
+        filename: String,
+        mimeType: String,
+        sourceUrl: String,
+        contentDisposition: String?
+    ) {
+        val uri = Uri.parse(sourceUrl)
+        val request = DownloadManager.Request(uri)
+            .setMimeType(mimeType)
+            .setTitle(filename)
+            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+            .setAllowedOverMetered(true)
+            .setAllowedOverRoaming(true)
+            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, filename)
+
+        val downloadId = downloadManager.enqueue(request)
+        Log.d("GeckoSessionManager", "Download enqueued with id: $downloadId")
+
+        CoroutineScope(Dispatchers.IO).launch {
+            downloadRepository.createDownload(
+                filename = filename,
+                mimeType = mimeType,
+                fileSize = 0L,
+                sourceUrl = sourceUrl,
+                contentDisposition = contentDisposition
+            )
+        }
+    }
+
     fun getOrCreateSession(
         tabId: Long,
         url: String = "about:blank",
@@ -44,12 +81,12 @@ class GeckoSessionManager @Inject constructor(
             GeckoSession().apply {
                 open(geckoRuntime)
                 navigationDelegate = createNavigationDelegate(onUrlChange, onCanGoBack, onCanGoForward)
-                contentDelegate = createContentDelegate(onTitleChange, onDownloadStart)
+                contentDelegate = createContentDelegate(onTitleChange)
                 loadUri(url)
             }
         }.apply {
             navigationDelegate = createNavigationDelegate(onUrlChange, onCanGoBack, onCanGoForward)
-            contentDelegate = createContentDelegate(onTitleChange, onDownloadStart)
+            contentDelegate = createContentDelegate(onTitleChange)
         }
     }
 
@@ -77,56 +114,28 @@ class GeckoSessionManager @Inject constructor(
 
     private fun createContentDelegate(
         onTitleChange: (String) -> Unit,
-        onDownloadStart: (WebResponse) -> Unit
     ) = object : GeckoSession.ContentDelegate {
         override fun onTitleChange(session: GeckoSession, title: String?) {
             onTitleChange(title ?: "")
         }
 
         override fun onExternalResponse(session: GeckoSession, response: WebResponse) {
-            // Check if the response headers indicate an attachment download.
             val contentDisposition = response.headers["Content-Disposition"] ?: ""
-            Log.d("GeckoSessionManager", "Content-Disposition: $contentDisposition")
             if (contentDisposition.contains("attachment", ignoreCase = true)) {
-                val uri = Uri.parse(response.uri.toString())
                 val filename = extractFilename(response.headers["Content-Disposition"])
-                    ?: (uri.lastPathSegment ?: "download")
+                    ?: (Uri.parse(response.uri.toString()).lastPathSegment ?: "download")
                 val mimeType = response.headers["Content-Type"] ?: "application/octet-stream"
+                val sourceUrl = response.uri.toString()
+                val cdHeader = response.headers["Content-Disposition"]
 
-                val request = DownloadManager.Request(uri)
-                    .setMimeType(mimeType)
-                    .setTitle(filename)
-                    .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                    .setAllowedOverMetered(true)
-                    .setAllowedOverRoaming(true)
-                    .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, filename)
-
-                // Enqueue the download and capture the download ID.
-                val downloadId = downloadManager.enqueue(request)
-                Log.d("GeckoSessionManager", "Download enqueued with id: $downloadId")
-
-                // Create a new download record in your local database.
-                CoroutineScope(Dispatchers.IO).launch {
-                    // Note: fileSize is unknown at this stage; using 0 as a placeholder.
-                    downloadRepository.createDownload(
-                        filename = filename,
-                        mimeType = mimeType,
-                        fileSize = 0L,
-                        sourceUrl = response.uri.toString(),
-                        contentDisposition = response.headers["Content-Disposition"]
-                    )
-                }
-            } else {
-                Log.d("GeckoSessionManager", "onDownloadStart callback triggered")
-                onDownloadStart(response)
+                // Call the confirmation callback instead of starting download immediately
+                onDownloadRequested(filename, mimeType, sourceUrl, cdHeader)
             }
         }
     }
 
-    // Helper function to extract filename from a Content-Disposition header.
     private fun extractFilename(contentDisposition: String?): String? {
         if (contentDisposition == null) return null
-        // Look for a pattern like: filename="example.mp3"
         val regex = "filename=\"(.*?)\"".toRegex()
         val matchResult = regex.find(contentDisposition)
         return matchResult?.groups?.get(1)?.value

@@ -7,6 +7,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.mobilebrowser.ui.viewmodels.PendingDownload
 
 @Composable
 fun DownloadProgressIndicator(
@@ -78,6 +79,71 @@ fun FileTypeNotSupportedDialog(
         confirmButton = {
             TextButton(onClick = onDismiss) {
                 Text("OK")
+            }
+        }
+    )
+}
+
+@Composable
+fun DownloadConfirmationDialog(
+    download: PendingDownload,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Confirm Download") },
+        text = {
+            Column {
+                Text("Would you like to download this file?")
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = download.filename,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                if (download.mimeType.isNotBlank()) {
+                    Text(
+                        text = "Type: ${download.mimeType}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("Download")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun FileExistsDialog(
+    filename: String,
+    onRedownload: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("File Already Exists") },
+        text = {
+            Text("The file \"$filename\" already exists. Would you like to download it again?")
+        },
+        confirmButton = {
+            TextButton(onClick = onRedownload) {
+                Text("Download Again")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
             }
         }
     )
