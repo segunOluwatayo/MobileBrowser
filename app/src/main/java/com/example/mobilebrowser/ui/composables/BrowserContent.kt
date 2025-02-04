@@ -40,7 +40,8 @@ fun BrowserContent(
     tabCount: Int,
     onNewTab: () -> Unit,
     onCloseAllTabs: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onShowDownloads: () -> Unit,
 ) {
     var urlText by remember { mutableStateOf(currentUrl) }
     var isEditing by remember { mutableStateOf(false) }
@@ -213,6 +214,15 @@ fun BrowserContent(
                             onShowBookmarks()
                         },
                         leadingIcon = { Icon(Icons.Default.Star, contentDescription = null) }
+                    )
+
+                    DropdownMenuItem(
+                        text = { Text("Downloads") },
+                        onClick = {
+                            showOverflowMenu = false
+                            onShowDownloads()
+                        },
+                        leadingIcon = { Icon(Icons.Default.Download, contentDescription = null) }
                     )
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
