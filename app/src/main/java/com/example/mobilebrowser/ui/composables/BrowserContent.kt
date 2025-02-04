@@ -37,11 +37,11 @@ fun BrowserContent(
     currentUrl: String,
     onCanGoBackChange: (Boolean) -> Unit,
     onCanGoForwardChange: (Boolean) -> Unit,
+    onShowDownloads: () -> Unit,
     tabCount: Int,
     onNewTab: () -> Unit,
     onCloseAllTabs: () -> Unit,
     modifier: Modifier = Modifier,
-    onShowDownloads: () -> Unit,
 ) {
     var urlText by remember { mutableStateOf(currentUrl) }
     var isEditing by remember { mutableStateOf(false) }

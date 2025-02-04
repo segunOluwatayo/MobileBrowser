@@ -8,7 +8,10 @@ import android.provider.MediaStore
 import com.example.mobilebrowser.data.dao.DownloadDao
 import com.example.mobilebrowser.data.entity.DownloadEntity
 import com.example.mobilebrowser.data.entity.DownloadStatus
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import java.io.File
 import java.io.IOException
 import javax.inject.Inject
@@ -16,7 +19,7 @@ import javax.inject.Singleton
 
 @Singleton
 class DownloadRepository @Inject constructor(
-    private val context: Context,
+    @ApplicationContext private val context: Context,
     private val downloadDao: DownloadDao
 ) {
     // Get download by ID
@@ -127,6 +130,15 @@ class DownloadRepository @Inject constructor(
         } else {
             // For older versions, use direct file path
             "${Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)}/$filename"
+        }
+    }
+    fun getDownloadProgress(downloadId: Long): Flow<Int> = flow {
+        var progress = 0
+        // Emit progress updates every 500ms until reaching 100
+        while (progress < 100) {
+            delay(500)
+            progress += 10
+            emit(progress)
         }
     }
 }

@@ -1,18 +1,25 @@
 package com.example.mobilebrowser
 
+import android.app.DownloadManager
+import android.content.IntentFilter
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.*
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.mobilebrowser.browser.GeckoSessionManager
+import com.example.mobilebrowser.data.repository.DownloadRepository
+import com.example.mobilebrowser.receiver.DownloadCompleteReceiver
 import com.example.mobilebrowser.ui.composables.BrowserContent
 import com.example.mobilebrowser.ui.screens.BookmarkEditScreen
 import com.example.mobilebrowser.ui.screens.BookmarkScreen
+import com.example.mobilebrowser.ui.screens.DownloadScreen
 import com.example.mobilebrowser.ui.screens.HistoryScreen
 import com.example.mobilebrowser.ui.screens.TabScreen
 import com.example.mobilebrowser.ui.theme.MobileBrowserTheme
@@ -22,14 +29,27 @@ import com.example.mobilebrowser.ui.viewmodels.TabViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import org.mozilla.geckoview.GeckoSession
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-    private lateinit var sessionManager: GeckoSessionManager
 
+    @Inject
+    lateinit var sessionManager: GeckoSessionManager
+
+    @Inject
+    lateinit var downloadRepository: DownloadRepository
+
+    private lateinit var downloadCompleteReceiver: DownloadCompleteReceiver
+
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        sessionManager = GeckoSessionManager(this)
+
+        // Register the BroadcastReceiver to listen for download completion events.
+        downloadCompleteReceiver = DownloadCompleteReceiver(downloadRepository)
+        val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
+        registerReceiver(downloadCompleteReceiver, filter, RECEIVER_NOT_EXPORTED)
 
         setContent {
             MobileBrowserTheme {
@@ -41,7 +61,7 @@ class MainActivity : ComponentActivity() {
                 var currentSession by remember { mutableStateOf<GeckoSession?>(null) }
                 var isNavigating by remember { mutableStateOf(false) }
 
-                // Track the last recorded history entry to avoid re‑adding it
+                // Track the last recorded history entry to avoid re-adding it
                 var lastRecordedUrl by remember { mutableStateOf("") }
                 var lastRecordedTitle by remember { mutableStateOf("") }
 
@@ -66,6 +86,7 @@ class MainActivity : ComponentActivity() {
                         historyViewModel.addHistoryEntry(normalizedUrl, title)
                     }
                 }
+
                 // Whenever the active tab changes, update the session and UI state.
                 LaunchedEffect(activeTab) {
                     Log.d("MainActivity", "LaunchedEffect: activeTab = $activeTab")
@@ -89,7 +110,7 @@ class MainActivity : ComponentActivity() {
                             onCanGoBack = { canGoBack = it },
                             onCanGoForward = { canGoForward = it }
                         )
-                        // Update UI state with the active tab’s stored values.
+                        // Update UI state with the active tab's stored values.
                         currentUrl = tab.url
                         currentPageTitle = tab.title
                     }
@@ -124,6 +145,7 @@ class MainActivity : ComponentActivity() {
                                 currentPageTitle = currentPageTitle,
                                 canGoBack = canGoBack,
                                 canGoForward = canGoForward,
+                                onShowDownloads = { navController.navigate("downloads") },
                                 currentUrl = currentUrl,
                                 tabCount = tabCount,
                                 onNewTab = {
@@ -159,7 +181,7 @@ class MainActivity : ComponentActivity() {
                                     tabViewModel.closeAllTabs()
                                 },
                                 onCanGoBackChange = { canGoBack = it },
-                                onCanGoForwardChange = { canGoForward = it }
+                                onCanGoForwardChange = { canGoForward = it },
                             )
                         }
                     }
@@ -261,6 +283,13 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
+                    composable("downloads") {
+                        DownloadScreen(
+                            onNavigateBack = { navController.popBackStack() },
+                            viewModel = hiltViewModel()
+                        )
+                    }
+
                     composable("tabs") {
                         TabScreen(
                             onNavigateBack = { navController.popBackStack() },
@@ -280,5 +309,10 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onDestroy() {
+        unregisterReceiver(downloadCompleteReceiver)
+        super.onDestroy()
     }
 }

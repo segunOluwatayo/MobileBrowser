@@ -1,68 +1,83 @@
 package com.example.mobilebrowser.ui.composables
 
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 
 @Composable
-fun DownloadConfirmationDialog(
+fun DownloadProgressIndicator(
+    progress: Int,
     filename: String,
-    fileExists: Boolean,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.padding(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            horizontalAlignment = Alignment.Start,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = filename,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            LinearProgressIndicator(
+                progress = progress / 100f,
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+
+            Text(
+                text = "$progress%",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+fun PermissionRequest(
+    rationale: String,
+    onRequestPermission: () -> Unit
 ) {
     AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(if (fileExists) "File Already Exists" else "Download File") },
-        text = {
-            if (fileExists) {
-                Text("\"$filename\" already exists. Do you want to download it again?")
-            } else {
-                Text("Do you want to download \"$filename\"?")
-            }
-        },
+        onDismissRequest = { /* Do nothing, force user to make a choice */ },
+        title = { Text("Permission Required") },
+        text = { Text(rationale) },
         confirmButton = {
-            TextButton(
-                onClick = onConfirm
-            ) {
-                Text("Download")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
+            Button(onClick = onRequestPermission) {
+                Text("Grant Permission")
             }
         }
     )
 }
 
 @Composable
-fun DownloadCompletionDialog(
-    filename: String,
-    isMusicFile: Boolean,
-    onOpen: () -> Unit,
+fun FileTypeNotSupportedDialog(
     onDismiss: () -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Download Complete") },
+        title = { Text("File Type Not Supported") },
         text = {
-            Text(
-                text = "\"$filename\" has been downloaded successfully.",
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
+            Text("This type of file cannot be opened directly. " +
+                    "You may need to install a compatible app to open this file.")
         },
         confirmButton = {
-            TextButton(
-                onClick = onOpen
-            ) {
-                Text(if (isMusicFile) "Open Music Library" else "Open")
-            }
-        },
-        dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Close")
+                Text("OK")
             }
         }
     )

@@ -6,9 +6,11 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.example.mobilebrowser.data.dao.BookmarkDao
+import com.example.mobilebrowser.data.dao.DownloadDao
 import com.example.mobilebrowser.data.dao.HistoryDao
 import com.example.mobilebrowser.data.dao.TabDao
 import com.example.mobilebrowser.data.entity.BookmarkEntity
+import com.example.mobilebrowser.data.entity.DownloadEntity
 import com.example.mobilebrowser.data.entity.HistoryEntity
 import com.example.mobilebrowser.data.entity.TabEntity
 import com.example.mobilebrowser.data.util.Converters
@@ -18,8 +20,8 @@ import com.example.mobilebrowser.data.util.Converters
  * Manages both bookmarks and tabs data.
  */
 @Database(
-    entities = [BookmarkEntity::class, TabEntity::class, HistoryEntity::class],
-    version = 3,
+    entities = [BookmarkEntity::class, TabEntity::class, HistoryEntity::class, DownloadEntity::class],
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -28,6 +30,7 @@ abstract class BrowserDatabase : RoomDatabase() {
     abstract fun bookmarkDao(): BookmarkDao
     abstract fun tabDao(): TabDao
     abstract fun historyDao(): HistoryDao
+    abstract fun downloadDao(): DownloadDao
 
     companion object {
         @Volatile
