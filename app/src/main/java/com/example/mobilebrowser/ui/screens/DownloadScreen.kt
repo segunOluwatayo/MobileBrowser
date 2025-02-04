@@ -15,6 +15,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.mobilebrowser.data.entity.DownloadEntity
+import com.example.mobilebrowser.ui.composables.DownloadCompletionDialog
+import com.example.mobilebrowser.ui.viewmodels.DownloadState
 import com.example.mobilebrowser.ui.viewmodels.DownloadViewModel
 import java.text.SimpleDateFormat
 import java.util.*
@@ -27,8 +29,17 @@ fun DownloadScreen(
 ) {
     val context = LocalContext.current
     val downloads by viewModel.downloads.collectAsState()
+    val downloadState by viewModel.downloadState.collectAsState()
     val recentlyDeletedDownload by viewModel.recentlyDeletedDownload.collectAsState()
     var showRenameDialog by remember { mutableStateOf<DownloadEntity?>(null) }
+
+    // Handle download completion dialog
+    if (downloadState is DownloadState.Completed) {
+        DownloadCompletionDialog(
+            state = downloadState as DownloadState.Completed,
+            onDismiss = { viewModel.setIdle() }
+        )
+    }
 
     Scaffold(
         topBar = {

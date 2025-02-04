@@ -1,3 +1,4 @@
+// DownloadCompleteReceiver.kt
 
 package com.example.mobilebrowser.receiver
 
@@ -8,13 +9,13 @@ import android.content.Intent
 import android.database.Cursor
 import android.util.Log
 import com.example.mobilebrowser.data.entity.DownloadStatus
-import com.example.mobilebrowser.data.repository.DownloadRepository
+import com.example.mobilebrowser.ui.viewmodels.DownloadViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class DownloadCompleteReceiver(
-    private val downloadRepository: DownloadRepository
+    private val downloadViewModel: DownloadViewModel
 ) : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -30,8 +31,7 @@ class DownloadCompleteReceiver(
 
         if (cursor != null && cursor.moveToFirst()) {
             val statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
-            val status = cursor.getInt(statusIndex)
-            when (status) {
+            when (val status = cursor.getInt(statusIndex)) {
                 DownloadManager.STATUS_SUCCESSFUL -> {
                     Log.d("DownloadCompleteReceiver", "Download $downloadId completed successfully")
                     updateDownloadStatus(downloadId, DownloadStatus.COMPLETED)
@@ -48,10 +48,10 @@ class DownloadCompleteReceiver(
         cursor?.close()
     }
 
-    private fun updateDownloadStatus(downloadId: Long, newStatus: DownloadStatus) {
+    private fun updateDownloadStatus(downloadId: Long, status: DownloadStatus) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                downloadRepository.updateDownloadStatus(downloadId, newStatus)
+                downloadViewModel.updateDownloadStatus(downloadId, status)
             } catch (e: Exception) {
                 Log.e("DownloadCompleteReceiver", "Failed to update download status: ${e.message}")
             }

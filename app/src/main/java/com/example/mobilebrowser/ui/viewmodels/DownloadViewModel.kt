@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.asFlow
 import androidx.lifecycle.viewModelScope
 import com.example.mobilebrowser.data.entity.DownloadEntity
+import com.example.mobilebrowser.data.entity.DownloadStatus
 import com.example.mobilebrowser.data.repository.DownloadRepository
 import com.example.mobilebrowser.data.util.PermissionsHandler
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -30,6 +31,29 @@ class DownloadViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val permissionsHandler: PermissionsHandler
 ) : ViewModel() {
+
+    fun updateDownloadStatus(downloadId: Long, status: DownloadStatus) {
+        viewModelScope.launch {
+            try {
+                repository.updateDownloadStatus(downloadId, status)
+                if (status == DownloadStatus.COMPLETED) {
+                    val download = repository.getDownloadById(downloadId)
+                    if (download != null) {
+                        _downloadState.value = DownloadState.Completed(
+                            filename = download.filename,
+                            mimeType = download.mimeType
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                _error.value = "Failed to update download status: ${e.message}"
+            }
+        }
+    }
+
+    fun setIdle() {
+        _downloadState.value = DownloadState.Idle
+    }
 
     // Existing download list state
     private val _downloads = MutableStateFlow<List<DownloadEntity>>(emptyList())

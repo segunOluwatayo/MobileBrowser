@@ -1,13 +1,19 @@
 package com.example.mobilebrowser.ui.composables
 
+import android.content.Intent
+import android.os.Environment
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
+import com.example.mobilebrowser.ui.viewmodels.DownloadState
 import com.example.mobilebrowser.ui.viewmodels.PendingDownload
+import java.io.File
 
 @Composable
 fun DownloadProgressIndicator(
@@ -144,6 +150,48 @@ fun FileExistsDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun DownloadCompletionDialog(
+    state: DownloadState.Completed,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Download Complete") },
+        text = { Text("${state.filename} has finished downloading.") },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val intent = Intent(Intent.ACTION_VIEW).apply {
+                        val fileUri = FileProvider.getUriForFile(
+                            context,
+                            "${context.packageName}.fileprovider",
+                            File("${Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)}/${state.filename}")
+                        )
+                        setDataAndType(fileUri, state.mimeType)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    try {
+                        context.startActivity(intent)
+                    } catch (e: Exception) {
+                        // Handle case where no app can open the file
+                    }
+                    onDismiss()
+                }
+            ) {
+                Text("Open")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
             }
         }
     )

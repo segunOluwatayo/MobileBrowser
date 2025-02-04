@@ -25,6 +25,7 @@ import com.example.mobilebrowser.ui.screens.HistoryScreen
 import com.example.mobilebrowser.ui.screens.TabScreen
 import com.example.mobilebrowser.ui.theme.MobileBrowserTheme
 import com.example.mobilebrowser.ui.viewmodels.BookmarkViewModel
+import com.example.mobilebrowser.ui.viewmodels.DownloadViewModel
 import com.example.mobilebrowser.ui.viewmodels.HistoryViewModel
 import com.example.mobilebrowser.ui.viewmodels.MainViewModel
 import com.example.mobilebrowser.ui.viewmodels.TabViewModel
@@ -48,12 +49,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Register the BroadcastReceiver to listen for download completion events.
-        downloadCompleteReceiver = DownloadCompleteReceiver(downloadRepository)
-        val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
-        registerReceiver(downloadCompleteReceiver, filter, RECEIVER_NOT_EXPORTED)
-
         setContent {
+            val downloadViewModel: DownloadViewModel = hiltViewModel()
+            // Register the BroadcastReceiver to listen for download completion events.
+            downloadCompleteReceiver = DownloadCompleteReceiver(downloadViewModel)
+            val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
+            registerReceiver(downloadCompleteReceiver, filter, RECEIVER_NOT_EXPORTED)
             MobileBrowserTheme {
                 // UI state for URL, title, navigation flags, and the current session.
                 var currentUrl by remember { mutableStateOf("https://www.mozilla.org") }
