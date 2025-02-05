@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.*
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -17,18 +18,11 @@ import com.example.mobilebrowser.browser.GeckoSessionManager
 import com.example.mobilebrowser.data.repository.DownloadRepository
 import com.example.mobilebrowser.receiver.DownloadCompleteReceiver
 import com.example.mobilebrowser.ui.composables.BrowserContent
+import com.example.mobilebrowser.ui.composables.DownloadCompletionDialog
 import com.example.mobilebrowser.ui.composables.DownloadConfirmationDialog
-import com.example.mobilebrowser.ui.screens.BookmarkEditScreen
-import com.example.mobilebrowser.ui.screens.BookmarkScreen
-import com.example.mobilebrowser.ui.screens.DownloadScreen
-import com.example.mobilebrowser.ui.screens.HistoryScreen
-import com.example.mobilebrowser.ui.screens.TabScreen
+import com.example.mobilebrowser.ui.screens.*
 import com.example.mobilebrowser.ui.theme.MobileBrowserTheme
-import com.example.mobilebrowser.ui.viewmodels.BookmarkViewModel
-import com.example.mobilebrowser.ui.viewmodels.DownloadViewModel
-import com.example.mobilebrowser.ui.viewmodels.HistoryViewModel
-import com.example.mobilebrowser.ui.viewmodels.MainViewModel
-import com.example.mobilebrowser.ui.viewmodels.TabViewModel
+import com.example.mobilebrowser.ui.viewmodels.*
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import org.mozilla.geckoview.GeckoSession
@@ -37,26 +31,22 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
+
+    private val downloadViewModel: DownloadViewModel by viewModels()
+
     @Inject
     lateinit var sessionManager: GeckoSessionManager
 
     @Inject
     lateinit var downloadRepository: DownloadRepository
-
     private lateinit var downloadCompleteReceiver: DownloadCompleteReceiver
 
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         setContent {
-            val downloadViewModel: DownloadViewModel = hiltViewModel()
-            // Register the BroadcastReceiver to listen for download completion events.
-            downloadCompleteReceiver = DownloadCompleteReceiver(downloadViewModel)
-            val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
-            registerReceiver(downloadCompleteReceiver, filter, RECEIVER_NOT_EXPORTED)
             MobileBrowserTheme {
-                // UI state for URL, title, navigation flags, and the current session.
+                // UI state for URL, title, navigation flags, etc.
                 var currentUrl by remember { mutableStateOf("https://www.mozilla.org") }
                 var currentPageTitle by remember { mutableStateOf("New Tab") }
                 var canGoBack by remember { mutableStateOf(false) }
@@ -64,23 +54,31 @@ class MainActivity : ComponentActivity() {
                 var currentSession by remember { mutableStateOf<GeckoSession?>(null) }
                 var isNavigating by remember { mutableStateOf(false) }
 
-                // Track the last recorded history entry to avoid re-adding it
+                // Track the last recorded history entry to avoid duplicates
                 var lastRecordedUrl by remember { mutableStateOf("") }
                 var lastRecordedTitle by remember { mutableStateOf("") }
 
                 val navController = rememberNavController()
+
+                // Other ViewModels that can still use hiltViewModel()
                 val bookmarkViewModel: BookmarkViewModel = hiltViewModel()
                 val tabViewModel: TabViewModel = hiltViewModel()
                 val historyViewModel: HistoryViewModel = hiltViewModel()
+                val mainViewModel: MainViewModel = hiltViewModel()
+
+                // Bookmark & tab state
                 val isCurrentUrlBookmarked by bookmarkViewModel.isCurrentUrlBookmarked.collectAsState()
                 val activeTab by tabViewModel.activeTab.collectAsState()
                 val scope = rememberCoroutineScope()
-                val mainViewModel: MainViewModel = hiltViewModel()
+
+                // Download logic
                 val pendingDownload by mainViewModel.pendingDownload.collectAsState()
 
-                fun normalizeUrl(url: String): String = url.trim().removeSuffix("/")
+                // 3) Observe DownloadViewModel from the Activity scope
+                val downloadState by downloadViewModel.downloadState.collectAsState()
 
-                // Helper function: only record if this is a new entry.
+                // Helper to avoid repeated history entries
+                fun normalizeUrl(url: String): String = url.trim().removeSuffix("/")
                 fun recordHistory(url: String, title: String) {
                     val normalizedUrl = normalizeUrl(url)
                     if (title.isNotBlank() && title != "Loading..." &&
@@ -92,14 +90,13 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                // Whenever the active tab changes, update the session and UI state.
+                // Observe changes in the active tab
                 LaunchedEffect(activeTab) {
+                    // Listen for download requests in the session manager
                     sessionManager.onDownloadRequested = { filename, mimeType, sourceUrl, contentDisposition ->
                         mainViewModel.setPendingDownload(filename, mimeType, sourceUrl, contentDisposition)
                     }
-                    Log.d("MainActivity", "LaunchedEffect: activeTab = $activeTab")
                     activeTab?.let { tab ->
-                        Log.d("MainActivity", "Active tab URL = ${tab.url}, title = ${tab.title}")
                         currentSession = sessionManager.getOrCreateSession(
                             tabId = tab.id,
                             url = tab.url,
@@ -118,12 +115,13 @@ class MainActivity : ComponentActivity() {
                             onCanGoBack = { canGoBack = it },
                             onCanGoForward = { canGoForward = it }
                         )
-                        // Update UI state with the active tab's stored values.
+                        // Update UI from the active tab
                         currentUrl = tab.url
                         currentPageTitle = tab.title
                     }
                 }
-                // Show download confirmation dialog when needed
+
+                // Show a confirmation dialog if a new download is requested
                 pendingDownload?.let { download ->
                     DownloadConfirmationDialog(
                         download = download,
@@ -132,6 +130,18 @@ class MainActivity : ComponentActivity() {
                     )
                 }
 
+                // 4) Show the completion dialog if the DownloadViewModel state is Completed
+                when (downloadState) {
+                    is DownloadState.Completed -> {
+                        DownloadCompletionDialog(
+                            state = downloadState as DownloadState.Completed,
+                            onDismiss = { downloadViewModel.setIdle() }
+                        )
+                    }
+                    else -> { /* No other states need a dialog here */ }
+                }
+
+                // The NavHost for your various screens
                 NavHost(navController = navController, startDestination = "browser") {
                     composable("browser") {
                         val tabCount by tabViewModel.tabCount.collectAsState()
@@ -143,7 +153,6 @@ class MainActivity : ComponentActivity() {
                                     currentUrl = url
                                     bookmarkViewModel.updateCurrentUrl(url)
                                     tabViewModel.updateActiveTabContent(url, currentPageTitle)
-                                    // Only record a new history entry if the title is valid
                                     if (currentPageTitle.isNotBlank() && currentPageTitle != "Loading...") {
                                         recordHistory(url, currentPageTitle)
                                     }
@@ -166,7 +175,6 @@ class MainActivity : ComponentActivity() {
                                 tabCount = tabCount,
                                 onNewTab = {
                                     scope.launch {
-                                        // Create a new tab with the default URL and title.
                                         val newTabId = tabViewModel.createTab()
                                         val newSession = sessionManager.getOrCreateSession(
                                             tabId = newTabId,
@@ -324,8 +332,6 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
-
-
         }
     }
 

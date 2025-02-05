@@ -1,6 +1,7 @@
 package com.example.mobilebrowser.browser
 
 import android.app.DownloadManager
+import android.content.ContentValues.TAG
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -45,26 +46,36 @@ class GeckoSessionManager @Inject constructor(
         sourceUrl: String,
         contentDisposition: String?
     ) {
-        val uri = Uri.parse(sourceUrl)
-        val request = DownloadManager.Request(uri)
-            .setMimeType(mimeType)
-            .setTitle(filename)
-            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-            .setAllowedOverMetered(true)
-            .setAllowedOverRoaming(true)
-            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, filename)
+        Log.d(TAG, "Starting download for $filename")
+        try {
+            val uri = Uri.parse(sourceUrl)
+            val request = DownloadManager.Request(uri).apply {
+                setMimeType(mimeType)
+                setTitle(filename)
+                setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                setAllowedOverMetered(true)
+                setAllowedOverRoaming(true)
+                setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, filename)
+            }
 
-        val downloadId = downloadManager.enqueue(request)
-        Log.d("GeckoSessionManager", "Download enqueued with id: $downloadId")
+            // Get the actual Android DownloadManager ID
+            val androidDownloadId = downloadManager.enqueue(request)
+            Log.d(TAG, "Android DownloadManager ID: $androidDownloadId")
 
-        CoroutineScope(Dispatchers.IO).launch {
-            downloadRepository.createDownload(
-                filename = filename,
-                mimeType = mimeType,
-                fileSize = 0L,
-                sourceUrl = sourceUrl,
-                contentDisposition = contentDisposition
-            )
+            // Create the download entry with the Android DownloadManager ID
+            CoroutineScope(Dispatchers.IO).launch {
+                downloadRepository.createDownload(
+                    filename = filename,
+                    mimeType = mimeType,
+                    fileSize = 0L, // We'll update this when download completes
+                    sourceUrl = sourceUrl,
+                    contentDisposition = contentDisposition,
+                    androidDownloadId = androidDownloadId
+                )
+                Log.d(TAG, "Download entry created in repository")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error initiating download", e)
         }
     }
 

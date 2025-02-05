@@ -41,4 +41,11 @@ interface DownloadDao {
 
     @Query("UPDATE downloads SET status = :status WHERE id = :downloadId")
     suspend fun updateStatus(downloadId: Long, status: DownloadStatus)
+
+    @Query("SELECT * FROM downloads WHERE androidDownloadId = :androidId LIMIT 1")
+    suspend fun getDownloadByAndroidId(androidId: Long): DownloadEntity?
+
+    @Query("UPDATE downloads SET status = :status WHERE androidDownloadId = :androidId")
+    suspend fun updateStatusByAndroidId(androidId: Long, status: DownloadStatus)
+
 }

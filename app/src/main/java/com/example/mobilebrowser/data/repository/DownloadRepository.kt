@@ -42,6 +42,7 @@ class DownloadRepository @Inject constructor(
         mimeType: String,
         fileSize: Long,
         sourceUrl: String,
+        androidDownloadId: Long,
         contentDisposition: String? = null
     ): Long {
         val download = DownloadEntity(
@@ -51,14 +52,22 @@ class DownloadRepository @Inject constructor(
             fileSize = fileSize,
             status = DownloadStatus.IN_PROGRESS,
             sourceUrl = sourceUrl,
+            androidDownloadId = androidDownloadId,
             contentDisposition = contentDisposition
         )
         return downloadDao.insertDownload(download)
     }
 
     // Update download status
-    suspend fun updateDownloadStatus(downloadId: Long, status: DownloadStatus) {
-        downloadDao.updateStatus(downloadId, status)
+//    suspend fun updateDownloadStatus(downloadId: Long, status: DownloadStatus) {
+//        downloadDao.updateStatus(downloadId, status)
+//    }
+    suspend fun updateDownloadStatusByAndroidId(androidId: Long, status: DownloadStatus) {
+        downloadDao.updateStatusByAndroidId(androidId, status)
+    }
+
+    suspend fun getDownloadByAndroidId(androidId: Long): DownloadEntity? {
+        return downloadDao.getDownloadByAndroidId(androidId)
     }
 
     // Rename download

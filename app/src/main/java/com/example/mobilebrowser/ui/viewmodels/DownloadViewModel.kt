@@ -32,12 +32,13 @@ class DownloadViewModel @Inject constructor(
     private val permissionsHandler: PermissionsHandler
 ) : ViewModel() {
 
-    fun updateDownloadStatus(downloadId: Long, status: DownloadStatus) {
+    fun updateDownloadStatusByAndroidId(androidDownloadId: Long, status: DownloadStatus) {
         viewModelScope.launch {
             try {
-                repository.updateDownloadStatus(downloadId, status)
+                // Look up the DB entry by the system's ID
+                repository.updateDownloadStatusByAndroidId(androidDownloadId, status)
                 if (status == DownloadStatus.COMPLETED) {
-                    val download = repository.getDownloadById(downloadId)
+                    val download = repository.getDownloadByAndroidId(androidDownloadId)
                     if (download != null) {
                         _downloadState.value = DownloadState.Completed(
                             filename = download.filename,
@@ -50,6 +51,7 @@ class DownloadViewModel @Inject constructor(
             }
         }
     }
+
 
     fun setIdle() {
         _downloadState.value = DownloadState.Idle
@@ -108,6 +110,7 @@ class DownloadViewModel @Inject constructor(
         mimeType: String,
         fileSize: Long,
         sourceUrl: String,
+        androidDownloadId: Long,
         contentDisposition: String? = null
     ) {
         viewModelScope.launch {
@@ -130,7 +133,9 @@ class DownloadViewModel @Inject constructor(
                     mimeType = mimeType,
                     fileSize = fileSize,
                     sourceUrl = sourceUrl,
+                    androidDownloadId = androidDownloadId,
                     contentDisposition = contentDisposition
+
                 )
 
                 _downloadState.value = DownloadState.Started(downloadId)
@@ -259,6 +264,7 @@ class DownloadViewModel @Inject constructor(
                         mimeType = download.mimeType,
                         fileSize = download.fileSize,
                         sourceUrl = download.sourceUrl,
+                        androidDownloadId = -1L,  // Use a placeholder ID for restored downloads
                         contentDisposition = download.contentDisposition
                     )
                     _recentlyDeletedDownload.value = null

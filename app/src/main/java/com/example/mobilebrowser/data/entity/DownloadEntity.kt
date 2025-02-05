@@ -20,6 +20,9 @@ data class DownloadEntity(
     val status: DownloadStatus,
     val sourceUrl: String,
 
+    // Android DownloadManager ID
+    val androidDownloadId: Long,
+
     // Optional metadata
     val contentDisposition: String? = null,
     val error: String? = null
