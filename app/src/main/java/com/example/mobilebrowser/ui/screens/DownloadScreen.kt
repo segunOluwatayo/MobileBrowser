@@ -208,6 +208,10 @@ private fun DownloadItem(
 ) {
     var showMenu by remember { mutableStateOf(false) }
 
+    val formattedFileSize = remember(download.fileSize) {
+        FileUtils.formatFileSize(download.fileSize)
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -228,11 +232,26 @@ private fun DownloadItem(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Text(
-                    text = dateFormat.format(download.dateAdded),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = dateFormat.format(download.dateAdded),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "•",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = formattedFileSize,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
             Box {
