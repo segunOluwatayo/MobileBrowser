@@ -1,5 +1,6 @@
 package com.example.mobilebrowser.ui.composables
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardActions
@@ -17,6 +18,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.mobilebrowser.browser.GeckoDownloadDelegate
+import com.example.mobilebrowser.ui.viewmodels.DownloadViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.mozilla.geckoview.GeckoSession
 
 @Composable
@@ -41,13 +48,21 @@ fun BrowserContent(
     onNewTab: () -> Unit,
     onCloseAllTabs: () -> Unit,
     onShowDownloads: () -> Unit,
-    modifier: Modifier = Modifier
+    showDownloadConfirmationDialog: Boolean, // Receive dialog visibility state
+    currentDownloadRequest: GeckoDownloadDelegate.DownloadRequest?, // Receive DownloadRequest data
+    onDismissDownloadConfirmationDialog: () -> Unit, // Callback to dismiss dialog
+    modifier: Modifier = Modifier,
+    downloadViewModel: DownloadViewModel = hiltViewModel()
 ) {
     var urlText by remember { mutableStateOf(currentUrl) }
     var isEditing by remember { mutableStateOf(false) }
     var showTabMenu by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
+
+    // State for Download Completion Dialog (keep for testing)
+    var showDownloadCompletionDialog by remember { mutableStateOf(false) }
+
 
     LaunchedEffect(currentUrl) {
         if (!isEditing) {
@@ -223,6 +238,22 @@ fun BrowserContent(
                         },
                         leadingIcon = { Icon(Icons.Default.Download, contentDescription = null) }
                     )
+                    // New Download Menu Item
+                    DropdownMenuItem(
+                        text = { Text("Download") },
+                        onClick = {
+                            showOverflowMenu = false
+                            // No need to set downloadFileName here anymore - data comes from GeckoDownloadDelegate
+                            // downloadFileName = currentUrl.substringAfterLast('/').ifEmpty { "downloaded_file" }
+                            // showDownloadConfirmationDialog = true // Handled by MainActivity now
+
+                            // Instead, trigger GeckoView to handle download (if needed - might be automatic)
+                            // For now, rely on GeckoView to trigger onExternalResponse in GeckoDownloadDelegate
+                            Log.d("BrowserContent", "Download menu item clicked - relying on GeckoView to trigger download")
+                        },
+                        leadingIcon = { Icon(Icons.Default.Download, contentDescription = "Download") } //Using same icon for now, adjust if needed
+                    )
+
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
@@ -255,5 +286,60 @@ fun BrowserContent(
                     .fillMaxWidth()
             )
         }
+    }
+
+    // Download Confirmation Dialog - Now controlled by MainActivity state
+    if (showDownloadConfirmationDialog && currentDownloadRequest != null) {
+        DownloadConfirmationDialog(
+            fileName = currentDownloadRequest!!.fileName, // Use filename from DownloadRequest
+            fileSize = currentDownloadRequest.contentLength.toString(), // Use filesize from DownloadRequest
+            onDownloadClicked = {
+                Log.d("BrowserContent", "Download Confirmation: Download button clicked for ${currentDownloadRequest!!.fileName}")
+                onDismissDownloadConfirmationDialog() // Dismiss dialog via callback
+                showDownloadCompletionDialog = true      // Show completion dialog for testing
+
+                // **Call DownloadViewModel.startDownload with data from DownloadRequest**
+                val downloadUrl = currentDownloadRequest.url
+                val fileNameForDownload = currentDownloadRequest.fileName
+                val mimeTypePlaceholder = currentDownloadRequest.contentType ?: "application/octet-stream"
+                val fileSizePlaceholder = currentDownloadRequest.contentLength
+
+                CoroutineScope(Dispatchers.IO).launch {
+                    val downloadId = downloadViewModel.startDownload(
+                        fileNameForDownload,
+                        downloadUrl,
+                        mimeTypePlaceholder,
+                        fileSizePlaceholder
+                    )
+                    Log.d("BrowserContent", "Download started with ID: $downloadId")
+                }
+            },
+            onCancelClicked = {
+                Log.d("BrowserContent", "Download Confirmation: Cancel button clicked")
+                onDismissDownloadConfirmationDialog() // Dismiss dialog via callback
+            },
+            onDismissRequest = {
+                onDismissDownloadConfirmationDialog() // Dismiss dialog via callback
+            }
+        )
+    }
+
+    // Download Completion Dialog (keep for testing)
+    if (showDownloadCompletionDialog) {
+        DownloadCompletionDialog(
+            fileName = currentDownloadRequest?.fileName ?: "unknown", // Use filename from request if available
+            onOpenClicked = {
+                Log.d("BrowserContent", "Download Completion: Open button clicked for ${currentDownloadRequest?.fileName ?: "unknown"}")
+                showDownloadCompletionDialog = false
+                // TODO: Implement "Open" action (later steps)
+            },
+            onDismissClicked = {
+                Log.d("BrowserContent", "Download Completion: OK button clicked")
+                showDownloadCompletionDialog = false
+            },
+            onDismissRequest = {
+                showDownloadCompletionDialog = false
+            }
+        )
     }
 }

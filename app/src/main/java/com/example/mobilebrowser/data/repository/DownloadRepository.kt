@@ -1,6 +1,8 @@
 package com.example.mobilebrowser.data.repository
 
+import android.app.DownloadManager
 import android.content.Context
+import android.net.Uri
 import android.os.Environment
 import com.example.mobilebrowser.data.dao.DownloadDao
 import com.example.mobilebrowser.data.entity.DownloadEntity
@@ -41,6 +43,20 @@ class DownloadRepository @Inject constructor(
             status = DownloadStatus.PENDING,
             mimeType = mimeType
         )
+
+        // Initialize DownloadManager request
+        val request = DownloadManager.Request(Uri.parse(sourceUrl))
+            .setTitle(fileName)
+            .setDescription("Downloading")
+            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+            .setDestinationUri(Uri.fromFile(File(localPath)))
+            .setAllowedNetworkTypes(DownloadManager.Request.NETWORK_WIFI or DownloadManager.Request.NETWORK_MOBILE)
+
+        val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        val enqueueId = downloadManager.enqueue(request) // Get DownloadManager enqueue ID
+
+        // Update DownloadEntity with DownloadManager enqueue ID (if needed, for tracking later)
+        // For now, we'll primarily use database ID for tracking.
 
         return downloadDao.insertDownload(download)
     }

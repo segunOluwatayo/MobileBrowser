@@ -9,6 +9,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.mobilebrowser.browser.GeckoDownloadDelegate
+import com.example.mobilebrowser.browser.GeckoDownloadDelegate.DownloadRequest
 import com.example.mobilebrowser.browser.GeckoSessionManager
 import com.example.mobilebrowser.ui.composables.BrowserContent
 import com.example.mobilebrowser.ui.screens.BookmarkEditScreen
@@ -34,8 +36,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             MobileBrowserTheme {
-//                TestDownloadConfirmationScreen()
-                // UI state for URL, title, navigation flags, and the current session.
+                // Define UI state variables.
                 var currentUrl by remember { mutableStateOf("https://www.mozilla.org") }
                 var currentPageTitle by remember { mutableStateOf("New Tab") }
                 var canGoBack by remember { mutableStateOf(false) }
@@ -43,7 +44,7 @@ class MainActivity : ComponentActivity() {
                 var currentSession by remember { mutableStateOf<GeckoSession?>(null) }
                 var isNavigating by remember { mutableStateOf(false) }
 
-                // Track the last recorded history entry to avoid re‑adding it
+                // Track the last recorded history entry to avoid duplicate entries.
                 var lastRecordedUrl by remember { mutableStateOf("") }
                 var lastRecordedTitle by remember { mutableStateOf("") }
 
@@ -51,13 +52,15 @@ class MainActivity : ComponentActivity() {
                 val bookmarkViewModel: BookmarkViewModel = hiltViewModel()
                 val tabViewModel: TabViewModel = hiltViewModel()
                 val historyViewModel: HistoryViewModel = hiltViewModel()
+                val downloadViewModel: com.example.mobilebrowser.ui.viewmodels.DownloadViewModel = hiltViewModel()
                 val isCurrentUrlBookmarked by bookmarkViewModel.isCurrentUrlBookmarked.collectAsState()
                 val activeTab by tabViewModel.activeTab.collectAsState()
                 val scope = rememberCoroutineScope()
 
+                // Helper: normalize URL by trimming and removing trailing "/"
                 fun normalizeUrl(url: String): String = url.trim().removeSuffix("/")
 
-                // Helper function: only record if this is a new entry.
+                // Helper: record history if the URL/title changed.
                 fun recordHistory(url: String, title: String) {
                     val normalizedUrl = normalizeUrl(url)
                     if (title.isNotBlank() && title != "Loading..." &&
@@ -68,7 +71,27 @@ class MainActivity : ComponentActivity() {
                         historyViewModel.addHistoryEntry(normalizedUrl, title)
                     }
                 }
-                // Whenever the active tab changes, update the session and UI state.
+
+                // State for the download confirmation dialog.
+                var showDownloadConfirmationDialog by remember { mutableStateOf(false) }
+                var currentDownloadRequest by remember { mutableStateOf<DownloadRequest?>(null) }
+
+                val showDownloadConfirmation: (DownloadRequest) -> Unit = { downloadRequest ->
+                    currentDownloadRequest = downloadRequest
+                    showDownloadConfirmationDialog = true
+                }
+
+                // Create a shared GeckoDownloadDelegate using remember.
+                val geckoDownloadDelegate = remember {
+                    GeckoDownloadDelegate(
+                        context = this@MainActivity,
+                        downloadViewModel = downloadViewModel,
+                        scope = scope,
+                        showDownloadConfirmation = showDownloadConfirmation
+                    )
+                }
+
+                // Update session when the active tab changes.
                 LaunchedEffect(activeTab) {
                     Log.d("MainActivity", "LaunchedEffect: activeTab = $activeTab")
                     activeTab?.let { tab ->
@@ -89,18 +112,19 @@ class MainActivity : ComponentActivity() {
                                 }
                             },
                             onCanGoBack = { canGoBack = it },
-                            onCanGoForward = { canGoForward = it }
+                            onCanGoForward = { canGoForward = it },
+                            downloadDelegate = geckoDownloadDelegate
                         )
-                        // Update UI state with the active tab’s stored values.
+                        // Update UI state with the tab's stored URL and title.
                         currentUrl = tab.url
                         currentPageTitle = tab.title
                     }
                 }
 
+                // Define the navigation graph.
                 NavHost(navController = navController, startDestination = "browser") {
                     composable("browser") {
                         val tabCount by tabViewModel.tabCount.collectAsState()
-
                         currentSession?.let { session ->
                             BrowserContent(
                                 geckoSession = session,
@@ -108,7 +132,6 @@ class MainActivity : ComponentActivity() {
                                     currentUrl = url
                                     bookmarkViewModel.updateCurrentUrl(url)
                                     tabViewModel.updateActiveTabContent(url, currentPageTitle)
-                                    // Only record a new history entry if the title is valid
                                     if (currentPageTitle.isNotBlank() && currentPageTitle != "Loading...") {
                                         recordHistory(url, currentPageTitle)
                                     }
@@ -131,7 +154,7 @@ class MainActivity : ComponentActivity() {
                                 tabCount = tabCount,
                                 onNewTab = {
                                     scope.launch {
-                                        // Create a new tab with the default URL and title.
+                                        // Create a new tab and session.
                                         val newTabId = tabViewModel.createTab()
                                         val newSession = sessionManager.getOrCreateSession(
                                             tabId = newTabId,
@@ -149,7 +172,8 @@ class MainActivity : ComponentActivity() {
                                                 }
                                             },
                                             onCanGoBack = { canGoBack = it },
-                                            onCanGoForward = { canGoForward = it }
+                                            onCanGoForward = { canGoForward = it },
+                                            downloadDelegate = geckoDownloadDelegate
                                         )
                                         currentSession = newSession
                                         tabViewModel.switchToTab(newTabId)
@@ -162,11 +186,13 @@ class MainActivity : ComponentActivity() {
                                     tabViewModel.closeAllTabs()
                                 },
                                 onCanGoBackChange = { canGoBack = it },
-                                onCanGoForwardChange = { canGoForward = it }
+                                onCanGoForwardChange = { canGoForward = it },
+                                showDownloadConfirmationDialog = showDownloadConfirmationDialog,
+                                currentDownloadRequest = currentDownloadRequest,
+                                onDismissDownloadConfirmationDialog = { showDownloadConfirmationDialog = false }
                             )
                         }
                     }
-
                     composable("bookmarks") {
                         BookmarkScreen(
                             onNavigateToEdit = { bookmarkId ->
@@ -196,7 +222,8 @@ class MainActivity : ComponentActivity() {
                                                         }
                                                     },
                                                     onCanGoBack = { canGoBack = it },
-                                                    onCanGoForward = { canGoForward = it }
+                                                    onCanGoForward = { canGoForward = it },
+                                                    downloadDelegate = geckoDownloadDelegate
                                                 )
                                             }
                                             currentUrl = url
@@ -212,7 +239,6 @@ class MainActivity : ComponentActivity() {
                             }
                         )
                     }
-
                     composable("bookmark/edit/{bookmarkId}") { backStackEntry ->
                         val bookmarkId = backStackEntry.arguments?.getString("bookmarkId")?.toLongOrNull()
                         BookmarkEditScreen(
@@ -220,7 +246,6 @@ class MainActivity : ComponentActivity() {
                             onNavigateBack = { navController.popBackStack() }
                         )
                     }
-
                     composable("downloads") {
                         DownloadScreen(
                             onNavigateBack = { navController.popBackStack() }
@@ -252,7 +277,8 @@ class MainActivity : ComponentActivity() {
                                                         }
                                                     },
                                                     onCanGoBack = { canGoBack = it },
-                                                    onCanGoForward = { canGoForward = it }
+                                                    onCanGoForward = { canGoForward = it },
+                                                    downloadDelegate = geckoDownloadDelegate
                                                 )
                                             }
                                             currentUrl = url
@@ -268,7 +294,6 @@ class MainActivity : ComponentActivity() {
                             }
                         )
                     }
-
                     composable("tabs") {
                         TabScreen(
                             onNavigateBack = { navController.popBackStack() },
