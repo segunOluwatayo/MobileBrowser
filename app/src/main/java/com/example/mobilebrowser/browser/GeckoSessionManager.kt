@@ -16,19 +16,20 @@ class GeckoSessionManager(private val context: Context) {
         onUrlChange: (String) -> Unit = {},
         onTitleChange: (String) -> Unit = {},
         onCanGoBack: (Boolean) -> Unit = {},
-        onCanGoForward: (Boolean) -> Unit = {}
+        onCanGoForward: (Boolean) -> Unit = {},
+        downloadDelegate: GeckoDownloadDelegate? = null
     ): GeckoSession {
         return sessions.getOrPut(tabId) {
             GeckoSession().apply {
                 open(geckoRuntime)
-                navigationDelegate = createNavigationDelegate(onUrlChange, onCanGoBack, onCanGoForward)
-                contentDelegate = createContentDelegate(onTitleChange)
+                navigationDelegate =
+                    createNavigationDelegate(onUrlChange, onCanGoBack, onCanGoForward)
+                contentDelegate = downloadDelegate ?: createContentDelegate(onTitleChange)
                 loadUri(url)
             }
         }.apply {
-            // For existing sessions, update the delegates to use the latest callbacks.
             navigationDelegate = createNavigationDelegate(onUrlChange, onCanGoBack, onCanGoForward)
-            contentDelegate = createContentDelegate(onTitleChange)
+            contentDelegate = downloadDelegate ?: createContentDelegate(onTitleChange)
         }
     }
 
