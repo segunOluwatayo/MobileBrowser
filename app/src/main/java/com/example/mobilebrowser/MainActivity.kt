@@ -13,6 +13,7 @@ import com.example.mobilebrowser.browser.GeckoSessionManager
 import com.example.mobilebrowser.ui.composables.BrowserContent
 import com.example.mobilebrowser.ui.screens.BookmarkEditScreen
 import com.example.mobilebrowser.ui.screens.BookmarkScreen
+import com.example.mobilebrowser.ui.screens.DownloadScreen
 import com.example.mobilebrowser.ui.screens.HistoryScreen
 import com.example.mobilebrowser.ui.screens.TabScreen
 import com.example.mobilebrowser.ui.theme.MobileBrowserTheme
@@ -117,6 +118,7 @@ class MainActivity : ComponentActivity() {
                                 onShowBookmarks = { navController.navigate("bookmarks") },
                                 onShowHistory = { navController.navigate("history") },
                                 onShowTabs = { navController.navigate("tabs") },
+                                onShowDownloads = { navController.navigate("downloads") },
                                 onAddBookmark = { url, title ->
                                     bookmarkViewModel.quickAddBookmark(url, title)
                                 },
@@ -218,6 +220,11 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
+                    composable("downloads") {
+                        DownloadScreen(
+                            onNavigateBack = { navController.popBackStack() }
+                        )
+                    }
                     composable("history") {
                         HistoryScreen(
                             onNavigateBack = { navController.popBackStack() },
