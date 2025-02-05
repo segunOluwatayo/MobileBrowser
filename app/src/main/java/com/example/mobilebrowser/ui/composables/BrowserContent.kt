@@ -24,6 +24,7 @@ import com.example.mobilebrowser.ui.viewmodels.DownloadViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.mozilla.geckoview.GeckoSession
 
 @Composable
@@ -48,9 +49,9 @@ fun BrowserContent(
     onNewTab: () -> Unit,
     onCloseAllTabs: () -> Unit,
     onShowDownloads: () -> Unit,
-    showDownloadConfirmationDialog: Boolean, // Receive dialog visibility state
-    currentDownloadRequest: GeckoDownloadDelegate.DownloadRequest?, // Receive DownloadRequest data
-    onDismissDownloadConfirmationDialog: () -> Unit, // Callback to dismiss dialog
+    showDownloadConfirmationDialog: Boolean,
+    currentDownloadRequest: GeckoDownloadDelegate.DownloadRequest?,
+    onDismissDownloadConfirmationDialog: () -> Unit,
     modifier: Modifier = Modifier,
     downloadViewModel: DownloadViewModel = hiltViewModel()
 ) {
@@ -60,9 +61,9 @@ fun BrowserContent(
     var showOverflowMenu by remember { mutableStateOf(false) }
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
 
-    // State for Download Completion Dialog (keep for testing)
+    // State for Download Completion Dialog and tracking current download
     var showDownloadCompletionDialog by remember { mutableStateOf(false) }
-
+    var currentDownloadId by remember { mutableStateOf<Long?>(null) }
 
     LaunchedEffect(currentUrl) {
         if (!isEditing) {
@@ -107,7 +108,10 @@ fun BrowserContent(
                     Box(
                         modifier = Modifier
                             .size(28.dp)
-                            .background(MaterialTheme.colorScheme.primary, shape = MaterialTheme.shapes.small)
+                            .background(
+                                MaterialTheme.colorScheme.primary,
+                                shape = MaterialTheme.shapes.small
+                            )
                             .clip(MaterialTheme.shapes.small),
                         contentAlignment = Alignment.Center
                     ) {
@@ -168,7 +172,7 @@ fun BrowserContent(
                 }
             }
 
-            // Overflow menu for navigation controls
+            // Overflow menu
             Box {
                 IconButton(onClick = { showOverflowMenu = true }) {
                     Icon(Icons.Default.MoreVert, contentDescription = "More options")
@@ -192,7 +196,9 @@ fun BrowserContent(
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Back",
-                                tint = if (canGoBack) LocalContentColor.current else LocalContentColor.current.copy(alpha = 0.38f)
+                                tint = if (canGoBack) LocalContentColor.current else LocalContentColor.current.copy(
+                                    alpha = 0.38f
+                                )
                             )
                         }
 
@@ -206,7 +212,9 @@ fun BrowserContent(
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowForward,
                                 contentDescription = "Forward",
-                                tint = if (canGoForward) LocalContentColor.current else LocalContentColor.current.copy(alpha = 0.38f)
+                                tint = if (canGoForward) LocalContentColor.current else LocalContentColor.current.copy(
+                                    alpha = 0.38f
+                                )
                             )
                         }
 
@@ -222,6 +230,7 @@ fun BrowserContent(
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
+                    // Menu items
                     DropdownMenuItem(
                         text = { Text("Bookmarks") },
                         onClick = {
@@ -238,22 +247,22 @@ fun BrowserContent(
                         },
                         leadingIcon = { Icon(Icons.Default.Download, contentDescription = null) }
                     )
-                    // New Download Menu Item
                     DropdownMenuItem(
                         text = { Text("Download") },
                         onClick = {
                             showOverflowMenu = false
-                            // No need to set downloadFileName here anymore - data comes from GeckoDownloadDelegate
-                            // downloadFileName = currentUrl.substringAfterLast('/').ifEmpty { "downloaded_file" }
-                            // showDownloadConfirmationDialog = true // Handled by MainActivity now
-
-                            // Instead, trigger GeckoView to handle download (if needed - might be automatic)
-                            // For now, rely on GeckoView to trigger onExternalResponse in GeckoDownloadDelegate
-                            Log.d("BrowserContent", "Download menu item clicked - relying on GeckoView to trigger download")
+                            Log.d(
+                                "BrowserContent",
+                                "Download menu item clicked - relying on GeckoView to trigger download"
+                            )
                         },
-                        leadingIcon = { Icon(Icons.Default.Download, contentDescription = "Download") } //Using same icon for now, adjust if needed
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Download,
+                                contentDescription = "Download"
+                            )
+                        }
                     )
-
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
@@ -269,7 +278,7 @@ fun BrowserContent(
             }
         }
 
-        // Browser view area: wrap the GeckoViewComponent with a key based on the geckoSession.
+        // Browser view
         key(geckoSession) {
             GeckoViewComponent(
                 geckoSession = geckoSession,
@@ -288,57 +297,74 @@ fun BrowserContent(
         }
     }
 
-    // Download Confirmation Dialog - Now controlled by MainActivity state
+    // Download Confirmation Dialog
     if (showDownloadConfirmationDialog && currentDownloadRequest != null) {
         DownloadConfirmationDialog(
-            fileName = currentDownloadRequest!!.fileName, // Use filename from DownloadRequest
-            fileSize = currentDownloadRequest.contentLength.toString(), // Use filesize from DownloadRequest
+            fileName = currentDownloadRequest.fileName,
+            fileSize = currentDownloadRequest.contentLength.toString(),
             onDownloadClicked = {
-                Log.d("BrowserContent", "Download Confirmation: Download button clicked for ${currentDownloadRequest!!.fileName}")
-                onDismissDownloadConfirmationDialog() // Dismiss dialog via callback
-                showDownloadCompletionDialog = true      // Show completion dialog for testing
-
-                // **Call DownloadViewModel.startDownload with data from DownloadRequest**
-                val downloadUrl = currentDownloadRequest.url
-                val fileNameForDownload = currentDownloadRequest.fileName
-                val mimeTypePlaceholder = currentDownloadRequest.contentType ?: "application/octet-stream"
-                val fileSizePlaceholder = currentDownloadRequest.contentLength
+                Log.d(
+                    "BrowserContent",
+                    "Download Confirmation: Download button clicked for ${currentDownloadRequest.fileName}"
+                )
+                onDismissDownloadConfirmationDialog()
 
                 CoroutineScope(Dispatchers.IO).launch {
-                    val downloadId = downloadViewModel.startDownload(
-                        fileNameForDownload,
-                        downloadUrl,
-                        mimeTypePlaceholder,
-                        fileSizePlaceholder
-                    )
-                    Log.d("BrowserContent", "Download started with ID: $downloadId")
+                    try {
+                        val id = downloadViewModel.startDownload(
+                            currentDownloadRequest.fileName,
+                            currentDownloadRequest.url,
+                            currentDownloadRequest.contentType ?: "application/octet-stream",
+                            currentDownloadRequest.contentLength
+                        )
+                        Log.d("BrowserContent", "Download ID received: $id")
+
+                        withContext(Dispatchers.Main) {
+                            currentDownloadId = id
+                            showDownloadCompletionDialog = true
+                            Log.d(
+                                "BrowserContent",
+                                "Set currentDownloadId=$currentDownloadId, showDownloadCompletionDialog=$showDownloadCompletionDialog"
+                            )
+                        }
+                    } catch (e: Exception) {
+                        Log.e("BrowserContent", "Error starting download", e)
+                    }
                 }
             },
             onCancelClicked = {
                 Log.d("BrowserContent", "Download Confirmation: Cancel button clicked")
-                onDismissDownloadConfirmationDialog() // Dismiss dialog via callback
+                onDismissDownloadConfirmationDialog()
             },
-            onDismissRequest = {
-                onDismissDownloadConfirmationDialog() // Dismiss dialog via callback
-            }
+            onDismissRequest = onDismissDownloadConfirmationDialog
         )
     }
 
-    // Download Completion Dialog (keep for testing)
-    if (showDownloadCompletionDialog) {
+// Add logging before the completion dialog check
+    Log.d(
+        "BrowserContent",
+        "Before completion dialog check: showDialog=$showDownloadCompletionDialog, downloadId=$currentDownloadId"
+    )
+
+    if (showDownloadCompletionDialog && currentDownloadId != null) {
+        Log.d("BrowserContent", "Showing completion dialog for download ID: $currentDownloadId")
         DownloadCompletionDialog(
-            fileName = currentDownloadRequest?.fileName ?: "unknown", // Use filename from request if available
+            downloadId = currentDownloadId!!,
+            fileName = currentDownloadRequest?.fileName ?: "unknown",
+            viewModel = downloadViewModel,
             onOpenClicked = {
-                Log.d("BrowserContent", "Download Completion: Open button clicked for ${currentDownloadRequest?.fileName ?: "unknown"}")
+                Log.d("BrowserContent", "Download Completion: Open button clicked")
                 showDownloadCompletionDialog = false
-                // TODO: Implement "Open" action (later steps)
+                currentDownloadId = null  // Reset the ID when closing
             },
             onDismissClicked = {
                 Log.d("BrowserContent", "Download Completion: OK button clicked")
                 showDownloadCompletionDialog = false
+                currentDownloadId = null  // Reset the ID when closing
             },
             onDismissRequest = {
                 showDownloadCompletionDialog = false
+                currentDownloadId = null  // Reset the ID when closing
             }
         )
     }

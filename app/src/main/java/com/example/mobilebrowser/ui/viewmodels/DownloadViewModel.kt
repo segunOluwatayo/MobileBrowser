@@ -1,5 +1,6 @@
 package com.example.mobilebrowser.ui.viewmodels
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.mobilebrowser.data.entity.DownloadEntity
@@ -14,6 +15,10 @@ import javax.inject.Inject
 class DownloadViewModel @Inject constructor(
     private val repository: DownloadRepository
 ) : ViewModel() {
+    private val _downloadProgress = MutableStateFlow<Map<Long, Int>>(emptyMap())
+    val downloadProgress: StateFlow<Map<Long, Int>> = _downloadProgress.asStateFlow()
+
+
     // Stream of all downloads
     val downloads = repository.getAllDownloads()
         .stateIn(
@@ -27,7 +32,28 @@ class DownloadViewModel @Inject constructor(
 
     // Start a new download
     suspend fun startDownload(fileName: String, url: String, mimeType: String, fileSize: Long): Long {
-        return repository.startDownload(fileName, url, mimeType, fileSize)
+        Log.d("DownloadViewModel", "Starting download: $fileName")
+        val downloadId = repository.startDownload(fileName, url, mimeType, fileSize)
+        Log.d("DownloadViewModel", "Download started with ID: $downloadId")
+
+        // Start monitoring the download status
+        viewModelScope.launch {
+            repository.monitorDownload(downloadId)
+        }
+
+        return downloadId
+    }
+
+
+    // Added method to show completion dialog only when download is actually complete
+    // Check download status
+    fun shouldShowCompletionDialog(downloadId: Long): Flow<Boolean> {
+        return downloads
+            .map { downloadList ->
+                val download = downloadList.find { it.id == downloadId }
+                Log.d("DownloadViewModel", "Checking download status for ID $downloadId: ${download?.status}")
+                download?.status == DownloadStatus.COMPLETED
+            }
     }
 
     // Check if file is already downloaded
