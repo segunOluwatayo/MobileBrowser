@@ -30,6 +30,10 @@ class DownloadViewModel @Inject constructor(
     // Recently deleted download for undo functionality
     private var recentlyDeletedDownload: DownloadEntity? = null
 
+    suspend fun getDownloadById(id: Long): DownloadEntity? {
+        return repository.getDownloadById(id)
+    }
+
     // Start a new download
     suspend fun startDownload(fileName: String, url: String, mimeType: String, fileSize: Long): Long {
         Log.d("DownloadViewModel", "Starting download: $fileName")

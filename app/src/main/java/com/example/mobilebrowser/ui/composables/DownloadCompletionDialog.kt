@@ -7,7 +7,12 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
 import com.example.mobilebrowser.ui.viewmodels.DownloadViewModel
+import com.example.mobilebrowser.util.FileUtils
+import kotlinx.coroutines.launch
+import java.io.File
 
 @Composable
 fun DownloadCompletionDialog(
@@ -18,10 +23,10 @@ fun DownloadCompletionDialog(
     onDismissClicked: () -> Unit,
     onDismissRequest: () -> Unit
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val isCompleted by viewModel.shouldShowCompletionDialog(downloadId)
         .collectAsState(initial = false)
-
-    Log.d("DownloadCompletionDialog", "Dialog state: downloadId=$downloadId, isCompleted=$isCompleted")
 
     if (isCompleted) {
         AlertDialog(
@@ -30,15 +35,31 @@ fun DownloadCompletionDialog(
             text = { Text("File downloaded successfully: $fileName") },
             confirmButton = {
                 TextButton(onClick = {
+                    scope.launch {
+                        viewModel.getDownloadById(downloadId)?.let { download ->
+                            val file = File(download.localPath)
+                            if (file.exists()) {
+                                try {
+                                    val intent = FileUtils.createOpenIntent(
+                                        context,
+                                        file,
+                                        download.mimeType
+                                    )
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    // Handle no app found case if needed
+                                    Log.e("DownloadCompletionDialog", "No app found to open file", e)
+                                }
+                            }
+                        }
+                    }
                     onOpenClicked()
                 }) {
                     Text("Open")
                 }
             },
             dismissButton = {
-                TextButton(onClick = {
-                    onDismissClicked()
-                }) {
+                TextButton(onClick = onDismissClicked) {
                     Text("OK")
                 }
             }
