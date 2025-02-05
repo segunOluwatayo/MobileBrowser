@@ -34,6 +34,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             MobileBrowserTheme {
+//                TestDownloadConfirmationScreen()
                 // UI state for URL, title, navigation flags, and the current session.
                 var currentUrl by remember { mutableStateOf("https://www.mozilla.org") }
                 var currentPageTitle by remember { mutableStateOf("New Tab") }
