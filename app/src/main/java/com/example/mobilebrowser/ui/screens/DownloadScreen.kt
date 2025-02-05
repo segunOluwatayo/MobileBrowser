@@ -1,6 +1,7 @@
 package com.example.mobilebrowser.ui.screens
 
 import androidx.compose.animation.*
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -10,7 +11,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -27,13 +27,12 @@ fun DownloadScreen(
     onNavigateBack: () -> Unit,
     viewModel: DownloadViewModel = hiltViewModel()
 ) {
-    val context = LocalContext.current
     val downloads by viewModel.downloads.collectAsState()
     val downloadState by viewModel.downloadState.collectAsState()
     val recentlyDeletedDownload by viewModel.recentlyDeletedDownload.collectAsState()
     var showRenameDialog by remember { mutableStateOf<DownloadEntity?>(null) }
 
-    // Handle download completion dialog
+    // Display the download completion dialog if needed
     if (downloadState is DownloadState.Completed) {
         DownloadCompletionDialog(
             state = downloadState as DownloadState.Completed,
@@ -53,7 +52,7 @@ fun DownloadScreen(
             )
         },
         snackbarHost = {
-            // Show undo snackbar when a download is deleted
+            // Removed parameter here to match the expected lambda type
             recentlyDeletedDownload?.let { download ->
                 Snackbar(
                     action = {
@@ -74,7 +73,7 @@ fun DownloadScreen(
                 .padding(padding)
         ) {
             if (downloads.isEmpty()) {
-                // Show empty state
+                // Empty state
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -86,7 +85,7 @@ fun DownloadScreen(
                     )
                 }
             } else {
-                // Show list of downloads
+                // List of downloads
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(vertical = 8.dp)
@@ -97,15 +96,12 @@ fun DownloadScreen(
                     ) { download ->
                         DownloadItem(
                             download = download,
+                            onOpenClick = { viewModel.openDownloadedFile(download.id) },
                             onShareClick = {
-                                // Handle share action
+                                // Handle share action (e.g., viewModel.shareDownload(download.id))
                             },
-                            onRenameClick = {
-                                showRenameDialog = download
-                            },
-                            onDeleteClick = {
-                                viewModel.deleteDownload(download.id)
-                            }
+                            onRenameClick = { showRenameDialog = download },
+                            onDeleteClick = { viewModel.deleteDownload(download.id) }
                         )
                     }
                 }
@@ -130,6 +126,7 @@ fun DownloadScreen(
 @Composable
 private fun DownloadItem(
     download: DownloadEntity,
+    onOpenClick: () -> Unit,
     onShareClick: () -> Unit,
     onRenameClick: () -> Unit,
     onDeleteClick: () -> Unit,
@@ -140,7 +137,8 @@ private fun DownloadItem(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clickable { onOpenClick() }, // Open the file when clicked
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
@@ -150,7 +148,7 @@ private fun DownloadItem(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Download info
+            // Download information
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = download.filename,
@@ -166,7 +164,7 @@ private fun DownloadItem(
                 )
             }
 
-            // Three-dot menu
+            // Three-dot overflow menu
             Box {
                 IconButton(onClick = { showMenu = true }) {
                     Icon(Icons.Default.MoreVert, contentDescription = "More options")

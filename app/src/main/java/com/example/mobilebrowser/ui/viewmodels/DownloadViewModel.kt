@@ -3,6 +3,7 @@ package com.example.mobilebrowser.ui.viewmodels
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.asFlow
@@ -163,25 +164,25 @@ class DownloadViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 repository.getDownloadForSharing(downloadId)?.let { download ->
+                    val file = File(download.path)
+                    Log.d("DownloadViewModel", "Opening file: ${file.absolutePath}, exists: ${file.exists()}, mimeType: ${download.mimeType}")
+                    // Use the actual MIME type if available, otherwise default to audio/mpeg (or similar)
+                    val mimeType = if (download.mimeType.startsWith("audio/")) {
+                        // If your download.mimeType is not specific, you can change it:
+                        if (download.mimeType == "audio/*") "audio/mpeg" else download.mimeType
+                    } else {
+                        download.mimeType
+                    }
                     val intent = when {
-                        // Audio files
                         download.mimeType.startsWith("audio/") -> {
-                            Intent(Intent.ACTION_VIEW).apply {
-                                setDataAndType(
-                                    Uri.parse("content://media/external/audio/media"),
-                                    "audio/*"
-                                )
-                            }
+                            createFileIntent(download, mimeType)
                         }
-                        // Video files
                         download.mimeType.startsWith("video/") -> {
                             createFileIntent(download, "video/*")
                         }
-                        // Image files
                         download.mimeType.startsWith("image/") -> {
                             createFileIntent(download, "image/*")
                         }
-                        // Documents and other application types
                         download.mimeType.startsWith("application/") -> {
                             when {
                                 download.mimeType.endsWith("pdf") ->
@@ -199,13 +200,18 @@ class DownloadViewModel @Inject constructor(
                         }
                         else -> createFileIntent(download, download.mimeType)
                     }
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     context.startActivity(intent)
                 }
             } catch (e: Exception) {
+                Log.e("DownloadViewModel", "Failed to open file: ${e.message}", e)
                 _error.value = "Failed to open file: ${e.message}"
             }
         }
     }
+
+
+
 
     // Helper function to create an Intent for a file using FileProvider
     private fun createFileIntent(download: DownloadEntity, mimeType: String): Intent {
@@ -217,6 +223,7 @@ class DownloadViewModel @Inject constructor(
             )
             setDataAndType(uri, mimeType)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
     }
 

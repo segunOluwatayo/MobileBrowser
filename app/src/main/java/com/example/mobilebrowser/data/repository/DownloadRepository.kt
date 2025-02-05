@@ -5,6 +5,7 @@ import android.content.Context
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import android.util.Log
 import com.example.mobilebrowser.data.dao.DownloadDao
 import com.example.mobilebrowser.data.entity.DownloadEntity
 import com.example.mobilebrowser.data.entity.DownloadStatus
@@ -133,14 +134,12 @@ class DownloadRepository @Inject constructor(
         downloadDao.getDownloadById(downloadId)
 
     private fun getDownloadPath(filename: String): String {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            // For Android 10 and above, use MediaStore path
-            "${Environment.DIRECTORY_DOWNLOADS}/$filename"
-        } else {
-            // For older versions, use direct file path
-            "${Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)}/$filename"
-        }
+        val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).absolutePath
+        val fullPath = "$downloadsDir/$filename"
+        Log.d("DownloadRepository", "Computed download path: $fullPath")
+        return fullPath
     }
+
     fun getDownloadProgress(downloadId: Long): Flow<Int> = flow {
         var progress = 0
         // Emit progress updates every 500ms until reaching 100
