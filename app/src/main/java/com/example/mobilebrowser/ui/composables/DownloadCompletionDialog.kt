@@ -46,6 +46,7 @@ fun DownloadCompletionDialog(
                                         download.mimeType
                                     )
                                     context.startActivity(intent)
+                                    onOpenClicked()
                                 } catch (e: Exception) {
                                     // Handle no app found case if needed
                                     Log.e("DownloadCompletionDialog", "No app found to open file", e)
@@ -53,9 +54,9 @@ fun DownloadCompletionDialog(
                             }
                         }
                     }
-                    onOpenClicked()
                 }) {
                     Text("Open")
+                    Log.d("DownloadCompletionDialog", "Context: ${context.javaClass.name}")
                 }
             },
             dismissButton = {

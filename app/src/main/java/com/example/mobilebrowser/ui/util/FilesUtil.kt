@@ -39,7 +39,6 @@ object FileUtils {
         val uri = getUriForFile(context, file)
         // If mimeType is generic, infer the MIME type from the file extension.
         val actualMimeType = if (mimeType == "application/octet-stream") {
-            // Get the extension from the file name and look up the MIME type.
             val ext = file.extension.lowercase()
             MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: mimeType
         } else {
@@ -49,8 +48,11 @@ object FileUtils {
         return Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(uri, actualMimeType)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            // Ensure we have the new task flag if the context isn’t an Activity
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
     }
+
 
 
     fun getSafeFileName(fileName: String): String {
