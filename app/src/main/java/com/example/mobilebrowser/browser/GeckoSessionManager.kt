@@ -1,8 +1,10 @@
 package com.example.mobilebrowser.browser
 
 import android.content.Context
+import android.util.Log
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoSession
+import org.mozilla.geckoview.WebResponse
 import java.util.concurrent.ConcurrentHashMap
 
 class GeckoSessionManager(private val context: Context) {
@@ -17,19 +19,20 @@ class GeckoSessionManager(private val context: Context) {
         onTitleChange: (String) -> Unit = {},
         onCanGoBack: (Boolean) -> Unit = {},
         onCanGoForward: (Boolean) -> Unit = {},
-        downloadDelegate: GeckoDownloadDelegate? = null
+        downloadDelegate: GeckoSession.ContentDelegate? = null
     ): GeckoSession {
         return sessions.getOrPut(tabId) {
             GeckoSession().apply {
                 open(geckoRuntime)
-                navigationDelegate =
-                    createNavigationDelegate(onUrlChange, onCanGoBack, onCanGoForward)
-                contentDelegate = downloadDelegate ?: createContentDelegate(onTitleChange)
+                navigationDelegate = createNavigationDelegate(onUrlChange, onCanGoBack, onCanGoForward)
+                // Use a combined content delegate
+                contentDelegate = createCombinedContentDelegate(onTitleChange, downloadDelegate)
                 loadUri(url)
             }
         }.apply {
             navigationDelegate = createNavigationDelegate(onUrlChange, onCanGoBack, onCanGoForward)
-            contentDelegate = downloadDelegate ?: createContentDelegate(onTitleChange)
+            // Always update, in case callbacks change.  Crucial!
+            contentDelegate = createCombinedContentDelegate(onTitleChange, downloadDelegate)
         }
     }
 
@@ -53,7 +56,6 @@ class GeckoSessionManager(private val context: Context) {
         currentSession = null
     }
 
-    // Create a NavigationDelegate to handle URL changes and navigation state.
     private fun createNavigationDelegate(
         onUrlChange: (String) -> Unit,
         onCanGoBack: (Boolean) -> Unit,
@@ -76,12 +78,21 @@ class GeckoSessionManager(private val context: Context) {
         }
     }
 
-    // Create a ContentDelegate to handle title changes.
-    private fun createContentDelegate(
-        onTitleChange: (String) -> Unit
+    // Create a combined content delegate
+    private fun createCombinedContentDelegate(
+        onTitleChange: (String) -> Unit,
+        downloadDelegate: GeckoSession.ContentDelegate?
     ) = object : GeckoSession.ContentDelegate {
+
         override fun onTitleChange(session: GeckoSession, title: String?) {
+            Log.d("GeckoSessionManager", "onTitleChange: $title")
             onTitleChange(title ?: "")
         }
+
+        // Delegate download-related methods to the provided downloadDelegate
+        override fun onExternalResponse(session: GeckoSession, response: WebResponse) {
+            downloadDelegate?.onExternalResponse(session, response)
+        }
+
     }
 }

@@ -105,6 +105,7 @@ class MainActivity : ComponentActivity() {
                                 tabViewModel.updateActiveTabContent(newUrl, currentPageTitle)
                             },
                             onTitleChange = { newTitle ->
+                                //  Log.d("MainActivity", "onTitleChange in LaunchedEffect: $newTitle") // Add logging here
                                 if (newTitle.isNotBlank() && newTitle != "Loading...") {
                                     currentPageTitle = newTitle
                                     tabViewModel.updateActiveTabContent(currentUrl, newTitle)
@@ -113,7 +114,7 @@ class MainActivity : ComponentActivity() {
                             },
                             onCanGoBack = { canGoBack = it },
                             onCanGoForward = { canGoForward = it },
-                            downloadDelegate = geckoDownloadDelegate
+                            downloadDelegate = geckoDownloadDelegate  // Pass the delegate
                         )
                         // Update UI state with the tab's stored URL and title.
                         currentUrl = tab.url
@@ -165,6 +166,7 @@ class MainActivity : ComponentActivity() {
                                                 tabViewModel.updateActiveTabContent(newUrl, currentPageTitle)
                                             },
                                             onTitleChange = { newTitle ->
+                                                // Log.d("MainActivity", "onTitleChange in onNewTab: $newTitle") // Add logging here
                                                 if (newTitle.isNotBlank() && newTitle != "Loading...") {
                                                     currentPageTitle = newTitle
                                                     tabViewModel.updateActiveTabContent(currentUrl, newTitle)
@@ -173,7 +175,7 @@ class MainActivity : ComponentActivity() {
                                             },
                                             onCanGoBack = { canGoBack = it },
                                             onCanGoForward = { canGoForward = it },
-                                            downloadDelegate = geckoDownloadDelegate
+                                            downloadDelegate = geckoDownloadDelegate  // Pass the delegate
                                         )
                                         currentSession = newSession
                                         tabViewModel.switchToTab(newTabId)
@@ -215,6 +217,7 @@ class MainActivity : ComponentActivity() {
                                                         tabViewModel.updateActiveTabContent(newUrl, currentPageTitle)
                                                     },
                                                     onTitleChange = { newTitle ->
+                                                        //Log.d("MainActivity", "onTitleChange in bookmarks: $newTitle")
                                                         if (newTitle.isNotBlank() && newTitle != "Loading...") {
                                                             currentPageTitle = newTitle
                                                             tabViewModel.updateActiveTabContent(currentUrl, newTitle)
@@ -223,7 +226,7 @@ class MainActivity : ComponentActivity() {
                                                     },
                                                     onCanGoBack = { canGoBack = it },
                                                     onCanGoForward = { canGoForward = it },
-                                                    downloadDelegate = geckoDownloadDelegate
+                                                    downloadDelegate = geckoDownloadDelegate  // Pass the delegate
                                                 )
                                             }
                                             currentUrl = url
@@ -270,6 +273,7 @@ class MainActivity : ComponentActivity() {
                                                         tabViewModel.updateActiveTabContent(newUrl, currentPageTitle)
                                                     },
                                                     onTitleChange = { newTitle ->
+                                                        //   Log.d("MainActivity", "onTitleChange in history: $newTitle")
                                                         if (newTitle.isNotBlank() && newTitle != "Loading...") {
                                                             currentPageTitle = newTitle
                                                             tabViewModel.updateActiveTabContent(currentUrl, newTitle)
@@ -278,7 +282,7 @@ class MainActivity : ComponentActivity() {
                                                     },
                                                     onCanGoBack = { canGoBack = it },
                                                     onCanGoForward = { canGoForward = it },
-                                                    downloadDelegate = geckoDownloadDelegate
+                                                    downloadDelegate = geckoDownloadDelegate  // Pass the delegate
                                                 )
                                             }
                                             currentUrl = url
@@ -311,6 +315,7 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 }
+
             }
         }
     }
