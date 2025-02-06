@@ -6,6 +6,7 @@ import android.util.Log
 import com.example.mobilebrowser.ui.viewmodels.DownloadViewModel
 import com.example.mobilebrowser.ui.util.PermissionHandler
 import com.example.mobilebrowser.util.FileUtils
+import com.example.mobilebrowser.util.FileUtils.fetchContentLength
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.mozilla.geckoview.GeckoSession
@@ -38,30 +39,78 @@ class GeckoDownloadDelegate(
             return
         }
 
-        val fileNameFromUrl = Uri.parse(response.uri).lastPathSegment ?: "unknown"
-        val safeFileName = FileUtils.getSafeFileName(fileNameFromUrl)
-
         val headers = response.headers
-        val contentLength = headers["Content-Length"]?.toLongOrNull() ?: 0L
-        val contentType = headers["Content-Type"] ?: "application/octet-stream"
 
-        val downloadRequest = DownloadRequest(
-            fileName = safeFileName,
-            url = response.uri,
+        // Try to extract the filename from Content-Disposition header first.
+        val contentDisposition = headers["Content-Disposition"]
+        val rawFileName = if (contentDisposition != null) {
+            FileUtils.extractFileNameFromContentDisposition(contentDisposition)
+        } else {
+            null
+        } ?: Uri.parse(response.uri).lastPathSegment ?: "unknown"
+
+        val safeFileName = FileUtils.getSafeFileName(rawFileName)
+
+        // Case-insensitive lookup for content-length header
+        val contentLengthHeader = headers.entries.firstOrNull {
+            it.key.equals(
+                "Content-Length",
+                ignoreCase = true
+            )
+        }?.value
+        var contentLength = contentLengthHeader?.toLongOrNull() ?: 0L
+
+        // If contentLength is 0, perform a HEAD request to determine the file size.
+        if (contentLength == 0L) {
+            scope.launch {
+                val headContentLength = fetchContentLength(response.uri)
+                Log.d("GeckoDownloadDelegate", "HEAD request content length: $headContentLength")
+                // Proceed with the rest of your logic using the value from the HEAD request
+                continueDownload(
+                    safeFileName,
+                    response.uri,
+                    headContentLength,
+                    headers["Content-Type"] ?: "application/octet-stream"
+                )
+            }
+        } else {
+            scope.launch {
+                continueDownload(
+                    safeFileName,
+                    response.uri,
+                    contentLength,
+                    headers["Content-Type"] ?: "application/octet-stream"
+                )
+            }
+        }
+    }
+
+    // Extracted common function to continue with download processing.
+    private suspend fun continueDownload(
+        fileName: String,
+        url: String,
+        contentLength: Long,
+        contentType: String
+    ) {
+        val downloadRequest = GeckoDownloadDelegate.DownloadRequest(
+            fileName = fileName,
+            url = url,
             contentLength = contentLength,
             contentType = contentType
         )
 
-        scope.launch {
-            if (downloadViewModel.isFileDownloaded(downloadRequest.fileName)) {
-                // Show re-download confirmation (not implemented yet)
-                Log.d("GeckoDownloadDelegate", "File already downloaded: ${downloadRequest.fileName} - Re-download confirmation needed (TODO)")
-                showDownloadConfirmation(downloadRequest) // For now, show download confirmation even for re-downloads
-            } else {
-                // Show initial download confirmation
-                Log.d("GeckoDownloadDelegate", "Showing download confirmation for: ${downloadRequest.fileName}")
-                showDownloadConfirmation(downloadRequest)
-            }
+        if (downloadViewModel.isFileDownloaded(downloadRequest.fileName)) {
+            Log.d(
+                "GeckoDownloadDelegate",
+                "File already downloaded: ${downloadRequest.fileName} - Re-download confirmation needed (TODO)"
+            )
+            showDownloadConfirmation(downloadRequest)
+        } else {
+            Log.d(
+                "GeckoDownloadDelegate",
+                "Showing download confirmation for: ${downloadRequest.fileName}"
+            )
+            showDownloadConfirmation(downloadRequest)
         }
     }
 }

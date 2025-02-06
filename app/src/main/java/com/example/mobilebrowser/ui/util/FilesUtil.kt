@@ -6,7 +6,11 @@ import android.content.Intent
 import android.net.Uri
 import android.webkit.MimeTypeMap
 import androidx.core.content.FileProvider
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
 
 object FileUtils {
     fun getMimeType(url: String): String {
@@ -76,5 +80,35 @@ object FileUtils {
 
         return decodedName
     }
+
+    fun extractFileNameFromContentDisposition(contentDisposition: String): String? {
+        // This regex tries to match:
+        //   filename*=UTF-8''<encoded-filename> OR filename="<filename>"
+        val regex = Regex("filename\\*=UTF-8''([^;]+)|filename=\"?([^;\"]+)\"?")
+        val matchResult = regex.find(contentDisposition)
+        return when {
+            matchResult != null -> matchResult.groups[1]?.value ?: matchResult.groups[2]?.value
+            else -> null
+        }
+    }
+
+    suspend fun fetchContentLength(url: String): Long = withContext(Dispatchers.IO) {
+        try {
+            val connection = URL(url).openConnection() as HttpURLConnection
+            connection.requestMethod = "HEAD"
+            // Request the uncompressed length
+            connection.setRequestProperty("Accept-Encoding", "identity")
+            connection.connectTimeout = 5000
+            connection.readTimeout = 5000
+            connection.connect()
+            val contentLength = connection.getHeaderField("Content-Length")?.toLongOrNull() ?: 0L
+            connection.disconnect()
+            contentLength
+        } catch (e: Exception) {
+            e.printStackTrace()
+            0L
+        }
+    }
+
 
 }
