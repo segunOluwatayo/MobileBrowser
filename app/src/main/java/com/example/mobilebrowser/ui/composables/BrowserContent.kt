@@ -247,22 +247,6 @@ fun BrowserContent(
                         },
                         leadingIcon = { Icon(Icons.Default.Download, contentDescription = null) }
                     )
-                    DropdownMenuItem(
-                        text = { Text("Download") },
-                        onClick = {
-                            showOverflowMenu = false
-                            Log.d(
-                                "BrowserContent",
-                                "Download menu item clicked - relying on GeckoView to trigger download"
-                            )
-                        },
-                        leadingIcon = {
-                            Icon(
-                                Icons.Default.Download,
-                                contentDescription = "Download"
-                            )
-                        }
-                    )
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
