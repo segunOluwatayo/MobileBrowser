@@ -36,8 +36,10 @@ fun SearchUrlBar(
     modifier: Modifier = Modifier
 ) {
     var showDropdown by remember { mutableStateOf(false) }
-    var tempSelectedEngine by remember { mutableStateOf(currentSearchEngine) }
+    // Create a mutableState for the temporary engine that's separate from the prop
+    var tempSelectedEngine by remember(currentSearchEngine) { mutableStateOf(currentSearchEngine) }
 
+    // Reset tempSelectedEngine whenever currentSearchEngine changes (from settings)
     LaunchedEffect(currentSearchEngine) {
         tempSelectedEngine = currentSearchEngine
     }
@@ -73,6 +75,7 @@ fun SearchUrlBar(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Start
                 ) {
+                    // Use tempSelectedEngine for the icon
                     Icon(
                         painter = painterResource(id = tempSelectedEngine.iconRes),
                         contentDescription = tempSelectedEngine.name,
@@ -111,9 +114,9 @@ fun SearchUrlBar(
                         }
                         onNavigate(url)
                     } else {
+                        // Use the temporary engine for search
                         onSearch(input, tempSelectedEngine)
                     }
-                    tempSelectedEngine = currentSearchEngine
                 }
             )
         )
@@ -152,12 +155,14 @@ fun SearchUrlBar(
                         )
                     },
                     onClick = {
+                        // Update the temporary engine when selected
                         tempSelectedEngine = engine
                         showDropdown = false
                     }
                 )
             }
 
+            // Rest of the dropdown menu items...
             Divider(modifier = Modifier.padding(vertical = 8.dp))
 
             DropdownMenuItem(
