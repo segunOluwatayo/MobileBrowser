@@ -143,6 +143,7 @@ class MainActivity : ComponentActivity() {
                                 onShowBookmarks = { navController.navigate("bookmarks") },
                                 onShowHistory = { navController.navigate("history") },
                                 onShowTabs = { navController.navigate("tabs") },
+                                onShowSettings = { navController.navigate("settings") },
                                 onShowDownloads = { navController.navigate("downloads") },
                                 onAddBookmark = { url, title ->
                                     bookmarkViewModel.quickAddBookmark(url, title)
@@ -312,6 +313,11 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
                             }
+                        )
+                    }
+                    composable("settings") {
+                        SettingsScreen(
+                            onNavigateBack = { navController.popBackStack() }
                         )
                     }
                 }
