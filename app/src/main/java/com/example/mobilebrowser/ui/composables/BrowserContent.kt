@@ -46,6 +46,7 @@ fun BrowserContent(
     onNewTab: () -> Unit,
     onCloseAllTabs: () -> Unit,
     onShowDownloads: () -> Unit,
+    onShowSettings: () -> Unit,
     showDownloadConfirmationDialog: Boolean,
     currentDownloadRequest: GeckoDownloadDelegate.DownloadRequest?,
     onDismissDownloadConfirmationDialog: () -> Unit,
@@ -255,6 +256,18 @@ fun BrowserContent(
                             onShowHistory()
                         },
                         leadingIcon = { Icon(Icons.Default.History, contentDescription = null) }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    DropdownMenuItem(
+                        text = { Text("Settings") },
+                        onClick = {
+                            showOverflowMenu = false
+                            onShowSettings() // Invoke the callback to navigate to SettingsScreen.
+                        },
+                        leadingIcon = { Icon(Icons.Default.Settings, contentDescription = "Settings") }
                     )
                 }
             }
