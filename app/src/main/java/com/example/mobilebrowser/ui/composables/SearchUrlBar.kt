@@ -16,59 +16,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.example.mobilebrowser.R
 
-// Handler object for processing and formatting URL strings
-object UrlDisplayHandler {
-    fun extractSearchQuery(url: String): String? {
-        return when {
-            // Check if URL is from Google search
-            url.contains("google.com/search?") -> {
-                // Extract query parameter 'q' and replace '+' with space
-                url.substringAfter("q=").substringBefore("&").replace("+", " ")
-            }
-            // Check if URL is from Bing search
-            url.contains("bing.com/search?") -> {
-                url.substringAfter("q=").substringBefore("&").replace("+", " ")
-            }
-            // Check if URL is from DuckDuckGo search
-            url.contains("duckduckgo.com/?") -> {
-                url.substringAfter("q=").substringBefore("&").replace("+", " ")
-            }
-            // Check if URL is from Qwant search
-            url.contains("qwant.com/?") -> {
-                url.substringAfter("q=").substringBefore("&").replace("+", " ")
-            }
-            // Check if URL is from Wikipedia search
-            url.contains("wikipedia.org/wiki/Special:Search") -> {
-                url.substringAfter("search=").substringBefore("&").replace("+", " ")
-            }
-            // Check if URL is from eBay search
-            url.contains("ebay.com/sch/") -> {
-                url.substringAfter("_nkw=").substringBefore("&").replace("+", " ")
-            }
-            // Return null if none of the patterns match
-            else -> null
-        }
-    }
-
-    fun getDisplayText(url: String, isEditing: Boolean): String {
-        // When editing, return the raw URL text
-        if (isEditing) return url
-
-        // Attempt to extract a search query from the URL
-        val searchQuery = extractSearchQuery(url)
-        if (searchQuery != null) {
-            return searchQuery
-        }
-
-        // Remove common URL prefixes and suffixes for cleaner display
-        return url.removePrefix("https://")
-            .removePrefix("http://")
-            .removePrefix("www.")
-            .removeSuffix("/")
-    }
-}
-
-// Data class representing a search engine with its properties
 data class SearchEngine(
     val name: String,
     val searchUrl: String,
@@ -85,10 +32,8 @@ fun SearchUrlBar(
     isEditing: Boolean,
     modifier: Modifier = Modifier
 ) {
-    // State to control whether the dropdown menu is shown
     var showDropdown by remember { mutableStateOf(false) }
 
-    // List of available search engines. This list is remembered across recompositions.
     val searchEngines = remember {
         listOf(
             SearchEngine(
@@ -124,21 +69,24 @@ fun SearchUrlBar(
         )
     }
 
-    // State to keep track of the currently selected search engine; default to the first one
     var selectedEngine by remember { mutableStateOf(searchEngines[0]) }
 
-    // Container box for the URL bar and dropdown menu
-    Box(modifier = modifier) {
+    // Display text logic updated to keep search queries visible
+    val displayText = when {
+        isEditing -> value  // Show text when editing
+        value.contains("mozilla.org") -> ""  // Hide mozilla.org URL
+        value.isNotBlank() -> value  // Show any other non-empty value
+        else -> ""  // Show empty for blank values
+    }
 
-        // Outlined text field for URL input or search query
+    Box(modifier = modifier) {
         OutlinedTextField(
-            // Display text is formatted based on whether the field is being edited
-            value = UrlDisplayHandler.getDisplayText(value, isEditing),
+            value = displayText,
             onValueChange = onValueChange,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 8.dp),
-            shape = RoundedCornerShape(24.dp), // Rounded corners for a smooth appearance
+            shape = RoundedCornerShape(24.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedContainerColor = MaterialTheme.colorScheme.surface,
                 unfocusedContainerColor = MaterialTheme.colorScheme.surface,
@@ -146,23 +94,20 @@ fun SearchUrlBar(
                 focusedBorderColor = MaterialTheme.colorScheme.outline,
                 unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f)
             ),
-            // Leading icon area displaying the selected search engine's icon and dropdown arrow
             leadingIcon = {
                 Row(
                     modifier = Modifier
-                        .clickable { showDropdown = true } // Open dropdown on click
+                        .clickable { showDropdown = true }
                         .padding(start = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    // Display the search engine icon
                     Icon(
                         painter = painterResource(id = selectedEngine.iconRes),
                         contentDescription = selectedEngine.name,
                         modifier = Modifier.size(24.dp),
-                        tint = Color.Unspecified // Use the original colors of the icon
+                        tint = Color.Unspecified
                     )
-                    // Dropdown arrow icon to indicate menu expansion
                     Icon(
                         imageVector = Icons.Default.ArrowDropDown,
                         contentDescription = "Select search engine",
@@ -170,34 +115,35 @@ fun SearchUrlBar(
                     )
                 }
             },
-            // Placeholder text when the field is empty
-            placeholder = { Text("Search or enter address") },
+            placeholder = {
+                Text(
+                    "Search or enter address",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                )
+            },
             singleLine = true,
-            // Configure the keyboard options: show a "Search" action on the keyboard
             keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                 imeAction = ImeAction.Search
             ),
-            // Define what happens when the search action is triggered on the keyboard
             keyboardActions = androidx.compose.foundation.text.KeyboardActions(
                 onSearch = {
-                    // Determine if the input is likely a URL (contains a dot and no spaces)
-                    if (value.contains(".") && !value.contains(" ")) {
-                        var url = value
-                        // Prepend "https://" if the URL doesn't start with a valid scheme
+                    val input = value.trim()
+                    if (input.isBlank()) return@KeyboardActions
+
+                    if (input.contains(".") && !input.contains(" ")) {
+                        var url = input
                         if (!url.startsWith("http://") && !url.startsWith("https://")) {
                             url = "https://$url"
                         }
-                        // Navigate to the specified URL
                         onNavigate(url)
                     } else {
-                        // Otherwise, perform a search using the selected search engine
-                        onSearch(value, selectedEngine)
+                        onSearch(input, selectedEngine)
                     }
                 }
             )
         )
 
-        // Dropdown menu for selecting a search engine and accessing extra options
         DropdownMenu(
             expanded = showDropdown,
             onDismissRequest = { showDropdown = false },
@@ -205,38 +151,32 @@ fun SearchUrlBar(
                 .width(280.dp)
                 .background(MaterialTheme.colorScheme.surface)
         ) {
-            // Title for the dropdown menu
             Text(
-                text = "This time search in:",
+                text = "Search with:",
                 modifier = Modifier.padding(16.dp),
                 style = MaterialTheme.typography.titleMedium
             )
 
-            // List each search engine as a selectable item in the dropdown
             searchEngines.forEach { engine ->
                 DropdownMenuItem(
                     text = { Text(engine.name) },
                     leadingIcon = {
-                        // Icon for each search engine
                         Icon(
                             painter = painterResource(id = engine.iconRes),
                             contentDescription = engine.name,
                             modifier = Modifier.size(24.dp),
-                            tint = Color.Unspecified // Keep the icon's original colors
+                            tint = Color.Unspecified
                         )
                     },
                     onClick = {
-                        // Update the selected engine and close the dropdown when an item is clicked
                         selectedEngine = engine
                         showDropdown = false
                     }
                 )
             }
 
-            // A divider to separate search engine options from extra options
             Divider(modifier = Modifier.padding(vertical = 8.dp))
 
-            // Extra dropdown menu items for additional actions (Bookmarks, History, and Settings)
             DropdownMenuItem(
                 text = { Text("Bookmarks") },
                 leadingIcon = {
@@ -245,7 +185,7 @@ fun SearchUrlBar(
                         contentDescription = "Bookmarks"
                     )
                 },
-                onClick = { showDropdown = false } // Currently only closes the dropdown
+                onClick = { showDropdown = false }
             )
 
             DropdownMenuItem(
