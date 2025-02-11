@@ -17,6 +17,8 @@ import com.example.mobilebrowser.ui.screens.BookmarkEditScreen
 import com.example.mobilebrowser.ui.screens.BookmarkScreen
 import com.example.mobilebrowser.ui.screens.DownloadScreen
 import com.example.mobilebrowser.ui.screens.HistoryScreen
+import com.example.mobilebrowser.ui.screens.SearchEngineSelectionScreen
+import com.example.mobilebrowser.ui.screens.SettingsScreen
 import com.example.mobilebrowser.ui.screens.TabScreen
 import com.example.mobilebrowser.ui.theme.MobileBrowserTheme
 import com.example.mobilebrowser.ui.viewmodels.BookmarkViewModel
@@ -317,6 +319,12 @@ class MainActivity : ComponentActivity() {
                     }
                     composable("settings") {
                         SettingsScreen(
+                            onNavigateBack = { navController.popBackStack() },
+                            onSelectSearchEngine = { navController.navigate("search_engine") }
+                        )
+                    }
+                    composable("search_engine") {
+                        SearchEngineSelectionScreen(
                             onNavigateBack = { navController.popBackStack() }
                         )
                     }
