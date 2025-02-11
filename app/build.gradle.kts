@@ -65,6 +65,7 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
     implementation(libs.geckoview)
     implementation(libs.androidx.hilt.navigation.compose)
+    implementation (libs.androidx.datastore.preferences)
     // Room
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
