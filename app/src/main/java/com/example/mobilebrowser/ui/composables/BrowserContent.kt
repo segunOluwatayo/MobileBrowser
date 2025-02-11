@@ -91,27 +91,29 @@ fun BrowserContent(
                 .padding(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            SearchUrlBar(
-            value = urlText,
-            onValueChange = {
-                isEditing = true
-                urlText = it
-            },
-            onSearch = { query, engine ->
-                isEditing = false
-                val searchUrl = engine.searchUrl + query
-                onNavigate(searchUrl)
-                softwareKeyboardController?.hide()
-            },
-            onNavigate = { url ->
-                isEditing = false
-                onNavigate(url)
-                softwareKeyboardController?.hide()
-            },
-            isEditing = isEditing,
-            currentSearchEngine = currentEngine, // Pass the persisted search engine
-            modifier = Modifier.weight(1f)
-        )
+            key("$tabCount") {
+                SearchUrlBar(
+                    value = urlText,
+                    onValueChange = {
+                        isEditing = true
+                        urlText = it
+                    },
+                    onSearch = { query, engine ->
+                        isEditing = false
+                        val searchUrl = engine.searchUrl + query
+                        onNavigate(searchUrl)
+                        softwareKeyboardController?.hide()
+                    },
+                    onNavigate = { url ->
+                        isEditing = false
+                        onNavigate(url)
+                        softwareKeyboardController?.hide()
+                    },
+                    isEditing = isEditing,
+                    currentSearchEngine = currentEngine, // The persisted engine from settings
+                    modifier = Modifier.weight(1f)
+                )
+            }
 
 
             // Tab button with counter and dropdown menu
