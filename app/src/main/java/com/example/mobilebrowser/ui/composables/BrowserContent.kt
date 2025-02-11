@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.mobilebrowser.R
 import com.example.mobilebrowser.browser.GeckoDownloadDelegate
 import com.example.mobilebrowser.ui.viewmodels.DownloadViewModel
 import kotlinx.coroutines.CoroutineScope
@@ -58,6 +59,17 @@ fun BrowserContent(
     var showTabMenu by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
+    val settingsViewModel: com.example.mobilebrowser.ui.viewmodels.SettingsViewModel = hiltViewModel()
+    val currentSearchEngineUrl by settingsViewModel.searchEngine.collectAsState()
+    val searchEngines = listOf(
+        SearchEngine("Google", "https://www.google.com/search?q=", R.drawable.google_icon),
+        SearchEngine("Bing", "https://www.bing.com/search?q=", R.drawable.bing_icon),
+        SearchEngine("DuckDuckGo", "https://duckduckgo.com/?q=", R.drawable.duckduckgo_icon),
+        SearchEngine("Qwant", "https://www.qwant.com/?q=", R.drawable.qwant_icon),
+        SearchEngine("Wikipedia", "https://wikipedia.org/wiki/Special:Search?search=", R.drawable.wikipedia_icon),
+        SearchEngine("eBay", "https://www.ebay.com/sch/i.html?_nkw=", R.drawable.ebay_icon)
+    )
+    val currentEngine = searchEngines.find { it.searchUrl == currentSearchEngineUrl } ?: searchEngines[0]
 
     // State for Download Completion Dialog and tracking current download
     var showDownloadCompletionDialog by remember { mutableStateOf(false) }
@@ -80,25 +92,26 @@ fun BrowserContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             SearchUrlBar(
-                value = urlText,
-                onValueChange = {
-                    isEditing = true
-                    urlText = it
-                },
-                onSearch = { query, engine ->
-                    isEditing = false
-                    val searchUrl = engine.searchUrl + query
-                    onNavigate(searchUrl)
-                    softwareKeyboardController?.hide()
-                },
-                onNavigate = { url ->
-                    isEditing = false
-                    onNavigate(url)
-                    softwareKeyboardController?.hide()
-                },
-                isEditing = isEditing,  // Pass the isEditing state
-                modifier = Modifier.weight(1f)
-            )
+            value = urlText,
+            onValueChange = {
+                isEditing = true
+                urlText = it
+            },
+            onSearch = { query, engine ->
+                isEditing = false
+                val searchUrl = engine.searchUrl + query
+                onNavigate(searchUrl)
+                softwareKeyboardController?.hide()
+            },
+            onNavigate = { url ->
+                isEditing = false
+                onNavigate(url)
+                softwareKeyboardController?.hide()
+            },
+            isEditing = isEditing,
+            currentSearchEngine = currentEngine, // Pass the persisted search engine
+            modifier = Modifier.weight(1f)
+        )
 
 
             // Tab button with counter and dropdown menu

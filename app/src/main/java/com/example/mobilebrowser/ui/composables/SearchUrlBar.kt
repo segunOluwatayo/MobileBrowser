@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -30,53 +32,21 @@ fun SearchUrlBar(
     onSearch: (String, SearchEngine) -> Unit,
     onNavigate: (String) -> Unit,
     isEditing: Boolean,
+    currentSearchEngine: SearchEngine,
     modifier: Modifier = Modifier
 ) {
     var showDropdown by remember { mutableStateOf(false) }
+    var tempSelectedEngine by remember { mutableStateOf(currentSearchEngine) }
 
-    val searchEngines = remember {
-        listOf(
-            SearchEngine(
-                name = "Google",
-                searchUrl = "https://www.google.com/search?q=",
-                iconRes = R.drawable.google_icon
-            ),
-            SearchEngine(
-                name = "Bing",
-                searchUrl = "https://www.bing.com/search?q=",
-                iconRes = R.drawable.bing_icon
-            ),
-            SearchEngine(
-                name = "DuckDuckGo",
-                searchUrl = "https://duckduckgo.com/?q=",
-                iconRes = R.drawable.duckduckgo_icon
-            ),
-            SearchEngine(
-                name = "Qwant",
-                searchUrl = "https://www.qwant.com/?q=",
-                iconRes = R.drawable.qwant_icon
-            ),
-            SearchEngine(
-                name = "Wikipedia",
-                searchUrl = "https://wikipedia.org/wiki/Special:Search?search=",
-                iconRes = R.drawable.wikipedia_icon
-            ),
-            SearchEngine(
-                name = "eBay",
-                searchUrl = "https://www.ebay.com/sch/i.html?_nkw=",
-                iconRes = R.drawable.ebay_icon
-            )
-        )
+    LaunchedEffect(currentSearchEngine) {
+        tempSelectedEngine = currentSearchEngine
     }
 
-    var selectedEngine by remember { mutableStateOf(searchEngines[0]) }
-
-    // Display text logic updated to keep search queries visible
     val displayText = when {
-        isEditing -> value  // Show text when editing
-        value.contains("mozilla.org") -> ""  // Hide mozilla.org URL
-        value.isNotBlank() -> value  // Show any other non-empty value
-        else -> ""  // Show empty for blank values
+        isEditing -> value
+        value.contains("mozilla.org") -> ""
+        value.isNotBlank() -> value
+        else -> ""
     }
 
     Box(modifier = modifier) {
@@ -85,33 +55,37 @@ fun SearchUrlBar(
             onValueChange = onValueChange,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp),
+                .padding(horizontal = 8.dp)
+                .height(48.dp),
             shape = RoundedCornerShape(24.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedContainerColor = MaterialTheme.colorScheme.surface,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
                 disabledContainerColor = MaterialTheme.colorScheme.surface,
-                focusedBorderColor = MaterialTheme.colorScheme.outline,
+                focusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
                 unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f)
             ),
             leadingIcon = {
                 Row(
                     modifier = Modifier
                         .clickable { showDropdown = true }
-                        .padding(start = 8.dp),
+                        .padding(start = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.Start
                 ) {
                     Icon(
-                        painter = painterResource(id = selectedEngine.iconRes),
-                        contentDescription = selectedEngine.name,
-                        modifier = Modifier.size(24.dp),
+                        painter = painterResource(id = tempSelectedEngine.iconRes),
+                        contentDescription = tempSelectedEngine.name,
+                        modifier = Modifier
+                            .size(20.dp)
+                            .padding(end = 4.dp),
                         tint = Color.Unspecified
                     )
                     Icon(
-                        imageVector = Icons.Default.ArrowDropDown,
+                        imageVector = Icons.Filled.ArrowDropDown,
                         contentDescription = "Select search engine",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             },
@@ -119,14 +93,13 @@ fun SearchUrlBar(
                 Text(
                     "Search or enter address",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
             },
+            textStyle = MaterialTheme.typography.bodyMedium,
             singleLine = true,
-            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                imeAction = ImeAction.Search
-            ),
-            keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(
                 onSearch = {
                     val input = value.trim()
                     if (input.isBlank()) return@KeyboardActions
@@ -138,8 +111,9 @@ fun SearchUrlBar(
                         }
                         onNavigate(url)
                     } else {
-                        onSearch(input, selectedEngine)
+                        onSearch(input, tempSelectedEngine)
                     }
+                    tempSelectedEngine = currentSearchEngine
                 }
             )
         )
@@ -157,6 +131,15 @@ fun SearchUrlBar(
                 style = MaterialTheme.typography.titleMedium
             )
 
+            val searchEngines = listOf(
+                SearchEngine("Google", "https://www.google.com/search?q=", R.drawable.google_icon),
+                SearchEngine("Bing", "https://www.bing.com/search?q=", R.drawable.bing_icon),
+                SearchEngine("DuckDuckGo", "https://duckduckgo.com/?q=", R.drawable.duckduckgo_icon),
+                SearchEngine("Qwant", "https://www.qwant.com/?q=", R.drawable.qwant_icon),
+                SearchEngine("Wikipedia", "https://wikipedia.org/wiki/Special:Search?search=", R.drawable.wikipedia_icon),
+                SearchEngine("eBay", "https://www.ebay.com/sch/i.html?_nkw=", R.drawable.ebay_icon)
+            )
+
             searchEngines.forEach { engine ->
                 DropdownMenuItem(
                     text = { Text(engine.name) },
@@ -169,7 +152,7 @@ fun SearchUrlBar(
                         )
                     },
                     onClick = {
-                        selectedEngine = engine
+                        tempSelectedEngine = engine
                         showDropdown = false
                     }
                 )
