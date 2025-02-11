@@ -260,7 +260,6 @@ fun BrowserContent(
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                     DropdownMenuItem(
                         text = { Text("Settings") },
                         onClick = {
