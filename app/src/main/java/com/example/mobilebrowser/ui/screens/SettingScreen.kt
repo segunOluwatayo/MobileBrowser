@@ -1,11 +1,13 @@
 package com.example.mobilebrowser.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -13,16 +15,6 @@ import com.example.mobilebrowser.ui.composables.SearchEngine
 import com.example.mobilebrowser.ui.viewmodels.SettingsViewModel
 import com.example.mobilebrowser.R
 
-/**
- * SettingsScreen displays the app settings.
- *
- * It features a TopAppBar with a back arrow and a "General" section that
- * includes the "Search Engine" setting row. When tapped, it navigates to a
- * dedicated SearchEngineSelectionScreen.
- *
- * @param onNavigateBack Callback invoked when the user taps the back arrow.
- * @param onSelectSearchEngine Callback invoked when the user wants to change the search engine.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
@@ -30,8 +22,6 @@ fun SettingsScreen(
     onSelectSearchEngine: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
-    // Define the list of available search engines.
-    // (This list is reused to map the persisted value to a SearchEngine object.)
     val searchEngines = listOf(
         SearchEngine(
             name = "Google",
@@ -65,9 +55,7 @@ fun SettingsScreen(
         )
     )
 
-    // Observe the persisted search engine URL.
     val currentEngineUrl by viewModel.searchEngine.collectAsState()
-    // Map the persisted URL to a SearchEngine object; default to Google if not found.
     val currentEngine = searchEngines.find { it.searchUrl == currentEngineUrl } ?: searchEngines[0]
 
     Scaffold(
@@ -86,30 +74,55 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp)
+                .padding(horizontal = 16.dp)
         ) {
-            // Section heading.
+            // Section heading
             Text(
                 text = "General",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(bottom = 8.dp)
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(vertical = 16.dp)
             )
 
-            // "Search Engine" setting row.
-            OutlinedCard(
-                onClick = { onSelectSearchEngine() },
-                modifier = Modifier.fillMaxWidth()
+            // Search Engine setting
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onSelectSearchEngine() }
             ) {
-                ListItem(
-                    headlineContent = { Text("Search Engine") },
-                    supportingContent = { Text(currentEngine.name) },
-                    trailingContent = {
-                        Icon(
-                            imageVector = Icons.Default.ArrowForward,
-                            contentDescription = "Select search engine"
-                        )
+                Column {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "Search Engine",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = currentEngine.name,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+//                        Icon(
+//                            imageVector = Icons.Default.ArrowForward,
+//                            contentDescription = "Select search engine",
+//                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+//                        )
                     }
-                )
+
+                    // Divider line
+                    Divider(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                        thickness = 1.dp
+                    )
+                }
             }
         }
     }
