@@ -3,7 +3,6 @@ package com.example.mobilebrowser.ui.composables
 import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material.icons.Icons
@@ -99,17 +98,7 @@ fun BrowserContent(
     }
 
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .clickable(
-                enabled = isEditing,
-                onClick = {
-                    isEditing = false
-                    urlText = currentUrl
-                    focusManager.clearFocus()
-                }
-            )
-
+        modifier = modifier.fillMaxSize()
     ) {
         // Navigation bar with URL field and buttons
         Row(
@@ -118,6 +107,7 @@ fun BrowserContent(
                 .padding(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // No key needed here anymore!
             key("$tabCount") {
                 SearchUrlBar(
                     value = urlText,
