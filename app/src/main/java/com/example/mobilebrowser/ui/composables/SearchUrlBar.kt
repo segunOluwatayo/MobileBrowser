@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -35,14 +36,22 @@ fun SearchUrlBar(
     onNavigate: (String) -> Unit,
     isEditing: Boolean,
     currentSearchEngine: SearchEngine,
-    onStartEditing: () -> Unit, // NEW: Callback for focus change
+    onStartEditing: () -> Unit,
+    onEndEditing: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showDropdown by remember { mutableStateOf(false) }
     var tempSelectedEngine by remember(currentSearchEngine) { mutableStateOf(currentSearchEngine) }
+    val focusManager = LocalFocusManager.current
 
     LaunchedEffect(currentSearchEngine) {
         tempSelectedEngine = currentSearchEngine
+    }
+
+    LaunchedEffect(isEditing) {
+        if (!isEditing) {
+            focusManager.clearFocus()
+        }
     }
 
     val displayText = when {
@@ -62,7 +71,9 @@ fun SearchUrlBar(
                 .height(56.dp)
                 .onFocusChanged { focusState -> // ADDED onFocusChanged
                     if (focusState.isFocused) {
-                        onStartEditing() // Notify BrowserContent
+                        onStartEditing()
+                    } else if (!focusState.hasFocus){
+                        onEndEditing()
                     }
                 },
             shape = RoundedCornerShape(28.dp),

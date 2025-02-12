@@ -3,6 +3,7 @@ package com.example.mobilebrowser.ui.composables
 import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material.icons.Icons
@@ -61,6 +62,7 @@ fun BrowserContent(
 ) {
     var urlText by remember { mutableStateOf(currentUrl) }
     var isEditing by remember { mutableStateOf(false) }
+
     var showTabMenu by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
@@ -90,15 +92,27 @@ fun BrowserContent(
     val focusManager = LocalFocusManager.current
 
 
-    // Back handler for exiting edit mode.  This is where we reset urlText.
+    // Back handler:  Clear focus *here* too.
     BackHandler(isEditing) {
         isEditing = false
-        urlText = currentUrl // Reset to the current URL
-        focusManager.clearFocus()
+        urlText = currentUrl
+        focusManager.clearFocus() // Clear focus!
     }
 
+
     Column(
-        modifier = modifier.fillMaxSize()
+        modifier = modifier
+            .fillMaxSize()
+            .clickable(
+                enabled = true, // Always clickable
+                onClick = {
+                    if (isEditing) { // Check isEditing directly
+                        isEditing = false
+                        urlText = currentUrl
+                        focusManager.clearFocus() // Clear focus!
+                    }
+                }
+            )
     ) {
         // Navigation bar with URL field and buttons
         Row(
@@ -107,7 +121,6 @@ fun BrowserContent(
                 .padding(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // No key needed here anymore!
             key("$tabCount") {
                 SearchUrlBar(
                     value = urlText,
@@ -117,25 +130,29 @@ fun BrowserContent(
                     },
                     onSearch = { query, engine ->
                         isEditing = false
-                        urlText = currentUrl // Reset after search
+                        urlText = currentUrl
                         val searchUrl = engine.searchUrl + query
                         onNavigate(searchUrl)
                         softwareKeyboardController?.hide()
-                        focusManager.clearFocus() // Clear focus after search
+                        focusManager.clearFocus()
                     },
                     onNavigate = { url ->
                         isEditing = false
-                        urlText = currentUrl // Reset after navigation
+                        urlText = currentUrl
                         onNavigate(url)
                         softwareKeyboardController?.hide()
-                        focusManager.clearFocus() // Clear focus after navigation
+                        focusManager.clearFocus()
                     },
                     isEditing = isEditing,
                     currentSearchEngine = currentEngine,
-                    onStartEditing = { isEditing = true }, // Pass the callback
+                    onStartEditing = { isEditing = true },
+                    onEndEditing = { // NEW:  Handle the end of editing
+                        isEditing = false
+                        urlText = currentUrl // ensure to update the text.
+                    },
                     modifier = Modifier
-                        .weight(1f, fill = !isEditing) // Expand when not editing
-                        .focusRequester(focusRequester) // Attach the focus requester
+                        .weight(1f, fill = !isEditing)
+                        .focusRequester(focusRequester)
                 )
             }
 
