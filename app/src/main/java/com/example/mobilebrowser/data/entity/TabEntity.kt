@@ -29,5 +29,8 @@ data class TabEntity(
     val isActive: Boolean = false,
 
     // Position/order of the tab in the tab list
-    val position: Int = 0
+    val position: Int = 0,
+
+    // Records when the tab was closed. Null if the tab is still open.
+    val closedAt: Date? = null
 )

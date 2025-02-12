@@ -3,6 +3,7 @@ package com.example.mobilebrowser.data.dao
 import androidx.room.*
 import com.example.mobilebrowser.data.entity.TabEntity
 import kotlinx.coroutines.flow.Flow
+import java.util.Date
 
 /**
  * Data Access Object (DAO) for tab-related database operations.
@@ -74,4 +75,17 @@ interface TabDao {
      */
     @Query("SELECT COUNT(*) FROM tabs")
     fun getTabCount(): Flow<Int>
+
+    /**
+     * Updates a tab to mark it as closed.
+     * Sets the closedAt timestamp and deactivates the tab.
+     */
+    @Query("UPDATE tabs SET closedAt = :closedAt, isActive = 0 WHERE id = :tabId")
+    suspend fun markTabAsClosed(tabId: Long, closedAt: Date)
+
+    /**
+     * Deletes all tabs that have been closed before a specified threshold date.
+     */
+    @Query("DELETE FROM tabs WHERE closedAt IS NOT NULL AND closedAt < :threshold")
+    suspend fun deleteClosedTabsOlderThan(threshold: Date)
 }
