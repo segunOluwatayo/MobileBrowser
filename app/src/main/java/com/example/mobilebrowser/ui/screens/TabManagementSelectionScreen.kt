@@ -56,6 +56,7 @@ fun TabManagementSelectionScreen(
                         style = MaterialTheme.typography.titleLarge
                     )
                 },
+
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -73,6 +74,15 @@ fun TabManagementSelectionScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+
+            item {
+                Text(
+                    text = "Close tabs",
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
+
             items(policies) { policy ->
                 ListItem(
                     headlineContent = {

@@ -111,13 +111,8 @@ fun SettingsScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-//                        Icon(
-//                            imageVector = Icons.Default.ArrowForward,
-//                            contentDescription = "Select search engine",
-//                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-//                        )
                     }
-                    // New Tab Management Policy section
+                    // Tab Management Policy section
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -151,10 +146,6 @@ fun SettingsScreen(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
-                                Icon(
-                                    imageVector = Icons.Default.ArrowForward,
-                                    contentDescription = "Select tab management policy"
-                                )
                             }
                         }
                     }
