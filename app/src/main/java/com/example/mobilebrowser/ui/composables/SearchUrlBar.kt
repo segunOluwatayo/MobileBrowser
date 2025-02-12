@@ -56,7 +56,7 @@ fun SearchUrlBar(
 
     val displayText = when {
         isEditing -> value
-        value.contains("mozilla.org") -> ""  // You might want to adjust this condition
+        value.contains("mozilla.org") -> ""
         value.isNotBlank() -> value
         else -> ""
     }
@@ -69,7 +69,7 @@ fun SearchUrlBar(
                 .fillMaxWidth()
                 .padding(horizontal = 8.dp)
                 .height(56.dp)
-                .onFocusChanged { focusState -> // ADDED onFocusChanged
+                .onFocusChanged { focusState ->
                     if (focusState.isFocused) {
                         onStartEditing()
                     } else if (!focusState.hasFocus){
