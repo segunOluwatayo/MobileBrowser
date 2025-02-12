@@ -31,6 +31,7 @@ data class SearchEngine(
 @Composable
 fun SearchUrlBar(
     value: String,
+    currentUrl: String,
     onValueChange: (String) -> Unit,
     onSearch: (String, SearchEngine) -> Unit,
     onNavigate: (String) -> Unit,
@@ -44,6 +45,13 @@ fun SearchUrlBar(
     var tempSelectedEngine by remember(currentSearchEngine) { mutableStateOf(currentSearchEngine) }
     val focusManager = LocalFocusManager.current
 
+    // Determine what text to display in the search bar
+    val displayValue = when {
+        isEditing -> value
+        currentUrl.isNotBlank() -> currentUrl
+        else -> ""
+    }
+
     LaunchedEffect(currentSearchEngine) {
         tempSelectedEngine = currentSearchEngine
     }
@@ -54,16 +62,9 @@ fun SearchUrlBar(
         }
     }
 
-    val displayText = when {
-        isEditing -> value
-        value.contains("mozilla.org") -> ""
-        value.isNotBlank() -> value
-        else -> ""
-    }
-
     Box(modifier = modifier) {
         OutlinedTextField(
-            value = displayText,
+            value = displayValue,
             onValueChange = onValueChange,
             modifier = Modifier
                 .fillMaxWidth()
@@ -72,7 +73,10 @@ fun SearchUrlBar(
                 .onFocusChanged { focusState ->
                     if (focusState.isFocused) {
                         onStartEditing()
-                    } else if (!focusState.hasFocus){
+                        if (!isEditing && currentUrl.isNotBlank()) {
+                            onValueChange(currentUrl)
+                        }
+                    } else if (!focusState.hasFocus) {
                         onEndEditing()
                     }
                 },
@@ -116,12 +120,14 @@ fun SearchUrlBar(
                 }
             },
             placeholder = {
-                Text(
-                    "Search or enter address",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                    modifier = Modifier.padding(top = 2.dp)
-                )
+                if (displayValue.isEmpty()) {
+                    Text(
+                        "Search or enter address",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                }
             },
             textStyle = MaterialTheme.typography.bodyMedium.copy(
                 color = MaterialTheme.colorScheme.onSurface
@@ -142,6 +148,7 @@ fun SearchUrlBar(
                     } else {
                         onSearch(input, tempSelectedEngine)
                     }
+                    focusManager.clearFocus()
                 }
             )
         )

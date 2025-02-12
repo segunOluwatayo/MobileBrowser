@@ -124,13 +124,13 @@ fun BrowserContent(
             key("$tabCount") {
                 SearchUrlBar(
                     value = urlText,
+                    currentUrl = currentUrl,
                     onValueChange = {
                         isEditing = true
                         urlText = it
                     },
                     onSearch = { query, engine ->
                         isEditing = false
-                        urlText = currentUrl
                         val searchUrl = engine.searchUrl + query
                         onNavigate(searchUrl)
                         softwareKeyboardController?.hide()
@@ -138,7 +138,6 @@ fun BrowserContent(
                     },
                     onNavigate = { url ->
                         isEditing = false
-                        urlText = currentUrl
                         onNavigate(url)
                         softwareKeyboardController?.hide()
                         focusManager.clearFocus()
@@ -148,7 +147,7 @@ fun BrowserContent(
                     onStartEditing = { isEditing = true },
                     onEndEditing = {
                         isEditing = false
-                        urlText = currentUrl // ensure to update the text.
+                        urlText = currentUrl
                     },
                     modifier = Modifier
                         .weight(1f, fill = !isEditing)
