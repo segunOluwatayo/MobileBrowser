@@ -210,21 +210,21 @@ fun BrowserContent(
                 }
 
                 // Bookmark star button
-                if (currentUrl.isNotBlank()) {
-                    IconButton(
-                        onClick = {
-                            if (!isCurrentUrlBookmarked) {
-                                onAddBookmark(currentUrl, currentPageTitle)
-                            }
-                        }
-                    ) {
-                        Icon(
-                            if (isCurrentUrlBookmarked) Icons.Default.Star else Icons.Default.StarBorder,
-                            contentDescription = if (isCurrentUrlBookmarked) "Bookmarked" else "Add bookmark",
-                            tint = if (isCurrentUrlBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
+//                if (currentUrl.isNotBlank()) {
+//                    IconButton(
+//                        onClick = {
+//                            if (!isCurrentUrlBookmarked) {
+//                                onAddBookmark(currentUrl, currentPageTitle)
+//                            }
+//                        }
+//                    ) {
+//                        Icon(
+//                            if (isCurrentUrlBookmarked) Icons.Default.Star else Icons.Default.StarBorder,
+//                            contentDescription = if (isCurrentUrlBookmarked) "Bookmarked" else "Add bookmark",
+//                            tint = if (isCurrentUrlBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+//                        )
+//                    }
+//                }
 
                 // Overflow menu
                 Box {
@@ -270,6 +270,21 @@ fun BrowserContent(
                                         alpha = 0.38f
                                     )
                                 )
+                            }
+                            if (currentUrl.isNotBlank()) {
+                                IconButton(
+                                    onClick = {
+                                        if (!isCurrentUrlBookmarked) {
+                                            onAddBookmark(currentUrl, currentPageTitle)
+                                        }
+                                    }
+                                ) {
+                                    Icon(
+                                        if (isCurrentUrlBookmarked) Icons.Default.Star else Icons.Default.StarBorder,
+                                        contentDescription = if (isCurrentUrlBookmarked) "Bookmarked" else "Add bookmark",
+                                        tint = if (isCurrentUrlBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
                             }
 
                             IconButton(
