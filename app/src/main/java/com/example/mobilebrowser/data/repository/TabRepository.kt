@@ -3,6 +3,7 @@ package com.example.mobilebrowser.data.repository
 import com.example.mobilebrowser.data.dao.TabDao
 import com.example.mobilebrowser.data.entity.TabEntity
 import kotlinx.coroutines.flow.Flow
+import java.util.Date
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -79,4 +80,12 @@ class TabRepository @Inject constructor(
      * Gets a specific tab by ID
      */
     suspend fun getTabById(tabId: Long): TabEntity? = tabDao.getTabById(tabId)
+
+    /**
+     * Marks a tab as closed
+     */
+    suspend fun markTabAsClosed(tabId: Long, closedAt: Date) {
+        tabDao.markTabAsClosed(tabId, closedAt)
+    }
+
 }
