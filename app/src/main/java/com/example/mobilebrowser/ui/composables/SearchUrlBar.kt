@@ -13,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
@@ -24,6 +25,7 @@ data class SearchEngine(
     val searchUrl: String,
     val iconRes: Int
 )
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchUrlBar(
@@ -33,6 +35,7 @@ fun SearchUrlBar(
     onNavigate: (String) -> Unit,
     isEditing: Boolean,
     currentSearchEngine: SearchEngine,
+    onStartEditing: () -> Unit, // NEW: Callback for focus change
     modifier: Modifier = Modifier
 ) {
     var showDropdown by remember { mutableStateOf(false) }
@@ -44,7 +47,7 @@ fun SearchUrlBar(
 
     val displayText = when {
         isEditing -> value
-        value.contains("mozilla.org") -> ""
+        value.contains("mozilla.org") -> ""  // You might want to adjust this condition
         value.isNotBlank() -> value
         else -> ""
     }
@@ -56,8 +59,13 @@ fun SearchUrlBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 8.dp)
-                .height(56.dp), // Increased height for better text visibility
-            shape = RoundedCornerShape(28.dp), // Adjusted corner radius
+                .height(56.dp)
+                .onFocusChanged { focusState -> // ADDED onFocusChanged
+                    if (focusState.isFocused) {
+                        onStartEditing() // Notify BrowserContent
+                    }
+                },
+            shape = RoundedCornerShape(28.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
                 unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
@@ -76,7 +84,7 @@ fun SearchUrlBar(
                 Row(
                     modifier = Modifier
                         .clickable { showDropdown = true }
-                        .padding(start = 8.dp), // Increased padding
+                        .padding(start = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Start
                 ) {
@@ -84,7 +92,7 @@ fun SearchUrlBar(
                         painter = painterResource(id = tempSelectedEngine.iconRes),
                         contentDescription = tempSelectedEngine.name,
                         modifier = Modifier
-                            .size(24.dp) // Increased icon size
+                            .size(24.dp)
                             .padding(end = 4.dp),
                         tint = Color.Unspecified
                     )
@@ -92,7 +100,7 @@ fun SearchUrlBar(
                         imageVector = Icons.Filled.ArrowDropDown,
                         contentDescription = "Select search engine",
                         tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(24.dp) // Increased icon size
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             },
