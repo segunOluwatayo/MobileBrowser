@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -23,7 +24,6 @@ data class SearchEngine(
     val searchUrl: String,
     val iconRes: Int
 )
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchUrlBar(
@@ -36,10 +36,8 @@ fun SearchUrlBar(
     modifier: Modifier = Modifier
 ) {
     var showDropdown by remember { mutableStateOf(false) }
-    // Create a mutableState for the temporary engine that's separate from the prop
     var tempSelectedEngine by remember(currentSearchEngine) { mutableStateOf(currentSearchEngine) }
 
-    // Reset tempSelectedEngine whenever currentSearchEngine changes (from settings)
     LaunchedEffect(currentSearchEngine) {
         tempSelectedEngine = currentSearchEngine
     }
@@ -58,37 +56,43 @@ fun SearchUrlBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 8.dp)
-                .height(48.dp),
-            shape = RoundedCornerShape(24.dp),
+                .height(56.dp), // Increased height for better text visibility
+            shape = RoundedCornerShape(28.dp), // Adjusted corner radius
             colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
                 disabledContainerColor = MaterialTheme.colorScheme.surface,
-                focusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f)
+                focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                cursorColor = MaterialTheme.colorScheme.primary,
+                selectionColors = TextSelectionColors(
+                    handleColor = MaterialTheme.colorScheme.primary,
+                    backgroundColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                )
             ),
             leadingIcon = {
                 Row(
                     modifier = Modifier
                         .clickable { showDropdown = true }
-                        .padding(start = 4.dp),
+                        .padding(start = 8.dp), // Increased padding
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Start
                 ) {
-                    // Use tempSelectedEngine for the icon
                     Icon(
                         painter = painterResource(id = tempSelectedEngine.iconRes),
                         contentDescription = tempSelectedEngine.name,
                         modifier = Modifier
-                            .size(20.dp)
+                            .size(24.dp) // Increased icon size
                             .padding(end = 4.dp),
                         tint = Color.Unspecified
                     )
                     Icon(
                         imageVector = Icons.Filled.ArrowDropDown,
                         contentDescription = "Select search engine",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(24.dp) // Increased icon size
                     )
                 }
             },
@@ -96,10 +100,13 @@ fun SearchUrlBar(
                 Text(
                     "Search or enter address",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    modifier = Modifier.padding(top = 2.dp)
                 )
             },
-            textStyle = MaterialTheme.typography.bodyMedium,
+            textStyle = MaterialTheme.typography.bodyMedium.copy(
+                color = MaterialTheme.colorScheme.onSurface
+            ),
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
             keyboardActions = KeyboardActions(
@@ -114,13 +121,11 @@ fun SearchUrlBar(
                         }
                         onNavigate(url)
                     } else {
-                        // Use the temporary engine for search
                         onSearch(input, tempSelectedEngine)
                     }
                 }
             )
         )
-
         DropdownMenu(
             expanded = showDropdown,
             onDismissRequest = { showDropdown = false },
@@ -131,7 +136,8 @@ fun SearchUrlBar(
             Text(
                 text = "Search with:",
                 modifier = Modifier.padding(16.dp),
-                style = MaterialTheme.typography.titleMedium
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             val searchEngines = listOf(
@@ -145,7 +151,12 @@ fun SearchUrlBar(
 
             searchEngines.forEach { engine ->
                 DropdownMenuItem(
-                    text = { Text(engine.name) },
+                    text = {
+                        Text(
+                            engine.name,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    },
                     leadingIcon = {
                         Icon(
                             painter = painterResource(id = engine.iconRes),
@@ -155,44 +166,63 @@ fun SearchUrlBar(
                         )
                     },
                     onClick = {
-                        // Update the temporary engine when selected
                         tempSelectedEngine = engine
                         showDropdown = false
                     }
                 )
             }
 
-            // Rest of the dropdown menu items...
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
+            Divider(
+                modifier = Modifier.padding(vertical = 8.dp),
+                color = MaterialTheme.colorScheme.outlineVariant
+            )
 
             DropdownMenuItem(
-                text = { Text("Bookmarks") },
+                text = {
+                    Text(
+                        "Bookmarks",
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Bookmark,
-                        contentDescription = "Bookmarks"
+                        contentDescription = "Bookmarks",
+                        tint = MaterialTheme.colorScheme.onSurface
                     )
                 },
                 onClick = { showDropdown = false }
             )
 
             DropdownMenuItem(
-                text = { Text("History") },
+                text = {
+                    Text(
+                        "History",
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.History,
-                        contentDescription = "History"
+                        contentDescription = "History",
+                        tint = MaterialTheme.colorScheme.onSurface
                     )
                 },
                 onClick = { showDropdown = false }
             )
 
             DropdownMenuItem(
-                text = { Text("Search settings") },
+                text = {
+                    Text(
+                        "Search settings",
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Settings,
-                        contentDescription = "Settings"
+                        contentDescription = "Settings",
+                        tint = MaterialTheme.colorScheme.onSurface
                     )
                 },
                 onClick = { showDropdown = false }
