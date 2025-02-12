@@ -1,23 +1,43 @@
 package com.example.mobilebrowser.ui.viewmodels
 
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.workDataOf
 import com.example.mobilebrowser.data.entity.TabEntity
 import com.example.mobilebrowser.data.repository.TabRepository
+import com.example.mobilebrowser.data.util.DataStoreManager
+import com.example.mobilebrowser.worker.TabCleanupWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.Date
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 @HiltViewModel
 class TabViewModel @Inject constructor(
-    private val repository: TabRepository
+    private val repository: TabRepository,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
     // Initialization state
     private val _isInitialized = MutableStateFlow(false)
     val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
+
+    // DataStoreManager instance using the injected context.
+    private val dataStoreManager = DataStoreManager(context)
+
+    // Define currentTabPolicy from DataStore.
+    private val currentTabPolicy: StateFlow<String> = dataStoreManager.tabManagementPolicyFlow.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = DataStoreManager.DEFAULT_TAB_POLICY
+    )
 
     // Error state
     private val _error = MutableStateFlow<String?>(null)
@@ -130,10 +150,22 @@ class TabViewModel @Inject constructor(
     fun closeTab(tab: TabEntity) {
         viewModelScope.launch {
             try {
-                repository.deleteTab(tab)
+                // Retrieve the current policy (e.g., "MANUAL", "ONE_DAY", etc.)
+                val policy = currentTabPolicy.value
+
+                if (policy == "MANUAL") {
+                    // Delete the tab immediately.
+                    repository.deleteTab(tab)
+                } else {
+                    // Mark the tab as closed by setting the closedAt timestamp.
+                    repository.markTabAsClosed(tab.id, Date())
+                    // Schedule a cleanup task (placeholder function).
+                    scheduleTabCleanup(policy)
+                }
+
                 Log.d("TabViewModel", "Closed tab: ${tab.id}")
 
-                // If we closed the last tab, create a new one
+                // If no open tabs remain, create a new one.
                 if (tabCount.value == 0) {
                     createTab()
                 }
@@ -142,6 +174,35 @@ class TabViewModel @Inject constructor(
             }
         }
     }
+
+    private fun scheduleTabCleanup(policy: String) {
+        // Determine the delay based on the policy.
+        val delayMillis = when (policy) {
+            "ONE_DAY" -> 24 * 60 * 60 * 1000L
+            "ONE_WEEK" -> 7 * 24 * 60 * 60 * 1000L
+            "ONE_MONTH" -> 30 * 24 * 60 * 60 * 1000L
+            else -> 0L
+        }
+
+        // Only schedule the worker if there's a valid delay.
+        if (delayMillis > 0L) {
+            // Prepare input data for the worker.
+            val inputData = workDataOf("TAB_POLICY" to policy)
+
+            // Build the one-time work request.
+            val cleanupRequest = OneTimeWorkRequestBuilder<TabCleanupWorker>()
+                .setInitialDelay(delayMillis, TimeUnit.MILLISECONDS)
+                .setInputData(inputData)
+                .build()
+
+            // Enqueue the work request uniquely to avoid scheduling duplicates.
+            WorkManager.getInstance(context)
+                .enqueueUniqueWork("tab_cleanup_$policy", ExistingWorkPolicy.REPLACE, cleanupRequest)
+
+            Log.d("TabViewModel", "Scheduled cleanup worker with delay: $delayMillis ms for policy: $policy")
+        }
+    }
+
 
     fun closeAllTabs() {
         viewModelScope.launch {
