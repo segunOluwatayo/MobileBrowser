@@ -11,7 +11,7 @@ import androidx.work.workDataOf
 import com.example.mobilebrowser.data.entity.TabEntity
 import com.example.mobilebrowser.data.repository.TabRepository
 import com.example.mobilebrowser.data.util.DataStoreManager
-import com.example.mobilebrowser.worker.TabCleanupWorker
+import com.example.mobilebrowser.worker.TabAutoCloseWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
@@ -78,6 +78,8 @@ class TabViewModel @Inject constructor(
         // Initialize browser with default tab on startup
         viewModelScope.launch {
             initializeDefaultTab()
+            // Schedule auto-close worker based on the current policy at startup.
+            scheduleTabAutoClose(currentTabPolicy.value)
         }
     }
 
@@ -159,8 +161,6 @@ class TabViewModel @Inject constructor(
                 } else {
                     // Mark the tab as closed by setting the closedAt timestamp.
                     repository.markTabAsClosed(tab.id, Date())
-                    // Schedule a cleanup task (placeholder function).
-                    scheduleTabCleanup(policy)
                 }
 
                 Log.d("TabViewModel", "Closed tab: ${tab.id}")
@@ -172,34 +172,6 @@ class TabViewModel @Inject constructor(
             } catch (e: Exception) {
                 Log.e("TabViewModel", "Failed to close tab: ${e.message}")
             }
-        }
-    }
-
-    private fun scheduleTabCleanup(policy: String) {
-        // Determine the delay based on the policy.
-        val delayMillis = when (policy) {
-            "ONE_DAY" -> 24 * 60 * 60 * 1000L
-            "ONE_WEEK" -> 7 * 24 * 60 * 60 * 1000L
-            "ONE_MONTH" -> 30 * 24 * 60 * 60 * 1000L
-            else -> 0L
-        }
-
-        // Only schedule the worker if there's a valid delay.
-        if (delayMillis > 0L) {
-            // Prepare input data for the worker.
-            val inputData = workDataOf("TAB_POLICY" to policy)
-
-            // Build the one-time work request.
-            val cleanupRequest = OneTimeWorkRequestBuilder<TabCleanupWorker>()
-                .setInitialDelay(delayMillis, TimeUnit.MILLISECONDS)
-                .setInputData(inputData)
-                .build()
-
-            // Enqueue the work request uniquely to avoid scheduling duplicates.
-            WorkManager.getInstance(context)
-                .enqueueUniqueWork("tab_cleanup_$policy", ExistingWorkPolicy.REPLACE, cleanupRequest)
-
-            Log.d("TabViewModel", "Scheduled cleanup worker with delay: $delayMillis ms for policy: $policy")
         }
     }
 
@@ -219,6 +191,30 @@ class TabViewModel @Inject constructor(
             }
         }
     }
+
+    private fun scheduleTabAutoClose(policy: String) {
+        // Determine the delay based on the policy.
+        val delayMillis = when (policy) {
+            "ONE_DAY" -> 24 * 60 * 60 * 1000L
+            "ONE_WEEK" -> 7 * 24 * 60 * 60 * 1000L
+            "ONE_MONTH" -> 30 * 24 * 60 * 60 * 1000L
+            else -> 0L
+        }
+
+        if (delayMillis > 0L) {
+            val inputData = workDataOf("TAB_POLICY" to policy)
+            val autoCloseRequest = OneTimeWorkRequestBuilder<TabAutoCloseWorker>()
+                .setInitialDelay(delayMillis, TimeUnit.MILLISECONDS)
+                .setInputData(inputData)
+                .build()
+
+            WorkManager.getInstance(context)
+                .enqueueUniqueWork("tab_autoclose_$policy", ExistingWorkPolicy.REPLACE, autoCloseRequest)
+
+            Log.d("TabViewModel", "Scheduled auto-close worker with delay: $delayMillis ms for policy: $policy")
+        }
+    }
+
 
 
     fun toggleSelectionMode() {
