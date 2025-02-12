@@ -25,6 +25,11 @@ class DataStoreManager(private val context: Context) {
         val SEARCH_ENGINE_KEY = stringPreferencesKey("search_engine")
         // Default search engine URL (Google in this case)
         const val DEFAULT_SEARCH_ENGINE = "https://www.google.com/search?q="
+
+        // New key for Tab Management Policy
+        val TAB_MANAGEMENT_POLICY_KEY = stringPreferencesKey("tab_management_policy")
+        // Default policy (other options could be "ONE_DAY", "ONE_WEEK", "ONE_MONTH")
+        const val DEFAULT_TAB_POLICY = "MANUAL"
     }
 
     /**
@@ -45,6 +50,17 @@ class DataStoreManager(private val context: Context) {
         }
 
     /**
+     * Exposes the current tab management policy as a Flow.
+     */
+    val tabManagementPolicyFlow: Flow<String> = context.dataStore.data
+        .catch { exception ->
+            if (exception is IOException) emit(emptyPreferences()) else throw exception
+        }
+        .map { preferences ->
+            preferences[TAB_MANAGEMENT_POLICY_KEY] ?: DEFAULT_TAB_POLICY
+        }
+
+    /**
      * Updates the search engine setting.
      *
      * @param searchEngine The new search engine URL to persist.
@@ -52,6 +68,17 @@ class DataStoreManager(private val context: Context) {
     suspend fun updateSearchEngine(searchEngine: String) {
         context.dataStore.edit { preferences ->
             preferences[SEARCH_ENGINE_KEY] = searchEngine
+        }
+    }
+
+    /**
+     * Updates the tab management policy.
+     *
+     * @param policy The new policy as a string (e.g., "MANUAL", "ONE_DAY", "ONE_WEEK", "ONE_MONTH").
+     */
+    suspend fun updateTabManagementPolicy(policy: String) {
+        context.dataStore.edit { preferences ->
+            preferences[TAB_MANAGEMENT_POLICY_KEY] = policy
         }
     }
 }
