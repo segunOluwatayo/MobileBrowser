@@ -20,6 +20,7 @@ import com.example.mobilebrowser.R
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
     onSelectSearchEngine: () -> Unit,
+    onSelectTabManagement: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val searchEngines = listOf(
@@ -57,6 +58,7 @@ fun SettingsScreen(
 
     val currentEngineUrl by viewModel.searchEngine.collectAsState()
     val currentEngine = searchEngines.find { it.searchUrl == currentEngineUrl } ?: searchEngines[0]
+    val currentTabPolicy by viewModel.tabManagementPolicy.collectAsState()
 
     Scaffold(
         topBar = {
@@ -114,6 +116,47 @@ fun SettingsScreen(
 //                            contentDescription = "Select search engine",
 //                            tint = MaterialTheme.colorScheme.onSurfaceVariant
 //                        )
+                    }
+                    // New Tab Management Policy section
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelectTabManagement() }
+                    ) {
+                        Column {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text(
+                                        text = "Tab Management Policy",
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    // Map the policy value to a friendly display string.
+                                    val displayPolicy = when (currentTabPolicy) {
+                                        "MANUAL" -> "Manually"
+                                        "ONE_DAY" -> "After One Day"
+                                        "ONE_WEEK" -> "After One Week"
+                                        "ONE_MONTH" -> "After One Month"
+                                        else -> "Manually"
+                                    }
+                                    Text(
+                                        text = displayPolicy,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Icon(
+                                    imageVector = Icons.Default.ArrowForward,
+                                    contentDescription = "Select tab management policy"
+                                )
+                            }
+                        }
                     }
 
                     // Divider line
