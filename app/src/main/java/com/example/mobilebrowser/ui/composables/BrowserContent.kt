@@ -146,7 +146,7 @@ fun BrowserContent(
                     isEditing = isEditing,
                     currentSearchEngine = currentEngine,
                     onStartEditing = { isEditing = true },
-                    onEndEditing = { // NEW:  Handle the end of editing
+                    onEndEditing = {
                         isEditing = false
                         urlText = currentUrl // ensure to update the text.
                     },
