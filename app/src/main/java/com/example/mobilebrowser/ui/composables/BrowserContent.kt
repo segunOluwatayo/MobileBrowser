@@ -118,7 +118,6 @@ fun BrowserContent(
                 .padding(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // No key needed here anymore!
             key("$tabCount") {
                 SearchUrlBar(
                     value = urlText,
