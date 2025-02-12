@@ -37,6 +37,15 @@ class SettingsViewModel @Inject constructor(
     )
 
     /**
+     * Exposes the current tab management policy as a StateFlow.
+     */
+    val tabManagementPolicy: StateFlow<String> = dataStoreManager.tabManagementPolicyFlow.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = DataStoreManager.DEFAULT_TAB_POLICY
+    )
+
+    /**
      * Updates the search engine setting.
      *
      * @param newEngine The new search engine URL to persist.
@@ -44,6 +53,17 @@ class SettingsViewModel @Inject constructor(
     fun updateSearchEngine(newEngine: String) {
         viewModelScope.launch {
             dataStoreManager.updateSearchEngine(newEngine)
+        }
+    }
+
+    /**
+     * Updates the tab management policy.
+     *
+     * @param newPolicy The new policy as a string (e.g., "MANUAL", "ONE_DAY", "ONE_WEEK", "ONE_MONTH").
+     */
+    fun updateTabManagementPolicy(newPolicy: String) {
+        viewModelScope.launch {
+            dataStoreManager.updateTabManagementPolicy(newPolicy)
         }
     }
 }
