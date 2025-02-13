@@ -21,6 +21,7 @@ fun SettingsScreen(
     onNavigateBack: () -> Unit,
     onSelectSearchEngine: () -> Unit,
     onSelectTabManagement: () -> Unit,
+    onSelectTheme: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val searchEngines = listOf(
@@ -59,6 +60,14 @@ fun SettingsScreen(
     val currentEngineUrl by viewModel.searchEngine.collectAsState()
     val currentEngine = searchEngines.find { it.searchUrl == currentEngineUrl } ?: searchEngines[0]
     val currentTabPolicy by viewModel.tabManagementPolicy.collectAsState()
+    val currentThemeMode by viewModel.themeMode.collectAsState()
+
+    // Convert the theme mode value to a user-friendly string.
+    val themeDisplayName = when (currentThemeMode) {
+        "LIGHT" -> "Light Mode"
+        "DARK" -> "Dark Mode"
+        else -> "System Default"
+    }
 
     Scaffold(
         topBar = {
@@ -147,6 +156,26 @@ fun SettingsScreen(
                                     )
                                 }
                             }
+                        }
+                    }
+
+                    // Theme Selection section
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelectTheme() }
+                    ) {
+                        Column(modifier = Modifier.padding(vertical = 16.dp)) {
+                            Text(
+                                text = "Theme",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = themeDisplayName,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
 

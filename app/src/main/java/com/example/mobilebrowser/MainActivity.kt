@@ -323,7 +323,8 @@ class MainActivity : ComponentActivity() {
                         SettingsScreen(
                             onNavigateBack = { navController.popBackStack() },
                             onSelectSearchEngine = { navController.navigate("search_engine") },
-                            onSelectTabManagement = { navController.navigate("tab_management") }
+                            onSelectTabManagement = { navController.navigate("tab_management") },
+                            onSelectTheme = { navController.navigate("theme_selection") }
                         )
                     }
                     composable("search_engine") {
