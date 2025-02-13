@@ -1,6 +1,5 @@
 package com.example.mobilebrowser.ui.screens
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -21,13 +20,6 @@ fun HomepageSelectionScreen(
     // Observe the current homepage (shortcuts) setting from the view model.
     val homepageEnabled by viewModel.homepageEnabled.collectAsState()
 
-    // Define two options: Enabled (true) and Disabled (false).
-    val options = listOf(true, false)
-    val displayNames = mapOf(
-        true to "Enabled",
-        false to "Disabled"
-    )
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -44,32 +36,31 @@ fun HomepageSelectionScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.Top,
+            horizontalAlignment = Alignment.Start
         ) {
             Text(
-                text = "Display Shortcuts on New Tabs",
+                text = "Display Shortcuts on Homepage",
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
-            // Display options as radio buttons
-            options.forEach { option ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { viewModel.updateHomepageEnabled(option) }
-                        .padding(vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    RadioButton(
-                        selected = (homepageEnabled == option),
-                        onClick = { viewModel.updateHomepageEnabled(option) }
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = displayNames[option] ?: option.toString(),
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                }
+            // Toggle Switch row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Shortcut",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Switch(
+                    checked = homepageEnabled,
+                    onCheckedChange = { viewModel.updateHomepageEnabled(it) }
+                )
             }
             Spacer(modifier = Modifier.height(16.dp))
             Text(

@@ -4,7 +4,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,6 +21,7 @@ fun SettingsScreen(
     onSelectSearchEngine: () -> Unit,
     onSelectTabManagement: () -> Unit,
     onSelectTheme: () -> Unit,
+    onNavigateToHomepageSelection: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val searchEngines = listOf(
@@ -182,33 +182,24 @@ fun SettingsScreen(
 
                     // Homepage setting section (Shortcuts)
                     Surface(
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onNavigateToHomepageSelection() }
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 16.dp, horizontal = 16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column {
-                                Text(
-                                    text = "Shortcuts",
-                                    style = MaterialTheme.typography.bodyLarge
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "When on, will show your pinned shortcuts (and, eventually, dynamic shortcut suggestions based on your browsing habits).",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Switch(
-                                checked = homepageEnabled,
-                                onCheckedChange = { viewModel.updateHomepageEnabled(it) }
+                        Column(modifier = Modifier.padding(vertical = 16.dp)) {
+                            Text(
+                                text = "Homepage",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "TBD",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
+
 
 
                     // Divider line

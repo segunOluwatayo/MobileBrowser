@@ -18,6 +18,7 @@ import com.example.mobilebrowser.ui.screens.BookmarkEditScreen
 import com.example.mobilebrowser.ui.screens.BookmarkScreen
 import com.example.mobilebrowser.ui.screens.DownloadScreen
 import com.example.mobilebrowser.ui.screens.HistoryScreen
+import com.example.mobilebrowser.ui.screens.HomepageSelectionScreen
 import com.example.mobilebrowser.ui.screens.SearchEngineSelectionScreen
 import com.example.mobilebrowser.ui.screens.SettingsScreen
 import com.example.mobilebrowser.ui.screens.TabManagementSelectionScreen
@@ -338,7 +339,8 @@ class MainActivity : ComponentActivity() {
                             onNavigateBack = { navController.popBackStack() },
                             onSelectSearchEngine = { navController.navigate("search_engine") },
                             onSelectTabManagement = { navController.navigate("tab_management") },
-                            onSelectTheme = { navController.navigate("theme_selection") }
+                            onSelectTheme = { navController.navigate("theme_selection") },
+                            onNavigateToHomepageSelection = { navController.navigate("homepage_selection") }
                         )
                     }
                     composable("search_engine") {
@@ -353,6 +355,11 @@ class MainActivity : ComponentActivity() {
                     }
                     composable("theme_selection") {
                         ThemeSelectionScreen(onNavigateBack = { navController.popBackStack() })
+                    }
+                    composable("homepage_selection") {
+                        HomepageSelectionScreen(
+                            onNavigateBack = { navController.popBackStack() }
+                        )
                     }
 
                 }
