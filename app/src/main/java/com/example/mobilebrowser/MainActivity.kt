@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.*
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
@@ -25,6 +26,7 @@ import com.example.mobilebrowser.ui.screens.ThemeSelectionScreen
 import com.example.mobilebrowser.ui.theme.MobileBrowserTheme
 import com.example.mobilebrowser.ui.viewmodels.BookmarkViewModel
 import com.example.mobilebrowser.ui.viewmodels.HistoryViewModel
+import com.example.mobilebrowser.ui.viewmodels.SettingsViewModel
 import com.example.mobilebrowser.ui.viewmodels.TabViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -39,7 +41,19 @@ class MainActivity : ComponentActivity() {
         sessionManager = GeckoSessionManager(this)
 
         setContent {
-            MobileBrowserTheme {
+            // Obtain the SettingsViewModel via Hilt.
+            val settingsViewModel: SettingsViewModel = hiltViewModel()
+            // Observe the current theme mode from DataStore.
+            val themeMode by settingsViewModel.themeMode.collectAsState()
+            // Get the system default dark theme value.
+            val systemDarkTheme = isSystemInDarkTheme()
+            // Determine darkTheme boolean based on user selection.
+            val darkTheme = when (themeMode) {
+                "LIGHT" -> false
+                "DARK" -> true
+                else -> systemDarkTheme // "SYSTEM" mode follows the system setting.
+            }
+            MobileBrowserTheme(darkTheme = darkTheme){
                 // Define UI state variables.
                 var currentUrl by remember { mutableStateOf("https://www.mozilla.org") }
                 var currentPageTitle by remember { mutableStateOf("New Tab") }
