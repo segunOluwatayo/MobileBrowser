@@ -1,6 +1,7 @@
 package com.example.mobilebrowser.data.util
 
 import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -35,6 +36,10 @@ class DataStoreManager(private val context: Context) {
         val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
         // Default theme mode ("SYSTEM" means following the device's setting)
         const val DEFAULT_THEME_MODE = "SYSTEM"
+
+        // New key for homepage setting
+        val HOMEPAGE_ENABLED_KEY = booleanPreferencesKey("homepage_enabled")
+        const val DEFAULT_HOMEPAGE_ENABLED = true
     }
 
     /**
@@ -78,6 +83,18 @@ class DataStoreManager(private val context: Context) {
         }
 
     /**
+     * Exposes the current homepage setting as a Flow.
+     * If not set, returns the default homepage setting.
+     */
+    val homepageEnabledFlow: Flow<Boolean> = context.dataStore.data
+        .catch { exception ->
+            if (exception is IOException) emit(emptyPreferences()) else throw exception
+        }
+        .map { preferences ->
+            preferences[HOMEPAGE_ENABLED_KEY] ?: DEFAULT_HOMEPAGE_ENABLED
+        }
+
+    /**
      * Updates the search engine setting.
      *
      * @param searchEngine The new search engine URL to persist.
@@ -107,6 +124,17 @@ class DataStoreManager(private val context: Context) {
     suspend fun updateThemeMode(themeMode: String) {
         context.dataStore.edit { preferences ->
             preferences[THEME_MODE_KEY] = themeMode
+        }
+    }
+
+    /**
+     * Updates the homepage setting.
+     *
+     * @param isEnabled Whether the homepage should be enabled.
+     */
+    suspend fun updateHomepageEnabled(isEnabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[HOMEPAGE_ENABLED_KEY] = isEnabled
         }
     }
 }
