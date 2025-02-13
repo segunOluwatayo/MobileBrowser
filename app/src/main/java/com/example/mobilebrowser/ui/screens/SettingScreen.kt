@@ -61,6 +61,7 @@ fun SettingsScreen(
     val currentEngine = searchEngines.find { it.searchUrl == currentEngineUrl } ?: searchEngines[0]
     val currentTabPolicy by viewModel.tabManagementPolicy.collectAsState()
     val currentThemeMode by viewModel.themeMode.collectAsState()
+    val homepageEnabled by viewModel.homepageEnabled.collectAsState()
 
     // Convert the theme mode value to a user-friendly string.
     val themeDisplayName = when (currentThemeMode) {
@@ -178,6 +179,37 @@ fun SettingsScreen(
                             )
                         }
                     }
+
+                    // Homepage setting section (Shortcuts)
+                    Surface(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 16.dp, horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text(
+                                    text = "Shortcuts",
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "When on, will show your pinned shortcuts (and, eventually, dynamic shortcut suggestions based on your browsing habits).",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = homepageEnabled,
+                                onCheckedChange = { viewModel.updateHomepageEnabled(it) }
+                            )
+                        }
+                    }
+
 
                     // Divider line
                     Divider(
