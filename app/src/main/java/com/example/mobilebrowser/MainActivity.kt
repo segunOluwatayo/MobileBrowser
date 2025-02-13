@@ -21,6 +21,7 @@ import com.example.mobilebrowser.ui.screens.SearchEngineSelectionScreen
 import com.example.mobilebrowser.ui.screens.SettingsScreen
 import com.example.mobilebrowser.ui.screens.TabManagementSelectionScreen
 import com.example.mobilebrowser.ui.screens.TabScreen
+import com.example.mobilebrowser.ui.screens.ThemeSelectionScreen
 import com.example.mobilebrowser.ui.theme.MobileBrowserTheme
 import com.example.mobilebrowser.ui.viewmodels.BookmarkViewModel
 import com.example.mobilebrowser.ui.viewmodels.HistoryViewModel
@@ -335,6 +336,10 @@ class MainActivity : ComponentActivity() {
                             onNavigateBack = { navController.popBackStack() }
                         )
                     }
+                    composable("theme_selection") {
+                        ThemeSelectionScreen(onNavigateBack = { navController.popBackStack() })
+                    }
+
                 }
 
             }
