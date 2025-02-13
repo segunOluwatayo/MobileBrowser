@@ -46,6 +46,17 @@ class SettingsViewModel @Inject constructor(
     )
 
     /**
+     * Exposes the current theme mode as a StateFlow.
+     * The default value is provided by DataStoreManager.DEFAULT_THEME_MODE.
+     */
+    val themeMode: StateFlow<String> = dataStoreManager.themeModeFlow.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = DataStoreManager.DEFAULT_THEME_MODE
+    )
+
+
+    /**
      * Updates the search engine setting.
      *
      * @param newEngine The new search engine URL to persist.
@@ -64,6 +75,17 @@ class SettingsViewModel @Inject constructor(
     fun updateTabManagementPolicy(newPolicy: String) {
         viewModelScope.launch {
             dataStoreManager.updateTabManagementPolicy(newPolicy)
+        }
+    }
+
+    /**
+     * Updates the theme mode.
+     *
+     * @param newMode The new theme mode to persist (e.g., "SYSTEM", "LIGHT", "DARK").
+     */
+    fun updateThemeMode(newMode: String) {
+        viewModelScope.launch {
+            dataStoreManager.updateThemeMode(newMode)
         }
     }
 }
