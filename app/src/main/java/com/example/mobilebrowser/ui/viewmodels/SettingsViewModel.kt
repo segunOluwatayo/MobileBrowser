@@ -55,6 +55,17 @@ class SettingsViewModel @Inject constructor(
         initialValue = DataStoreManager.DEFAULT_THEME_MODE
     )
 
+    /**
+     * Exposes the homepage setting as a StateFlow.
+     * This determines whether the homepage is enabled (e.g., showing pinned shortcuts).
+     */
+    val homepageEnabled: StateFlow<Boolean> = dataStoreManager.homepageEnabledFlow.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = DataStoreManager.DEFAULT_HOMEPAGE_ENABLED
+    )
+
+
 
     /**
      * Updates the search engine setting.
@@ -86,6 +97,17 @@ class SettingsViewModel @Inject constructor(
     fun updateThemeMode(newMode: String) {
         viewModelScope.launch {
             dataStoreManager.updateThemeMode(newMode)
+        }
+    }
+
+    /**
+     * Updates the homepage setting.
+     *
+     * @param isEnabled True if homepage should be enabled (displayed on new tabs/app launch).
+     */
+    fun updateHomepageEnabled(isEnabled: Boolean) {
+        viewModelScope.launch {
+            dataStoreManager.updateHomepageEnabled(isEnabled)
         }
     }
 }
