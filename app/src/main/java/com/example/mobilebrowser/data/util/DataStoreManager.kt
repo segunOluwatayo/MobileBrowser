@@ -30,6 +30,11 @@ class DataStoreManager(private val context: Context) {
         val TAB_MANAGEMENT_POLICY_KEY = stringPreferencesKey("tab_management_policy")
         // Default policy (other options could be "ONE_DAY", "ONE_WEEK", "ONE_MONTH")
         const val DEFAULT_TAB_POLICY = "MANUAL"
+
+        // New key for Theme Mode
+        val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
+        // Default theme mode ("SYSTEM" means following the device's setting)
+        const val DEFAULT_THEME_MODE = "SYSTEM"
     }
 
     /**
@@ -61,6 +66,18 @@ class DataStoreManager(private val context: Context) {
         }
 
     /**
+     * Exposes the current theme mode as a Flow.
+     * If not set, returns the default theme mode.
+     */
+    val themeModeFlow: Flow<String> = context.dataStore.data
+        .catch { exception ->
+            if (exception is IOException) emit(emptyPreferences()) else throw exception
+        }
+        .map { preferences ->
+            preferences[THEME_MODE_KEY] ?: DEFAULT_THEME_MODE
+        }
+
+    /**
      * Updates the search engine setting.
      *
      * @param searchEngine The new search engine URL to persist.
@@ -79,6 +96,17 @@ class DataStoreManager(private val context: Context) {
     suspend fun updateTabManagementPolicy(policy: String) {
         context.dataStore.edit { preferences ->
             preferences[TAB_MANAGEMENT_POLICY_KEY] = policy
+        }
+    }
+
+    /**
+     * Updates the theme mode setting.
+     *
+     * @param themeMode The new theme mode to persist (e.g., "SYSTEM", "LIGHT", "DARK").
+     */
+    suspend fun updateThemeMode(themeMode: String) {
+        context.dataStore.edit { preferences ->
+            preferences[THEME_MODE_KEY] = themeMode
         }
     }
 }
