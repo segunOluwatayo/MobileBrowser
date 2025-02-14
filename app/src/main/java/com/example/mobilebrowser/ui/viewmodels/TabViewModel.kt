@@ -103,7 +103,7 @@ class TabViewModel @Inject constructor(
 
 
     suspend fun createTab(
-        url: String = "https://www.mozilla.org",
+        url: String = "",
         title: String = "New Tab"
     ): Long {
         return try {

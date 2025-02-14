@@ -1,5 +1,7 @@
 package com.example.mobilebrowser.ui.composables
 
+import HomeScreen
+import Shortcut
 import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -56,12 +58,12 @@ fun BrowserContent(
     showDownloadConfirmationDialog: Boolean,
     currentDownloadRequest: GeckoDownloadDelegate.DownloadRequest?,
     onDismissDownloadConfirmationDialog: () -> Unit,
+    isHomepageActive: Boolean,  // Flag to control homepage overlay.
     modifier: Modifier = Modifier,
     downloadViewModel: DownloadViewModel = hiltViewModel()
 ) {
     var urlText by remember { mutableStateOf(currentUrl) }
     var isEditing by remember { mutableStateOf(false) }
-
     var showTabMenu by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
@@ -73,304 +75,293 @@ fun BrowserContent(
         SearchEngine("Bing", "https://www.bing.com/search?q=", R.drawable.bing_icon),
         SearchEngine("DuckDuckGo", "https://duckduckgo.com/?q=", R.drawable.duckduckgo_icon),
         SearchEngine("Qwant", "https://www.qwant.com/?q=", R.drawable.qwant_icon),
-        SearchEngine(
-            "Wikipedia",
-            "https://wikipedia.org/wiki/Special:Search?search=",
-            R.drawable.wikipedia_icon
-        ),
+        SearchEngine("Wikipedia", "https://wikipedia.org/wiki/Special:Search?search=", R.drawable.wikipedia_icon),
         SearchEngine("eBay", "https://www.ebay.com/sch/i.html?_nkw=", R.drawable.ebay_icon)
     )
     val currentEngine =
         searchEngines.find { it.searchUrl == currentSearchEngineUrl } ?: searchEngines[0]
 
-    // State for Download Completion Dialog and tracking current download
+    // State for Download Confirmation Dialog and tracking current download.
     var showDownloadCompletionDialog by remember { mutableStateOf(false) }
     var currentDownloadId by remember { mutableStateOf<Long?>(null) }
 
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
 
-
-    // Back handler:  Clear focus *here* too.
+    // Back handler: Clear focus if editing.
     BackHandler(isEditing) {
         isEditing = false
         urlText = currentUrl
-        focusManager.clearFocus() // Clear focus!
+        focusManager.clearFocus()
     }
 
-
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .clickable(
-                enabled = true, // Always clickable
-                onClick = {
-                    if (isEditing) { // Check isEditing directly
-                        isEditing = false
-                        urlText = currentUrl
-                        focusManager.clearFocus() // Clear focus!
-                    }
-                }
-            )
-    ) {
-        // Navigation bar with URL field and buttons
-        Row(
+    // Use a Box to layer the browser view and the HomeScreen overlay.
+    Box(modifier = modifier.fillMaxSize()) {
+        // Main content Column (navigation bar, etc.)
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            key("$tabCount") {
-                SearchUrlBar(
-                    value = urlText,
-                    currentUrl = currentUrl,
-                    onValueChange = {
-                        isEditing = true
-                        urlText = it
-                    },
-                    onSearch = { query, engine ->
-                        isEditing = false
-                        val searchUrl = engine.searchUrl + query
-                        onNavigate(searchUrl)
-                        softwareKeyboardController?.hide()
-                        focusManager.clearFocus()
-                    },
-                    onNavigate = { url ->
-                        isEditing = false
-                        onNavigate(url)
-                        softwareKeyboardController?.hide()
-                        focusManager.clearFocus()
-                    },
-                    isEditing = isEditing,
-                    currentSearchEngine = currentEngine,
-                    onStartEditing = { isEditing = true },
-                    onEndEditing = {
-                        isEditing = false
-                        urlText = currentUrl
-                    },
-                    modifier = Modifier
-                        .weight(1f, fill = !isEditing)
-                        .focusRequester(focusRequester)
+                .fillMaxSize()
+                .clickable(
+                    enabled = true,
+                    onClick = {
+                        if (isEditing) {
+                            isEditing = false
+                            urlText = currentUrl
+                            focusManager.clearFocus()
+                        }
+                    }
                 )
-            }
+        ) {
+            // Navigation bar with URL field and buttons.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                key("$tabCount") {
+                    SearchUrlBar(
+                        value = urlText,
+                        currentUrl = currentUrl,
+                        onValueChange = {
+                            isEditing = true
+                            urlText = it
+                        },
+                        onSearch = { query, engine ->
+                            isEditing = false
+                            val searchUrl = engine.searchUrl + query
+                            onNavigate(searchUrl)
+                            softwareKeyboardController?.hide()
+                            focusManager.clearFocus()
+                        },
+                        onNavigate = { url ->
+                            isEditing = false
+                            onNavigate(url)
+                            softwareKeyboardController?.hide()
+                            focusManager.clearFocus()
+                        },
+                        isEditing = isEditing,
+                        currentSearchEngine = currentEngine,
+                        onStartEditing = { isEditing = true },
+                        onEndEditing = {
+                            isEditing = false
+                            urlText = currentUrl
+                        },
+                        modifier = Modifier
+                            .weight(1f, fill = !isEditing)
+                            .focusRequester(focusRequester)
+                    )
+                }
 
-            if (!isEditing) {
-                // Tab button with counter and dropdown menu
-                Box {
-                    IconButton(onClick = { showTabMenu = true }) {
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .background(
-                                    MaterialTheme.colorScheme.primary,
-                                    shape = MaterialTheme.shapes.small
+                if (!isEditing) {
+                    // Tab button with counter and dropdown menu.
+                    Box {
+                        IconButton(onClick = { showTabMenu = true }) {
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .background(
+                                        MaterialTheme.colorScheme.primary,
+                                        shape = MaterialTheme.shapes.small
+                                    )
+                                    .clip(MaterialTheme.shapes.small),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = tabCount.toString(),
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.padding(4.dp)
                                 )
-                                .clip(MaterialTheme.shapes.small),
-                            contentAlignment = Alignment.Center
+                            }
+                        }
+
+                        DropdownMenu(
+                            expanded = showTabMenu,
+                            onDismissRequest = { showTabMenu = false }
                         ) {
-                            Text(
-                                text = tabCount.toString(),
-                                color = Color.White,
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(4.dp)
+                            DropdownMenuItem(
+                                text = { Text("View Tabs") },
+                                onClick = {
+                                    showTabMenu = false
+                                    onShowTabs()
+                                },
+                                leadingIcon = { Icon(Icons.Default.Tab, contentDescription = null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("New Tab") },
+                                onClick = {
+                                    showTabMenu = false
+                                    onNewTab()
+                                },
+                                leadingIcon = { Icon(Icons.Default.Add, contentDescription = null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Close All Tabs") },
+                                onClick = {
+                                    showTabMenu = false
+                                    onCloseAllTabs()
+                                },
+                                leadingIcon = { Icon(Icons.Default.Close, contentDescription = null) }
                             )
                         }
                     }
 
-                    DropdownMenu(
-                        expanded = showTabMenu,
-                        onDismissRequest = { showTabMenu = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("View Tabs") },
-                            onClick = {
-                                showTabMenu = false
-                                onShowTabs()
-                            },
-                            leadingIcon = { Icon(Icons.Default.Tab, contentDescription = null) }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("New Tab") },
-                            onClick = {
-                                showTabMenu = false
-                                onNewTab()
-                            },
-                            leadingIcon = { Icon(Icons.Default.Add, contentDescription = null) }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Close All Tabs") },
-                            onClick = {
-                                showTabMenu = false
-                                onCloseAllTabs()
-                            },
-                            leadingIcon = { Icon(Icons.Default.Close, contentDescription = null) }
-                        )
-                    }
-                }
-
-                // Bookmark star button
-//                if (currentUrl.isNotBlank()) {
-//                    IconButton(
-//                        onClick = {
-//                            if (!isCurrentUrlBookmarked) {
-//                                onAddBookmark(currentUrl, currentPageTitle)
-//                            }
-//                        }
-//                    ) {
-//                        Icon(
-//                            if (isCurrentUrlBookmarked) Icons.Default.Star else Icons.Default.StarBorder,
-//                            contentDescription = if (isCurrentUrlBookmarked) "Bookmarked" else "Add bookmark",
-//                            tint = if (isCurrentUrlBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-//                        )
-//                    }
-//                }
-
-                // Overflow menu
-                Box {
-                    IconButton(onClick = { showOverflowMenu = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "More options")
-                    }
-
-                    DropdownMenu(
-                        expanded = showOverflowMenu,
-                        onDismissRequest = { showOverflowMenu = false }
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            IconButton(
-                                onClick = {
-                                    showOverflowMenu = false
-                                    onBack()
-                                },
-                                enabled = canGoBack
-                            ) {
-                                Icon(
-                                    Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = "Back",
-                                    tint = if (canGoBack) LocalContentColor.current else LocalContentColor.current.copy(
-                                        alpha = 0.38f
-                                    )
-                                )
-                            }
-
-                            IconButton(
-                                onClick = {
-                                    showOverflowMenu = false
-                                    onForward()
-                                },
-                                enabled = canGoForward
-                            ) {
-                                Icon(
-                                    Icons.AutoMirrored.Filled.ArrowForward,
-                                    contentDescription = "Forward",
-                                    tint = if (canGoForward) LocalContentColor.current else LocalContentColor.current.copy(
-                                        alpha = 0.38f
-                                    )
-                                )
-                            }
-                            if (currentUrl.isNotBlank()) {
-                                IconButton(
-                                    onClick = {
-                                        if (!isCurrentUrlBookmarked) {
-                                            onAddBookmark(currentUrl, currentPageTitle)
-                                        }
-                                    }
-                                ) {
-                                    Icon(
-                                        if (isCurrentUrlBookmarked) Icons.Default.Star else Icons.Default.StarBorder,
-                                        contentDescription = if (isCurrentUrlBookmarked) "Bookmarked" else "Add bookmark",
-                                        tint = if (isCurrentUrlBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-                            }
-
-                            IconButton(
-                                onClick = {
-                                    showOverflowMenu = false
-                                    onReload()
-                                }
-                            ) {
-                                Icon(Icons.Default.Refresh, contentDescription = "Refresh")
-                            }
+                    // Overflow menu.
+                    Box {
+                        IconButton(onClick = { showOverflowMenu = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "More options")
                         }
 
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                        DropdownMenu(
+                            expanded = showOverflowMenu,
+                            onDismissRequest = { showOverflowMenu = false }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                IconButton(
+                                    onClick = {
+                                        showOverflowMenu = false
+                                        onBack()
+                                    },
+                                    enabled = canGoBack
+                                ) {
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = "Back",
+                                        tint = if (canGoBack) LocalContentColor.current else LocalContentColor.current.copy(alpha = 0.38f)
+                                    )
+                                }
 
-                        // Menu items
-                        DropdownMenuItem(
-                            text = { Text("Bookmarks") },
-                            onClick = {
-                                showOverflowMenu = false
-                                onShowBookmarks()
-                            },
-                            leadingIcon = { Icon(Icons.Default.Star, contentDescription = null) }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Downloads") },
-                            onClick = {
-                                showOverflowMenu = false
-                                onShowDownloads()
-                            },
-                            leadingIcon = { Icon(Icons.Default.Download, contentDescription = null) }
-                        )
+                                IconButton(
+                                    onClick = {
+                                        showOverflowMenu = false
+                                        onForward()
+                                    },
+                                    enabled = canGoForward
+                                ) {
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.ArrowForward,
+                                        contentDescription = "Forward",
+                                        tint = if (canGoForward) LocalContentColor.current else LocalContentColor.current.copy(alpha = 0.38f)
+                                    )
+                                }
+                                if (currentUrl.isNotBlank()) {
+                                    IconButton(
+                                        onClick = {
+                                            if (!isCurrentUrlBookmarked) {
+                                                onAddBookmark(currentUrl, currentPageTitle)
+                                            }
+                                        }
+                                    ) {
+                                        Icon(
+                                            if (isCurrentUrlBookmarked) Icons.Default.Star else Icons.Default.StarBorder,
+                                            contentDescription = if (isCurrentUrlBookmarked) "Bookmarked" else "Add bookmark",
+                                            tint = if (isCurrentUrlBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                }
 
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                                IconButton(
+                                    onClick = {
+                                        showOverflowMenu = false
+                                        onReload()
+                                    }
+                                ) {
+                                    Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                                }
+                            }
 
-                        DropdownMenuItem(
-                            text = { Text("History") },
-                            onClick = {
-                                showOverflowMenu = false
-                                onShowHistory()
-                            },
-                            leadingIcon = { Icon(Icons.Default.History, contentDescription = null) }
-                        )
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                            DropdownMenuItem(
+                                text = { Text("Bookmarks") },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    onShowBookmarks()
+                                },
+                                leadingIcon = { Icon(Icons.Default.Star, contentDescription = null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Downloads") },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    onShowDownloads()
+                                },
+                                leadingIcon = { Icon(Icons.Default.Download, contentDescription = null) }
+                            )
 
-                        DropdownMenuItem(
-                            text = { Text("Settings") },
-                            onClick = {
-                                showOverflowMenu = false
-                                onShowSettings() // Invoke the callback to navigate to SettingsScreen.
-                            },
-                            leadingIcon = { Icon(Icons.Default.Settings, contentDescription = "Settings") }
-                        )
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                            DropdownMenuItem(
+                                text = { Text("History") },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    onShowHistory()
+                                },
+                                leadingIcon = { Icon(Icons.Default.History, contentDescription = null) }
+                            )
+
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                            DropdownMenuItem(
+                                text = { Text("Settings") },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    onShowSettings()
+                                },
+                                leadingIcon = { Icon(Icons.Default.Settings, contentDescription = "Settings") }
+                            )
+                        }
                     }
                 }
             }
+
+            // Render the GeckoViewComponent always in the background.
+            key(geckoSession) {
+                GeckoViewComponent(
+                    geckoSession = geckoSession,
+                    url = currentUrl,
+                    onUrlChange = { newUrl ->
+                        if (!isEditing) {
+                            onNavigate(newUrl)
+                        }
+                    },
+                    onCanGoBackChange = onCanGoBackChange,
+                    onCanGoForwardChange = onCanGoForwardChange,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                )
+            }
         }
 
-        // Browser view
-        key(geckoSession) {
-            GeckoViewComponent(
-                geckoSession = geckoSession,
-                url = currentUrl,
-                onUrlChange = { newUrl ->
-                    if (!isEditing) {
-                        onNavigate(newUrl)
-                    }
+        // Overlay the HomeScreen if isHomepageActive is true.
+        if (isHomepageActive) {
+            HomeScreen(
+                shortcuts = listOf(
+                    Shortcut(iconRes = R.drawable.google_icon, label = "Google", url = "https://www.google.com", isPinned = true),
+                    Shortcut(iconRes = R.drawable.bing_icon, label = "Bing", url = "https://www.bing.com"),
+                    Shortcut(iconRes = R.drawable.duckduckgo_icon, label = "DuckDuckGo", url = "https://www.duckduckgo.com")
+                ),
+                onShortcutLongPressed = { shortcut ->
+                    // Handle long press for additional actions if needed.
+                    Log.d("BrowserContent", "Long pressed shortcut: ${shortcut.label}")
                 },
-                onCanGoBackChange = onCanGoBackChange,
-                onCanGoForwardChange = onCanGoForwardChange,
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
+                modifier = Modifier.fillMaxSize()
             )
         }
     }
 
-    // Download Confirmation Dialog
+    // Download Confirmation Dialog.
     if (showDownloadConfirmationDialog && currentDownloadRequest != null) {
         DownloadConfirmationDialog(
             fileName = currentDownloadRequest.fileName,
             fileSize = currentDownloadRequest.contentLength.toString(),
             onDownloadClicked = {
-                Log.d(
-                    "BrowserContent",
-                    "Download Confirmation: Download button clicked for ${currentDownloadRequest.fileName}"
-                )
+                Log.d("BrowserContent", "Download Confirmation: Download button clicked for ${currentDownloadRequest.fileName}")
                 onDismissDownloadConfirmationDialog()
 
                 CoroutineScope(Dispatchers.IO).launch {
@@ -386,10 +377,7 @@ fun BrowserContent(
                         withContext(Dispatchers.Main) {
                             currentDownloadId = id
                             showDownloadCompletionDialog = true
-                            Log.d(
-                                "BrowserContent",
-                                "Set currentDownloadId=$currentDownloadId, showDownloadCompletionDialog=$showDownloadCompletionDialog"
-                            )
+                            Log.d("BrowserContent", "Set currentDownloadId=$currentDownloadId, showDownloadCompletionDialog=$showDownloadCompletionDialog")
                         }
                     } catch (e: Exception) {
                         Log.e("BrowserContent", "Error starting download", e)
@@ -412,17 +400,18 @@ fun BrowserContent(
             onOpenClicked = {
                 Log.d("BrowserContent", "Download Completion: Open button clicked")
                 showDownloadCompletionDialog = false
-                currentDownloadId = null  // Reset the ID when closing
+                currentDownloadId = null
             },
             onDismissClicked = {
                 Log.d("BrowserContent", "Download Completion: OK button clicked")
                 showDownloadCompletionDialog = false
-                currentDownloadId = null  // Reset the ID when closing
+                currentDownloadId = null
             },
             onDismissRequest = {
                 showDownloadCompletionDialog = false
-                currentDownloadId = null  // Reset the ID when closing
+                currentDownloadId = null
             }
         )
     }
 }
+

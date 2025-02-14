@@ -56,7 +56,8 @@ class MainActivity : ComponentActivity() {
             }
             MobileBrowserTheme(darkTheme = darkTheme){
                 // Define UI state variables.
-                var currentUrl by remember { mutableStateOf("https://www.mozilla.org") }
+                var currentUrl by remember { mutableStateOf("") }
+//                var currentUrl by remember { mutableStateOf("https://www.mozilla.org") }
                 var currentPageTitle by remember { mutableStateOf("New Tab") }
                 var canGoBack by remember { mutableStateOf(false) }
                 var canGoForward by remember { mutableStateOf(false) }
@@ -75,6 +76,7 @@ class MainActivity : ComponentActivity() {
                 val isCurrentUrlBookmarked by bookmarkViewModel.isCurrentUrlBookmarked.collectAsState()
                 val activeTab by tabViewModel.activeTab.collectAsState()
                 val scope = rememberCoroutineScope()
+                var isHomepageActive by remember { mutableStateOf(true) }
 
                 // Helper: normalize URL by trimming and removing trailing "/"
                 fun normalizeUrl(url: String): String = url.trim().removeSuffix("/")
@@ -149,14 +151,20 @@ class MainActivity : ComponentActivity() {
                             BrowserContent(
                                 geckoSession = session,
                                 onNavigate = { url ->
-                                    currentUrl = url
-                                    bookmarkViewModel.updateCurrentUrl(url)
-                                    tabViewModel.updateActiveTabContent(url, currentPageTitle)
-                                    if (currentPageTitle.isNotBlank() && currentPageTitle != "Loading...") {
-                                        recordHistory(url, currentPageTitle)
+                                    // When a search is initiated, update the state:
+                                    // Only update the URL and dismiss the homepage if a real URL is provided.
+                                    if (url.isNotBlank()) {
+                                        isHomepageActive = false
+                                        currentUrl = url
+                                        bookmarkViewModel.updateCurrentUrl(url)
+                                        tabViewModel.updateActiveTabContent(url, currentPageTitle)
+                                        if (currentPageTitle.isNotBlank() && currentPageTitle != "Loading...") {
+                                            recordHistory(url, currentPageTitle)
+                                        }
                                     }
                                 },
                                 onBack = { session.goBack() },
+                                isHomepageActive = isHomepageActive,
                                 onForward = { session.goForward() },
                                 onReload = { session.reload() },
                                 onShowBookmarks = { navController.navigate("bookmarks") },
@@ -176,10 +184,10 @@ class MainActivity : ComponentActivity() {
                                 onNewTab = {
                                     scope.launch {
                                         // Create a new tab and session.
-                                        val newTabId = tabViewModel.createTab()
+                                        val newTabId = tabViewModel.createTab(url = "", title = "New Tab")
                                         val newSession = sessionManager.getOrCreateSession(
                                             tabId = newTabId,
-                                            url = "https://www.mozilla.org",
+                                            url = "",
                                             onUrlChange = { newUrl ->
                                                 currentUrl = newUrl
                                                 bookmarkViewModel.updateCurrentUrl(newUrl)
@@ -199,8 +207,9 @@ class MainActivity : ComponentActivity() {
                                         )
                                         currentSession = newSession
                                         tabViewModel.switchToTab(newTabId)
-                                        currentUrl = "https://www.mozilla.org"
+                                        currentUrl = ""
                                         currentPageTitle = "New Tab"
+                                        isHomepageActive = true
                                     }
                                 },
                                 onCloseAllTabs = {
@@ -230,7 +239,7 @@ class MainActivity : ComponentActivity() {
                                             activeTab?.let { tab ->
                                                 currentSession = sessionManager.getOrCreateSession(
                                                     tabId = tab.id,
-                                                    url = url,
+                                                    url = tab.url,
                                                     onUrlChange = { newUrl ->
                                                         currentUrl = newUrl
                                                         bookmarkViewModel.updateCurrentUrl(newUrl)

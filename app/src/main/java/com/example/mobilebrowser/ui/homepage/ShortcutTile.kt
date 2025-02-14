@@ -10,10 +10,18 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.example.mobilebrowser.R
 
+
+data class Shortcut(
+    val iconRes: Int,
+    val label: String,
+    val url: String,
+    val isPinned: Boolean = false
+)
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ShortcutTile(
-    iconResId: Int,             // Resource id for the main icon (e.g., R.drawable.google_icon)
+    iconResId: Int,             // Resource id for the main icon
     label: String,              // Text label for the shortcut
     pinned: Boolean,            // Indicates if this tile is pinned
     onClick: () -> Unit,        // Called when the tile is tapped
@@ -32,10 +40,10 @@ fun ShortcutTile(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // Display the pin icon at the top-right if the shortcut is pinned.
+            // Pin icon at the top-right corner, if pinned.
             if (pinned) {
                 Icon(
-                    painter = painterResource(id = R.drawable.ic_pin),
+                    painter = painterResource(id = R.drawable.ic_pin),  // Replace with your actual pin icon resource.
                     contentDescription = "Pinned",
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier
@@ -51,7 +59,7 @@ fun ShortcutTile(
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Main shortcut icon
+                // Main shortcut icon.
                 Icon(
                     painter = painterResource(id = iconResId),
                     contentDescription = label,
@@ -59,7 +67,7 @@ fun ShortcutTile(
                     tint = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                // Shortcut label
+                // Shortcut label.
                 Text(
                     text = label,
                     style = MaterialTheme.typography.bodySmall,
