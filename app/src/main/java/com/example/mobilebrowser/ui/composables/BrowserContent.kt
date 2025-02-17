@@ -325,7 +325,8 @@ fun BrowserContent(
                     geckoSession = geckoSession,
                     url = currentUrl,
                     onUrlChange = { newUrl ->
-                        if (!isEditing) {
+                        // Only trigger navigation if the URL has changed.
+                        if (!isEditing && newUrl != currentUrl) {
                             onNavigate(newUrl)
                         }
                     },
