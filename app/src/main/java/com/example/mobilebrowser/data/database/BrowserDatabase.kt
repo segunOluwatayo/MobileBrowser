@@ -13,6 +13,7 @@ import com.example.mobilebrowser.data.dao.TabDao
 import com.example.mobilebrowser.data.entity.BookmarkEntity
 import com.example.mobilebrowser.data.entity.DownloadEntity
 import com.example.mobilebrowser.data.entity.HistoryEntity
+import com.example.mobilebrowser.data.entity.ShortcutEntity
 import com.example.mobilebrowser.data.entity.TabEntity
 import com.example.mobilebrowser.data.util.Converters
 
@@ -21,8 +22,8 @@ import com.example.mobilebrowser.data.util.Converters
  * Manages both bookmarks and tabs data.
  */
 @Database(
-    entities = [BookmarkEntity::class, TabEntity::class, HistoryEntity::class, DownloadEntity::class],
-    version = 6,
+    entities = [BookmarkEntity::class, TabEntity::class, HistoryEntity::class, DownloadEntity::class, ShortcutEntity::class],
+    version = 7,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

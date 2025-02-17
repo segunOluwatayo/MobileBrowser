@@ -1,3 +1,7 @@
+package com.example.mobilebrowser.ui.screens
+
+import Shortcut
+import ShortcutTile
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -9,24 +13,32 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
+/**
+ * HomeScreen displays a grid of shortcuts.
+ *
+ * @param shortcuts The list of shortcuts to display.
+ * @param onShortcutLongPressed Callback when a shortcut is long-pressed.
+ * @param onShortcutClick Callback when a shortcut is clicked.
+ * @param modifier Modifier for styling.
+ */
 @Composable
 fun HomeScreen(
     shortcuts: List<Shortcut>,
+    onShortcutClick: (Shortcut) -> Unit,
     onShortcutLongPressed: (Shortcut) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
-        modifier = modifier.padding(top = 72.dp), // Add padding for the URL bar
+        modifier = modifier.padding(top = 72.dp), // Adjust for any top UI (e.g., URL bar)
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Welcome message or browser logo could go here
         Text(
             text = "Welcome",
             style = MaterialTheme.typography.headlineMedium,
             modifier = Modifier.padding(vertical = 24.dp)
         )
 
-        // Grid of shortcuts
+        // Display shortcuts in a grid.
         LazyVerticalGrid(
             columns = GridCells.Fixed(4),
             contentPadding = PaddingValues(16.dp),
@@ -39,7 +51,7 @@ fun HomeScreen(
                     iconResId = shortcut.iconRes,
                     label = shortcut.label,
                     pinned = shortcut.isPinned,
-                    onClick = { /* Handle shortcut click */ },
+                    onClick = { onShortcutClick(shortcut) },
                     onLongPress = { onShortcutLongPressed(shortcut) }
                 )
             }

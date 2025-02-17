@@ -1,12 +1,12 @@
 package com.example.mobilebrowser.ui.homepage
 
-import HomeScreen
 import Shortcut
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.mobilebrowser.data.entity.ShortcutEntity
+import com.example.mobilebrowser.ui.screens.HomeScreen
 import com.example.mobilebrowser.ui.viewmodels.ShortcutViewModel
 
 /**
@@ -34,12 +34,20 @@ fun HomeScreenWithViewModel(
     // Render the HomeScreen with the shortcuts data and event handlers.
     HomeScreen(
         shortcuts = shortcuts,
+        onShortcutClick = { shortcut ->
+            // Handle normal click (e.g., open the URL in current tab)
+            viewModel.onShortcutClick(
+                ShortcutEntity(
+                    label = shortcut.label,
+                    iconRes = shortcut.iconRes,
+                    url = shortcut.url,
+                    isPinned = shortcut.isPinned
+                )
+            )
+        },
         onShortcutLongPressed = { shortcut ->
-            // Find the corresponding ShortcutEntity (if needed) and call the ViewModel handler.
-            // For simplicity, we assume one-to-one mapping here.
-            // Alternatively, modify the ViewModel to handle UI Shortcut objects directly.
+            // Handle long press: call the ViewModel for a long press.
             viewModel.onShortcutLongPress(
-                // Convert the UI model back to entity if necessary.
                 ShortcutEntity(
                     label = shortcut.label,
                     iconRes = shortcut.iconRes,

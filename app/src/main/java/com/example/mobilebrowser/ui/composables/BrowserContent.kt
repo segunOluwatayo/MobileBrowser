@@ -1,6 +1,5 @@
 package com.example.mobilebrowser.ui.composables
 
-import HomeScreen
 import Shortcut
 import android.util.Log
 import androidx.activity.compose.BackHandler
@@ -25,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.mobilebrowser.R
 import com.example.mobilebrowser.browser.GeckoDownloadDelegate
+import com.example.mobilebrowser.ui.screens.HomeScreen
 import com.example.mobilebrowser.ui.viewmodels.DownloadViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -350,6 +350,10 @@ fun BrowserContent(
                 onShortcutLongPressed = { shortcut ->
                     // Handle long press for additional actions if needed.
                     Log.d("BrowserContent", "Long pressed shortcut: ${shortcut.label}")
+                },
+                onShortcutClick = { shortcut ->
+                    Log.d("BrowserContent", "Clicked shortcut: ${shortcut.label}")
+                    onNavigate(shortcut.url)
                 },
                 modifier = Modifier.fillMaxSize()
             )
