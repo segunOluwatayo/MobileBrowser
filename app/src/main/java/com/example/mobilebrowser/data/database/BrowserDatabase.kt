@@ -8,6 +8,7 @@ import androidx.room.TypeConverters
 import com.example.mobilebrowser.data.dao.BookmarkDao
 import com.example.mobilebrowser.data.dao.DownloadDao
 import com.example.mobilebrowser.data.dao.HistoryDao
+import com.example.mobilebrowser.data.dao.ShortcutDao
 import com.example.mobilebrowser.data.dao.TabDao
 import com.example.mobilebrowser.data.entity.BookmarkEntity
 import com.example.mobilebrowser.data.entity.DownloadEntity
@@ -31,6 +32,7 @@ abstract class BrowserDatabase : RoomDatabase() {
     abstract fun tabDao(): TabDao
     abstract fun historyDao(): HistoryDao
     abstract fun downloadDao(): DownloadDao
+    abstract fun shortcutDao(): ShortcutDao
 
 
     companion object {

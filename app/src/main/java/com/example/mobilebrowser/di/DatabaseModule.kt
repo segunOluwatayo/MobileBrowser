@@ -5,6 +5,7 @@ import com.example.mobilebrowser.data.database.BrowserDatabase
 import com.example.mobilebrowser.data.dao.BookmarkDao
 import com.example.mobilebrowser.data.dao.DownloadDao
 import com.example.mobilebrowser.data.dao.HistoryDao
+import com.example.mobilebrowser.data.dao.ShortcutDao
 import com.example.mobilebrowser.data.dao.TabDao
 import dagger.Module
 import dagger.Provides
@@ -46,5 +47,11 @@ object DatabaseModule {
     @Singleton
     fun provideDownloadDao(database: BrowserDatabase): DownloadDao {
         return database.downloadDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideShortcutDao(database: BrowserDatabase): ShortcutDao {
+        return database.shortcutDao()
     }
 }
