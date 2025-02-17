@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.mobilebrowser.R
 import com.example.mobilebrowser.browser.GeckoDownloadDelegate
+import com.example.mobilebrowser.ui.homepage.ShortcutOptionsDialog
 import com.example.mobilebrowser.ui.screens.HomeScreen
 import com.example.mobilebrowser.ui.viewmodels.DownloadViewModel
 import kotlinx.coroutines.CoroutineScope
@@ -80,6 +81,8 @@ fun BrowserContent(
     )
     val currentEngine =
         searchEngines.find { it.searchUrl == currentSearchEngineUrl } ?: searchEngines[0]
+
+    var selectedShortcut by remember { mutableStateOf<Shortcut?>(null) }
 
     // State for Download Confirmation Dialog and tracking current download.
     var showDownloadCompletionDialog by remember { mutableStateOf(false) }
@@ -348,14 +351,37 @@ fun BrowserContent(
                     Shortcut(iconRes = R.drawable.duckduckgo_icon, label = "DuckDuckGo", url = "https://www.duckduckgo.com")
                 ),
                 onShortcutLongPressed = { shortcut ->
-                    // Handle long press for additional actions if needed.
-                    Log.d("BrowserContent", "Long pressed shortcut: ${shortcut.label}")
+                    selectedShortcut = shortcut
                 },
                 onShortcutClick = { shortcut ->
                     Log.d("BrowserContent", "Clicked shortcut: ${shortcut.label}")
                     onNavigate(shortcut.url)
                 },
                 modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        selectedShortcut?.let { shortcut ->
+            ShortcutOptionsDialog(
+                shortcut = shortcut,
+                onDismiss = { selectedShortcut = null },
+                onOpenInNewTab = {
+                    onNewTab()
+                    onNavigate(shortcut.url)
+                    selectedShortcut = null
+                },
+                onEdit = {
+                    // TODO: Implement edit functionality
+                    selectedShortcut = null
+                },
+                onTogglePin = {
+                    // TODO: Implement pin/unpin functionality
+                    selectedShortcut = null
+                },
+                onDelete = {
+                    // TODO: Implement delete functionality
+                    selectedShortcut = null
+                }
             )
         }
     }
