@@ -19,6 +19,7 @@ media3CommonKtx = "1.5.1"
 firebaseCrashlyticsBuildtools = "3.0.2"
 hiltCommon = "1.2.0"
 workRuntimeKtx = "2.10.0"
+testing = "1.0.0"
 
 
 [libraries]
@@ -50,6 +51,7 @@ androidx-media3-common-ktx = { group = "androidx.media3", name = "media3-common-
 firebase-crashlytics-buildtools = { group = "com.google.firebase", name = "firebase-crashlytics-buildtools", version.ref = "firebaseCrashlyticsBuildtools" }
 androidx-hilt-common = { group = "androidx.hilt", name = "hilt-common", version.ref = "hiltCommon" }
 androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workRuntimeKtx" }
+testing = { group = "com.google.assistant.appactions", name = "testing", version.ref = "testing" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
