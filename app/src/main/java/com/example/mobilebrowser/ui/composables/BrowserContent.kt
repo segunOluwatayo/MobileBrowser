@@ -24,9 +24,12 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.mobilebrowser.R
 import com.example.mobilebrowser.browser.GeckoDownloadDelegate
+import com.example.mobilebrowser.data.entity.ShortcutEntity
+import com.example.mobilebrowser.ui.homepage.ShortcutEditDialog
 import com.example.mobilebrowser.ui.homepage.ShortcutOptionsDialog
 import com.example.mobilebrowser.ui.screens.HomeScreen
 import com.example.mobilebrowser.ui.viewmodels.DownloadViewModel
+import com.example.mobilebrowser.ui.viewmodels.ShortcutViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -61,6 +64,7 @@ fun BrowserContent(
     onDismissDownloadConfirmationDialog: () -> Unit,
     isHomepageActive: Boolean,  // Flag to control homepage overlay.
     modifier: Modifier = Modifier,
+    shortcutViewModel: ShortcutViewModel = hiltViewModel(),
     downloadViewModel: DownloadViewModel = hiltViewModel()
 ) {
     var urlText by remember { mutableStateOf(currentUrl) }
@@ -83,6 +87,9 @@ fun BrowserContent(
         searchEngines.find { it.searchUrl == currentSearchEngineUrl } ?: searchEngines[0]
 
     var selectedShortcut by remember { mutableStateOf<Shortcut?>(null) }
+    var showEditDialog by remember { mutableStateOf(false) }
+    var shortcutToEdit by remember { mutableStateOf<ShortcutEntity?>(null) }
+    val shortcuts by shortcutViewModel.shortcuts.collectAsState()
 
     // State for Download Confirmation Dialog and tracking current download.
     var showDownloadCompletionDialog by remember { mutableStateOf(false) }
@@ -345,23 +352,30 @@ fun BrowserContent(
         // Overlay the HomeScreen if isHomepageActive is true.
         if (isHomepageActive) {
             HomeScreen(
-                shortcuts = listOf(
-                    Shortcut(iconRes = R.drawable.google_icon, label = "Google", url = "https://www.google.com", isPinned = true),
-                    Shortcut(iconRes = R.drawable.bing_icon, label = "Bing", url = "https://www.bing.com"),
-                    Shortcut(iconRes = R.drawable.duckduckgo_icon, label = "DuckDuckGo", url = "https://www.duckduckgo.com")
-                ),
-                onShortcutLongPressed = { shortcut ->
-                    selectedShortcut = shortcut
-                },
+                shortcuts = shortcuts,
                 onShortcutClick = { shortcut ->
-                    Log.d("BrowserContent", "Clicked shortcut: ${shortcut.label}")
                     onNavigate(shortcut.url)
+                },
+                onShortcutLongPressed = { shortcut ->
+                    selectedShortcut = Shortcut(
+                        iconRes = shortcut.iconRes,
+                        label = shortcut.label,
+                        url = shortcut.url,
+                        isPinned = shortcut.isPinned
+                    )
                 },
                 modifier = Modifier.fillMaxSize()
             )
         }
 
         selectedShortcut?.let { shortcut ->
+            val shortcutEntity = ShortcutEntity(
+                label = shortcut.label,
+                url = shortcut.url,
+                iconRes = shortcut.iconRes,
+                isPinned = shortcut.isPinned
+            )
+
             ShortcutOptionsDialog(
                 shortcut = shortcut,
                 onDismiss = { selectedShortcut = null },
@@ -371,16 +385,36 @@ fun BrowserContent(
                     selectedShortcut = null
                 },
                 onEdit = {
-                    // TODO: Implement edit functionality
+                    shortcutToEdit = shortcutEntity
+                    showEditDialog = true
                     selectedShortcut = null
                 },
                 onTogglePin = {
-                    // TODO: Implement pin/unpin functionality
+                    shortcutViewModel.togglePin(shortcutEntity)
                     selectedShortcut = null
                 },
                 onDelete = {
-                    // TODO: Implement delete functionality
+                    shortcutViewModel.deleteShortcut(shortcutEntity)
                     selectedShortcut = null
+                }
+            )
+        }
+
+        if (showEditDialog && shortcutToEdit != null) {
+            ShortcutEditDialog(
+                shortcut = shortcutToEdit!!,
+                onDismiss = {
+                    showEditDialog = false
+                    shortcutToEdit = null
+                },
+                onSave = { label, url ->
+                    shortcutViewModel.updateShortcut(
+                        shortcutToEdit!!,
+                        newLabel = label,
+                        newUrl = url
+                    )
+                    showEditDialog = false
+                    shortcutToEdit = null
                 }
             )
         }

@@ -10,6 +10,9 @@ interface ShortcutDao {
     @Query("SELECT * FROM shortcuts ORDER BY isPinned DESC, timestamp DESC")
     fun getAllShortcuts(): Flow<List<ShortcutEntity>>
 
+    @Query("SELECT * FROM shortcuts WHERE isPinned = 1 ORDER BY timestamp DESC")
+    fun getPinnedShortcuts(): Flow<List<ShortcutEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertShortcut(shortcut: ShortcutEntity)
 
@@ -19,7 +22,9 @@ interface ShortcutDao {
     @Delete
     suspend fun deleteShortcut(shortcut: ShortcutEntity)
 
-    // Optionally, add a query to get only pinned shortcuts
-    @Query("SELECT * FROM shortcuts WHERE isPinned = 1 ORDER BY timestamp DESC")
-    fun getPinnedShortcuts(): Flow<List<ShortcutEntity>>
+    @Query("UPDATE shortcuts SET isPinned = :isPinned WHERE id = :id")
+    suspend fun updatePinStatus(id: Int, isPinned: Boolean)
+
+    @Query("SELECT EXISTS(SELECT 1 FROM shortcuts WHERE url = :url)")
+    suspend fun isUrlBookmarked(url: String): Boolean
 }

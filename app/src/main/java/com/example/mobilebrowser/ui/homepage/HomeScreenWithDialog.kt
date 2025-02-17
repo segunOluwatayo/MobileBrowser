@@ -1,4 +1,4 @@
-package com.example.mobilebrowser.screens
+package com.example.mobilebrowser.ui.homepage
 
 import Shortcut
 import androidx.compose.runtime.*
@@ -8,87 +8,49 @@ import com.example.mobilebrowser.ui.screens.HomeScreen
 import com.example.mobilebrowser.ui.homepage.ShortcutOptionsDialog
 import com.example.mobilebrowser.ui.viewmodels.ShortcutViewModel
 
-/**
- * HomeScreenWithDialog integrates HomeScreen with a context dialog for shortcut actions.
- * It observes data from ShortcutViewModel and displays the ShortcutOptionsDialog when needed.
- */
 @Composable
 fun HomeScreenWithDialog(viewModel: ShortcutViewModel = hiltViewModel()) {
-    // Observe the list of shortcuts from the ViewModel.
-    val shortcutEntities by viewModel.shortcuts.collectAsState()
+    // Observe the list of shortcuts from the ViewModel
+    val shortcuts by viewModel.shortcuts.collectAsState()
 
-    // Map ShortcutEntity objects to UI model (Shortcut).
-    val shortcuts = shortcutEntities.map { entity ->
-        Shortcut(
-            iconRes = entity.iconRes,
-            label = entity.label,
-            url = entity.url,
-            isPinned = entity.isPinned
-        )
-    }
+    // State variable to track which shortcut is selected (for long press)
+    var selectedShortcut by remember { mutableStateOf<ShortcutEntity?>(null) }
 
-    // State variable to track which shortcut is selected (for long press).
-    var selectedShortcut by remember { mutableStateOf<Shortcut?>(null) }
-
-    // Render the HomeScreen.
+    // Render the HomeScreen
     HomeScreen(
         shortcuts = shortcuts,
         onShortcutClick = { shortcut ->
-            // Handle normal click (for example, open the URL in the current tab).
-            viewModel.onShortcutClick(
-                ShortcutEntity(
-                    label = shortcut.label,
-                    iconRes = shortcut.iconRes,
-                    url = shortcut.url,
-                    isPinned = shortcut.isPinned
-                )
-            )
+            viewModel.onShortcutClick(shortcut)
         },
         onShortcutLongPressed = { shortcut ->
-            // Set the selected shortcut to show the options dialog.
             selectedShortcut = shortcut
         }
     )
 
-    // If a shortcut is selected, display the options dialog.
+    // If a shortcut is selected, display the options dialog
     selectedShortcut?.let { shortcut ->
         ShortcutOptionsDialog(
-            shortcut = shortcut,
+            shortcut = Shortcut( // Convert ShortcutEntity to Shortcut for the dialog
+                iconRes = shortcut.iconRes,
+                label = shortcut.label,
+                url = shortcut.url,
+                isPinned = shortcut.isPinned
+            ),
             onDismiss = { selectedShortcut = null },
             onOpenInNewTab = {
-                viewModel.onShortcutClick(
-                    ShortcutEntity(
-                        label = shortcut.label,
-                        iconRes = shortcut.iconRes,
-                        url = shortcut.url,
-                        isPinned = shortcut.isPinned
-                    )
-                )
+                // Handle open in new tab
                 selectedShortcut = null
             },
             onEdit = {
-                // TODO: Implement edit functionality.
+                // Handle edit
                 selectedShortcut = null
             },
             onTogglePin = {
-                // Update the shortcut's pinned status.
-                val updatedShortcut = ShortcutEntity(
-                    label = shortcut.label,
-                    iconRes = shortcut.iconRes,
-                    url = shortcut.url,
-                    isPinned = !shortcut.isPinned
-                )
-                viewModel.updateShortcut(updatedShortcut)
+                viewModel.togglePin(shortcut)
                 selectedShortcut = null
             },
             onDelete = {
-                val entityToDelete = ShortcutEntity(
-                    label = shortcut.label,
-                    iconRes = shortcut.iconRes,
-                    url = shortcut.url,
-                    isPinned = shortcut.isPinned
-                )
-                viewModel.deleteShortcut(entityToDelete)
+                viewModel.deleteShortcut(shortcut)
                 selectedShortcut = null
             }
         )

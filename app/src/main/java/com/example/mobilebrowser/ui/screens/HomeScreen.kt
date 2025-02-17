@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.mobilebrowser.data.entity.ShortcutEntity
 
 /**
  * HomeScreen displays a grid of shortcuts.
@@ -23,13 +24,13 @@ import androidx.compose.ui.unit.dp
  */
 @Composable
 fun HomeScreen(
-    shortcuts: List<Shortcut>,
-    onShortcutClick: (Shortcut) -> Unit,
-    onShortcutLongPressed: (Shortcut) -> Unit,
+    shortcuts: List<ShortcutEntity>,
+    onShortcutClick: (ShortcutEntity) -> Unit,
+    onShortcutLongPressed: (ShortcutEntity) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
-        modifier = modifier.padding(top = 72.dp), // Adjust for any top UI (e.g., URL bar)
+        modifier = modifier.padding(top = 72.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
@@ -38,7 +39,6 @@ fun HomeScreen(
             modifier = Modifier.padding(vertical = 24.dp)
         )
 
-        // Display shortcuts in a grid.
         LazyVerticalGrid(
             columns = GridCells.Fixed(4),
             contentPadding = PaddingValues(16.dp),
