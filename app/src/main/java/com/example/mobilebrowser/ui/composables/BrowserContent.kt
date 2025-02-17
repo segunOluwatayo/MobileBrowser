@@ -337,7 +337,6 @@ fun BrowserContent(
                         .fillMaxWidth()
                 )
             }
-
         }
 
         // Overlay the HomeScreen if isHomepageActive is true.
