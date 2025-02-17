@@ -325,9 +325,9 @@ fun BrowserContent(
                     geckoSession = geckoSession,
                     url = currentUrl,
                     onUrlChange = { newUrl ->
-                        // Only trigger navigation if the URL has changed.
-                        if (!isEditing && newUrl != currentUrl) {
-                            onNavigate(newUrl)
+                        val normalizedUrl = if (newUrl == "about:blank") "" else newUrl
+                        if (!isEditing && normalizedUrl != currentUrl) {
+                            onNavigate(normalizedUrl)
                         }
                     },
                     onCanGoBackChange = onCanGoBackChange,
@@ -337,6 +337,7 @@ fun BrowserContent(
                         .fillMaxWidth()
                 )
             }
+
         }
 
         // Overlay the HomeScreen if isHomepageActive is true.

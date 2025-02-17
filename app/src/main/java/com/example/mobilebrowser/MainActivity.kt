@@ -151,8 +151,6 @@ class MainActivity : ComponentActivity() {
                             BrowserContent(
                                 geckoSession = session,
                                 onNavigate = { url ->
-                                    // When a search is initiated, update the state:
-                                    // Only update the URL and dismiss the homepage if a real URL is provided.
                                     if (url.isNotBlank()) {
                                         isHomepageActive = false
                                         currentUrl = url
@@ -161,6 +159,10 @@ class MainActivity : ComponentActivity() {
                                         if (currentPageTitle.isNotBlank() && currentPageTitle != "Loading...") {
                                             recordHistory(url, currentPageTitle)
                                         }
+                                    } else {
+                                        // If the URL is blank (or normalized to blank), show the homepage overlay.
+                                        isHomepageActive = true
+                                        currentUrl = url
                                     }
                                 },
                                 onBack = { session.goBack() },
