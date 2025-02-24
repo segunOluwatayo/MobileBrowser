@@ -105,9 +105,28 @@ fun BrowserContent(
         focusManager.clearFocus()
     }
 
-    // Use a Box to layer the browser view and the HomeScreen overlay.
     Box(modifier = modifier.fillMaxSize()) {
-        // Main content Column (navigation bar, etc.)
+        // Render the HomeScreen as a background layer with a theme-based background.
+        if (isHomepageActive) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+            ) {
+                HomeScreen(
+                    shortcuts = shortcuts,
+                    onShortcutClick = { shortcut ->
+                        onNavigate(shortcut.url)
+                    },
+                    onShortcutLongPressed = { shortcut ->
+                        selectedShortcut = shortcut
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        }
+
+        // Main content (navigation bar and web view or spacer) drawn on top.
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -329,38 +348,28 @@ fun BrowserContent(
                 }
             }
 
-            // Render the GeckoViewComponent always in the background.
-            key(geckoSession) {
-                GeckoViewComponent(
-                    geckoSession = geckoSession,
-                    url = currentUrl,
-                    onUrlChange = { newUrl ->
-                        val normalizedUrl = if (newUrl == "about:blank") "" else newUrl
-                        if (!isEditing && normalizedUrl != currentUrl) {
-                            onNavigate(normalizedUrl)
-                        }
-                    },
-                    onCanGoBackChange = onCanGoBackChange,
-                    onCanGoForwardChange = onCanGoForwardChange,
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                )
+            // Only show the GeckoView when the homepage is not active.
+            if (!isHomepageActive) {
+                key(geckoSession) {
+                    GeckoViewComponent(
+                        geckoSession = geckoSession,
+                        url = currentUrl,
+                        onUrlChange = { newUrl ->
+                            val normalizedUrl = if (newUrl == "about:blank") "" else newUrl
+                            if (!isEditing && normalizedUrl != currentUrl) {
+                                onNavigate(normalizedUrl)
+                            }
+                        },
+                        onCanGoBackChange = onCanGoBackChange,
+                        onCanGoForwardChange = onCanGoForwardChange,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                    )
+                }
+            } else {
+                Spacer(modifier = Modifier.weight(1f))
             }
-        }
-
-        // Overlay the HomeScreen if isHomepageActive is true.
-        if (isHomepageActive) {
-            HomeScreen(
-                shortcuts = shortcuts,
-                onShortcutClick = { shortcut ->
-                    onNavigate(shortcut.url)
-                },
-                onShortcutLongPressed = { shortcut ->
-                    selectedShortcut = shortcut
-        },
-                modifier = Modifier.fillMaxSize()
-            )
         }
 
         selectedShortcut?.let { shortcut ->
@@ -393,7 +402,6 @@ fun BrowserContent(
                     selectedShortcut = null
                 }
             )
-
         }
 
         if (showEditDialog && shortcutToEdit != null) {
@@ -475,4 +483,3 @@ fun BrowserContent(
         )
     }
 }
-
