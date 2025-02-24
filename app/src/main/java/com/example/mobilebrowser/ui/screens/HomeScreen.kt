@@ -41,7 +41,7 @@ fun HomeScreen(
         Text(
             text = "Welcome",
             style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.primary,
+            color = MaterialTheme.colorScheme.secondary,
             modifier = Modifier.padding(vertical = 24.dp)
         )
 
@@ -50,7 +50,7 @@ fun HomeScreen(
             Text(
                 text = "Pinned Shortcuts",
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
+                color = MaterialTheme.colorScheme.secondary,
                 modifier = Modifier.padding(start = 16.dp, bottom = 8.dp, top = 8.dp)
                     .align(Alignment.Start)
             )
