@@ -1,9 +1,13 @@
 package com.example.mobilebrowser.data.entity
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "shortcuts")
+@Entity(
+    tableName = "shortcuts",
+    indices = [Index(value = ["url"], unique = true)]
+)
 data class ShortcutEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,

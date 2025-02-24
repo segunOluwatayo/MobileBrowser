@@ -32,8 +32,9 @@ class ShortcutViewModel @Inject constructor(
     init {
         // Observe changes from the repository and update the state flow.
         viewModelScope.launch {
-            val currentShortcuts = shortcuts.first()
-            if (currentShortcuts.isEmpty()) {
+            // Check the real DB state
+            val existingShortcuts = repository.getAllShortcuts().first()
+            if (existingShortcuts.isEmpty()) {
                 insertShortcut(
                     ShortcutEntity(
                         label = "Google",
@@ -59,7 +60,8 @@ class ShortcutViewModel @Inject constructor(
                     )
                 )
             }
-        repository.getAllShortcuts().collectLatest { shortcutList ->
+            // Then collect for UI updates
+            repository.getAllShortcuts().collectLatest { shortcutList ->
                 _shortcuts.value = shortcutList
             }
         }
