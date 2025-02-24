@@ -48,13 +48,12 @@ fun HomeScreen(
         ) {
             items(shortcuts) { shortcut ->
                 ShortcutTile(
-                    iconResId = shortcut.iconRes,
-                    label = shortcut.label,
-                    pinned = shortcut.isPinned,
+                    shortcut = shortcut,
                     onClick = { onShortcutClick(shortcut) },
                     onLongPress = { onShortcutLongPressed(shortcut) }
                 )
             }
+
         }
     }
 }

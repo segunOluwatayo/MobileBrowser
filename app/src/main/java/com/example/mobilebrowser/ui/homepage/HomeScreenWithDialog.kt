@@ -30,12 +30,7 @@ fun HomeScreenWithDialog(viewModel: ShortcutViewModel = hiltViewModel()) {
     // If a shortcut is selected, display the options dialog
     selectedShortcut?.let { shortcut ->
         ShortcutOptionsDialog(
-            shortcut = Shortcut( // Convert ShortcutEntity to Shortcut for the dialog
-                iconRes = shortcut.iconRes,
-                label = shortcut.label,
-                url = shortcut.url,
-                isPinned = shortcut.isPinned
-            ),
+            shortcut = shortcut,
             onDismiss = { selectedShortcut = null },
             onOpenInNewTab = {
                 // Handle open in new tab

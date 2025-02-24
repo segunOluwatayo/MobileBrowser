@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.example.mobilebrowser.R
+import com.example.mobilebrowser.data.entity.ShortcutEntity
 
 
 data class Shortcut(
@@ -21,11 +22,9 @@ data class Shortcut(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ShortcutTile(
-    iconResId: Int,             // Resource id for the main icon
-    label: String,              // Text label for the shortcut
-    pinned: Boolean,            // Indicates if this tile is pinned
-    onClick: () -> Unit,        // Called when the tile is tapped
-    onLongPress: () -> Unit,    // Called on long press
+    shortcut: ShortcutEntity,       // Use ShortcutEntity directly
+    onClick: () -> Unit,
+    onLongPress: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -40,10 +39,11 @@ fun ShortcutTile(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
+
             // Pin icon at the top-right corner, if pinned.
-            if (pinned) {
+            if (shortcut.isPinned) {
                 Icon(
-                    painter = painterResource(id = R.drawable.ic_pin),  // Replace with your actual pin icon resource.
+                    painter = painterResource(id = R.drawable.ic_pin),
                     contentDescription = "Pinned",
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier
@@ -52,6 +52,7 @@ fun ShortcutTile(
                         .size(16.dp)
                 )
             }
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -61,15 +62,15 @@ fun ShortcutTile(
             ) {
                 // Main shortcut icon.
                 Icon(
-                    painter = painterResource(id = iconResId),
-                    contentDescription = label,
+                    painter = painterResource(id = shortcut.iconRes),
+                    contentDescription = shortcut.label,
                     modifier = Modifier.size(36.dp),
                     tint = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 // Shortcut label.
                 Text(
-                    text = label,
+                    text = shortcut.label,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -77,3 +78,4 @@ fun ShortcutTile(
         }
     }
 }
+

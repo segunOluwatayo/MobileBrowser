@@ -6,6 +6,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import com.example.mobilebrowser.data.entity.ShortcutEntity
 
 /**
  * ShortcutOptionsDialog displays a context menu with options for the given shortcut.
@@ -19,11 +20,11 @@ import androidx.compose.runtime.Composable
  */
 @Composable
 fun ShortcutOptionsDialog(
-    shortcut: Shortcut,
+    shortcut: ShortcutEntity,
     onDismiss: () -> Unit,
     onOpenInNewTab: () -> Unit,
     onEdit: () -> Unit,
-    onTogglePin: () -> Unit,
+    onTogglePin: (ShortcutEntity) -> Unit,
     onDelete: () -> Unit
 ) {
     AlertDialog(
@@ -39,22 +40,22 @@ fun ShortcutOptionsDialog(
                 TextButton(onClick = onEdit) {
                     Text("Edit")
                 }
-                // Option to toggle pin status (Pin if unpinned, Unpin if pinned).
-                TextButton(onClick = onTogglePin) {
+                // Option to toggle pin status
+                TextButton(onClick = { onTogglePin(shortcut) }) {
                     Text(if (shortcut.isPinned) "Unpin" else "Pin")
                 }
-                // Option to delete the shortcut from history or remove from homepage.
+                // Option to delete
                 TextButton(onClick = onDelete) {
                     Text("Delete from History")
                 }
             }
         },
-        confirmButton = { /* We don't need a confirm button here */ },
+        confirmButton = { /* no confirm needed */ },
         dismissButton = {
-            // Cancel button to close the dialog.
             TextButton(onClick = onDismiss) {
                 Text("Cancel")
             }
         }
     )
 }
+

@@ -86,9 +86,9 @@ fun BrowserContent(
     val currentEngine =
         searchEngines.find { it.searchUrl == currentSearchEngineUrl } ?: searchEngines[0]
 
-    var selectedShortcut by remember { mutableStateOf<Shortcut?>(null) }
+    var selectedShortcut: ShortcutEntity? by remember { mutableStateOf(null) }
     var showEditDialog by remember { mutableStateOf(false) }
-    var shortcutToEdit by remember { mutableStateOf<ShortcutEntity?>(null) }
+    var shortcutToEdit: ShortcutEntity? by remember { mutableStateOf<ShortcutEntity?>(null) }
     val shortcuts by shortcutViewModel.shortcuts.collectAsState()
 
     // State for Download Confirmation Dialog and tracking current download.
@@ -357,13 +357,8 @@ fun BrowserContent(
                     onNavigate(shortcut.url)
                 },
                 onShortcutLongPressed = { shortcut ->
-                    selectedShortcut = Shortcut(
-                        iconRes = shortcut.iconRes,
-                        label = shortcut.label,
-                        url = shortcut.url,
-                        isPinned = shortcut.isPinned
-                    )
-                },
+                    selectedShortcut = shortcut
+        },
                 modifier = Modifier.fillMaxSize()
             )
         }
@@ -385,19 +380,20 @@ fun BrowserContent(
                     selectedShortcut = null
                 },
                 onEdit = {
-                    shortcutToEdit = shortcutEntity
+                    shortcutToEdit = shortcut
                     showEditDialog = true
                     selectedShortcut = null
                 },
                 onTogglePin = {
-                    shortcutViewModel.togglePin(shortcutEntity)
+                    shortcutViewModel.togglePin(shortcut)
                     selectedShortcut = null
                 },
                 onDelete = {
-                    shortcutViewModel.deleteShortcut(shortcutEntity)
+                    shortcutViewModel.deleteShortcut(shortcut)
                     selectedShortcut = null
                 }
             )
+
         }
 
         if (showEditDialog && shortcutToEdit != null) {
