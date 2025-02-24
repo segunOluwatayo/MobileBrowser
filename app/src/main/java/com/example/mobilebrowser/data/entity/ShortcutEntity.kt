@@ -15,5 +15,14 @@ data class ShortcutEntity(
     val iconRes: Int,
     val url: String,
     val isPinned: Boolean = false,
+    val shortcutType: ShortcutType = ShortcutType.MANUAL,
+    val visitCount: Int = 0,
+    val lastVisited: Long = System.currentTimeMillis(),
     val timestamp: Long = System.currentTimeMillis()
 )
+
+enum class ShortcutType {
+    MANUAL,   // User manually added
+    DYNAMIC,  // Automatically generated based on browsing history
+    PINNED    // User pinned (can be initially MANUAL or DYNAMIC)
+}

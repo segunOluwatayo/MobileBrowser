@@ -27,4 +27,10 @@ interface ShortcutDao {
 
     @Query("SELECT EXISTS(SELECT 1 FROM shortcuts WHERE url = :url)")
     suspend fun isUrlBookmarked(url: String): Boolean
+
+    @Query("SELECT * FROM shortcuts WHERE shortcutType = 'DYNAMIC' AND isPinned = 0 ORDER BY visitCount DESC, lastVisited DESC")
+    fun getDynamicShortcuts(): Flow<List<ShortcutEntity>>
+
+    @Query("UPDATE shortcuts SET visitCount = visitCount + 1, lastVisited = :timestamp WHERE url = :url")
+    suspend fun incrementVisitCount(url: String, timestamp: Long = System.currentTimeMillis())
 }

@@ -28,7 +28,9 @@ import com.example.mobilebrowser.ui.theme.MobileBrowserTheme
 import com.example.mobilebrowser.ui.viewmodels.BookmarkViewModel
 import com.example.mobilebrowser.ui.viewmodels.HistoryViewModel
 import com.example.mobilebrowser.ui.viewmodels.SettingsViewModel
+import com.example.mobilebrowser.ui.viewmodels.ShortcutViewModel
 import com.example.mobilebrowser.ui.viewmodels.TabViewModel
+import com.example.mobilebrowser.worker.DynamicShortcutWorker
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import org.mozilla.geckoview.GeckoSession
@@ -40,7 +42,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         sessionManager = GeckoSessionManager(this)
-
+        // Schedule the dynamic shortcut worker
+        DynamicShortcutWorker.schedule(this)
         setContent {
             // Obtain the SettingsViewModel via Hilt.
             val settingsViewModel: SettingsViewModel = hiltViewModel()
@@ -72,6 +75,7 @@ class MainActivity : ComponentActivity() {
                 val bookmarkViewModel: BookmarkViewModel = hiltViewModel()
                 val tabViewModel: TabViewModel = hiltViewModel()
                 val historyViewModel: HistoryViewModel = hiltViewModel()
+                val shortcutViewModel: ShortcutViewModel = hiltViewModel()
                 val downloadViewModel: com.example.mobilebrowser.ui.viewmodels.DownloadViewModel = hiltViewModel()
                 val isCurrentUrlBookmarked by bookmarkViewModel.isCurrentUrlBookmarked.collectAsState()
                 val activeTab by tabViewModel.activeTab.collectAsState()
@@ -90,8 +94,15 @@ class MainActivity : ComponentActivity() {
                         lastRecordedUrl = normalizedUrl
                         lastRecordedTitle = title
                         historyViewModel.addHistoryEntry(normalizedUrl, title)
+
+                        // Also update shortcut visit count if this URL is a shortcut.
+                        // Make sure to obtain shortcutViewModel if it exists.
+                        scope.launch {
+                            shortcutViewModel.recordVisit(normalizedUrl)
+                        }
                     }
                 }
+
 
                 // State for the download confirmation dialog.
                 var showDownloadConfirmationDialog by remember { mutableStateOf(false) }

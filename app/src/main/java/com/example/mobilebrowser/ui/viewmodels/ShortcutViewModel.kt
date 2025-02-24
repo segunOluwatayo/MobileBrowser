@@ -1,15 +1,23 @@
 package com.example.mobilebrowser.ui.viewmodels
 
+import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.mobilebrowser.R
 import com.example.mobilebrowser.data.entity.ShortcutEntity
+import com.example.mobilebrowser.data.entity.ShortcutType
+import com.example.mobilebrowser.data.repository.HistoryRepository
 import com.example.mobilebrowser.data.repository.ShortcutRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -20,20 +28,39 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class ShortcutViewModel @Inject constructor(
-    private val repository: ShortcutRepository
+    private val shortcutRepository: ShortcutRepository,
+    private val historyRepository: HistoryRepository
 ) : ViewModel() {
 
-    // MutableStateFlow to hold the list of shortcuts, initially empty.
+    // Existing shortcuts state flow
     private val _shortcuts = MutableStateFlow<List<ShortcutEntity>>(emptyList())
-
-    // Public read-only state flow for UI components to observe.
     val shortcuts: StateFlow<List<ShortcutEntity>> = _shortcuts
+
+    // Separate flows for pinned and dynamic shortcuts
+    val pinnedShortcuts = _shortcuts.map { shortcuts ->
+        shortcuts.filter { it.isPinned }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    val dynamicShortcuts = _shortcuts.map { shortcuts ->
+        shortcuts.filter { it.shortcutType == ShortcutType.DYNAMIC && !it.isPinned }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    // Number of dynamic shortcuts to maintain
+    private val maxDynamicShortcuts = 8
 
     init {
         // Observe changes from the repository and update the state flow.
         viewModelScope.launch {
             // Check the real DB state
-            val existingShortcuts = repository.getAllShortcuts().first()
+            val existingShortcuts = shortcutRepository.getAllShortcuts().first()
             if (existingShortcuts.isEmpty()) {
                 insertShortcut(
                     ShortcutEntity(
@@ -61,9 +88,12 @@ class ShortcutViewModel @Inject constructor(
                 )
             }
             // Then collect for UI updates
-            repository.getAllShortcuts().collectLatest { shortcutList ->
+            shortcutRepository.getAllShortcuts().collectLatest { shortcutList ->
                 _shortcuts.value = shortcutList
             }
+
+            // Schedule periodic dynamic shortcut updates
+            setupDynamicShortcutUpdates()
         }
 
     }
@@ -75,7 +105,99 @@ class ShortcutViewModel @Inject constructor(
      */
     fun insertShortcut(shortcut: ShortcutEntity) {
         viewModelScope.launch {
-            repository.insertShortcut(shortcut)
+            shortcutRepository.insertShortcut(shortcut)
+        }
+    }
+
+    // Function to setup periodic updates of dynamic shortcuts
+    private fun setupDynamicShortcutUpdates() {
+        viewModelScope.launch {
+            while (true) {
+                updateDynamicShortcuts()
+                delay(3600000) // Update every hour
+            }
+        }
+    }
+
+    // Function to update dynamic shortcuts based on history
+    suspend fun updateDynamicShortcuts() {
+        try {
+            // Get top visited sites from history
+            val topSites = historyRepository.getAllHistory().first()
+                .sortedByDescending { it.visitCount }
+                .take(maxDynamicShortcuts * 2) // Get more than needed to filter against existing pinned
+
+            // Get current shortcuts
+            val currentShortcuts = shortcutRepository.getAllShortcuts().first()
+            val pinnedUrls = currentShortcuts.filter { it.isPinned }.map { it.url }
+
+            // Filter out URLs that are already pinned
+            val candidateUrls = topSites.filter { historyEntry ->
+                !pinnedUrls.contains(historyEntry.url)
+            }.take(maxDynamicShortcuts)
+
+            // Delete existing dynamic shortcuts
+            currentShortcuts
+                .filter { it.shortcutType == ShortcutType.DYNAMIC && !it.isPinned }
+                .forEach { shortcutRepository.deleteShortcut(it) }
+
+            // Add new dynamic shortcuts
+            candidateUrls.forEach { historyEntry ->
+                val favicon = historyEntry.favicon
+
+                // Determine icon resource based on domain or use default
+                val iconRes = getIconResForUrl(historyEntry.url)
+
+                val shortcut = ShortcutEntity(
+                    label = historyEntry.title.takeIf { it.isNotBlank() }
+                        ?: extractDomainFromUrl(historyEntry.url),
+                    url = historyEntry.url,
+                    iconRes = iconRes,
+                    isPinned = false,
+                    shortcutType = ShortcutType.DYNAMIC,
+                    visitCount = historyEntry.visitCount,
+                    lastVisited = historyEntry.lastVisited.time
+                )
+                shortcutRepository.insertShortcut(shortcut)
+            }
+        } catch (e: Exception) {
+            Log.e("ShortcutViewModel", "Error updating dynamic shortcuts", e)
+        }
+    }
+
+    // Helper function to extract domain from URL
+    private fun extractDomainFromUrl(url: String): String {
+        return try {
+            val uri = Uri.parse(url)
+            uri.host?.removePrefix("www.")?.substringBefore(".") ?: "Unknown"
+        } catch (e: Exception) {
+            "Unknown"
+        }
+    }
+
+    // Helper function to determine icon resource based on URL
+    private fun getIconResForUrl(url: String): Int {
+        return when {
+            url.contains("google.com") -> R.drawable.google_icon
+            url.contains("bing.com") -> R.drawable.bing_icon
+            url.contains("duckduckgo.com") -> R.drawable.duckduckgo_icon
+            url.contains("qwant.com") -> R.drawable.qwant_icon
+            url.contains("wikipedia.org") -> R.drawable.wikipedia_icon
+            url.contains("ebay.com") -> R.drawable.ebay_icon
+            // Add more mappings as needed
+            else -> R.drawable.ic_launcher_foreground // Default icon
+        }
+    }
+
+    // Update the toggle pin function
+    fun togglePin(shortcut: ShortcutEntity) {
+        viewModelScope.launch {
+            // When pinning a dynamic shortcut, keep it as dynamic but mark as pinned
+            shortcutRepository.updateShortcut(shortcut.copy(
+                isPinned = !shortcut.isPinned,
+                // Don't change shortcutType - keep as is
+                timestamp = System.currentTimeMillis()
+            ))
         }
     }
 
@@ -91,7 +213,7 @@ class ShortcutViewModel @Inject constructor(
                 url = newUrl ?: shortcut.url,
                 timestamp = System.currentTimeMillis()
             )
-            repository.updateShortcut(updatedShortcut)
+            shortcutRepository.updateShortcut(updatedShortcut)
         }
     }
 
@@ -102,7 +224,7 @@ class ShortcutViewModel @Inject constructor(
      */
     fun deleteShortcut(shortcut: ShortcutEntity) {
         viewModelScope.launch {
-            repository.deleteShortcut(shortcut)
+            shortcutRepository.deleteShortcut(shortcut)
         }
     }
 
@@ -132,11 +254,6 @@ class ShortcutViewModel @Inject constructor(
      *
      * @param shortcut The shortcut whose "isPinned" status should be toggled.
      */
-    fun togglePin(shortcut: ShortcutEntity) {
-        viewModelScope.launch {
-            repository.updateShortcut(shortcut.copy(isPinned = !shortcut.isPinned))
-        }
-    }
 
     /**
      * Adds a new shortcut to the database.
@@ -152,7 +269,20 @@ class ShortcutViewModel @Inject constructor(
                 isPinned = false,
                 timestamp = System.currentTimeMillis()
             )
-            repository.insertShortcut(shortcut)
+            shortcutRepository.insertShortcut(shortcut)
+        }
+    }
+
+    /**
+     * Record a visit to a URL that might be a shortcut
+     */
+    fun recordVisit(url: String) {
+        viewModelScope.launch {
+            try {
+                shortcutRepository.incrementShortcutVisit(url)
+            } catch (e: Exception) {
+                Log.e("ShortcutViewModel", "Error recording visit", e)
+            }
         }
     }
 }

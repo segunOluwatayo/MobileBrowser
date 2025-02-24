@@ -13,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.mobilebrowser.data.entity.ShortcutEntity
+import com.example.mobilebrowser.data.entity.ShortcutType
 
 /**
  * HomeScreen displays a grid of shortcuts.
@@ -29,6 +30,10 @@ fun HomeScreen(
     onShortcutLongPressed: (ShortcutEntity) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Group shortcuts by type
+    val pinnedShortcuts = shortcuts.filter { it.isPinned }
+    val dynamicShortcuts = shortcuts.filter { !it.isPinned && it.shortcutType == ShortcutType.DYNAMIC }
+
     Column(
         modifier = modifier.padding(top = 72.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -39,21 +44,56 @@ fun HomeScreen(
             modifier = Modifier.padding(vertical = 24.dp)
         )
 
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(4),
-            contentPadding = PaddingValues(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            items(shortcuts) { shortcut ->
-                ShortcutTile(
-                    shortcut = shortcut,
-                    onClick = { onShortcutClick(shortcut) },
-                    onLongPress = { onShortcutLongPressed(shortcut) }
-                )
-            }
+        // Pinned Shortcuts Section
+        if (pinnedShortcuts.isNotEmpty()) {
+            Text(
+                text = "Pinned Shortcuts",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(start = 16.dp, bottom = 8.dp, top = 8.dp)
+                    .align(Alignment.Start)
+            )
 
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(4),
+                contentPadding = PaddingValues(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                items(pinnedShortcuts) { shortcut ->
+                    ShortcutTile(
+                        shortcut = shortcut,
+                        onClick = { onShortcutClick(shortcut) },
+                        onLongPress = { onShortcutLongPressed(shortcut) }
+                    )
+                }
+            }
+        }
+
+        // Dynamic Shortcuts Section
+        if (dynamicShortcuts.isNotEmpty()) {
+            Text(
+                text = "Frequently Visited",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(start = 16.dp, bottom = 8.dp, top = 16.dp)
+                    .align(Alignment.Start)
+            )
+
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(4),
+                contentPadding = PaddingValues(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                items(dynamicShortcuts) { shortcut ->
+                    ShortcutTile(
+                        shortcut = shortcut,
+                        onClick = { onShortcutClick(shortcut) },
+                        onLongPress = { onShortcutLongPressed(shortcut) }
+                    )
+                }
+            }
         }
     }
 }

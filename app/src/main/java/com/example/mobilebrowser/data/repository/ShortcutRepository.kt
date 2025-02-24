@@ -57,4 +57,18 @@ class ShortcutRepository @Inject constructor(
     suspend fun deleteShortcut(shortcut: ShortcutEntity) {
         shortcutDao.deleteShortcut(shortcut)
     }
+
+    /**
+     * Gets dynamic shortcuts only
+     */
+    fun getDynamicShortcuts(): Flow<List<ShortcutEntity>> {
+        return shortcutDao.getDynamicShortcuts()
+    }
+
+    /**
+     * Updates a shortcut's visit count
+     */
+    suspend fun incrementShortcutVisit(url: String) {
+        shortcutDao.incrementVisitCount(url)
+    }
 }
