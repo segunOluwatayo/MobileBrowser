@@ -81,7 +81,7 @@ fun TabScreen(
                             ) {
                                 Text(
                                     text = tabCount.toString(),
-                                    color = Color.White,
+                                    color = MaterialTheme.colorScheme.onPrimary,
                                     style = MaterialTheme.typography.bodyMedium,
                                     modifier = Modifier.padding(4.dp)
                                 )

@@ -198,7 +198,7 @@ fun BrowserContent(
                             ) {
                                 Text(
                                     text = tabCount.toString(),
-                                    color = Color.White,
+                                    color = MaterialTheme.colorScheme.onPrimary,
                                     style = MaterialTheme.typography.bodyMedium,
                                     modifier = Modifier.padding(4.dp)
                                 )
@@ -239,8 +239,13 @@ fun BrowserContent(
                     // Overflow menu.
                     Box {
                         IconButton(onClick = { showOverflowMenu = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "More options")
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "More options",
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
                         }
+
 
                         DropdownMenu(
                             expanded = showOverflowMenu,
