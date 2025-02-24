@@ -37,6 +37,11 @@ class HistoryRepository @Inject constructor(
         }
     }
 
+    // Get history entry by URL
+    suspend fun getHistoryByUrl(url: String): HistoryEntity? {
+        return historyDao.getHistoryByUrl(url)
+    }
+
     // Delete specific history entry
     suspend fun deleteHistoryEntry(history: HistoryEntity) =
         historyDao.deleteHistory(history)

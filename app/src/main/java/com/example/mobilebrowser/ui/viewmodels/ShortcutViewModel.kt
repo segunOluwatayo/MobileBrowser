@@ -275,11 +275,66 @@ class ShortcutViewModel @Inject constructor(
 
     /**
      * Record a visit to a URL that might be a shortcut
+     * If the URL has been visited at least 4 times, it will be added as a dynamic shortcut
      */
     fun recordVisit(url: String) {
         viewModelScope.launch {
             try {
-                shortcutRepository.incrementShortcutVisit(url)
+                // Try to increment visit count for existing shortcuts
+                try {
+                    shortcutRepository.incrementShortcutVisit(url)
+                } catch (e: Exception) {
+                    // Ignore if not already a shortcut
+                }
+
+                // Check if this URL should be added as a dynamic shortcut
+                val historyEntry = historyRepository.getHistoryByUrl(url)
+                if (historyEntry != null && historyEntry.visitCount >= 4) {
+                    // Get current shortcuts
+                    val currentShortcuts = shortcutRepository.getAllShortcuts().first()
+
+                    // Check if it's already a shortcut
+                    val isAlreadyShortcut = currentShortcuts.any { it.url == url }
+
+                    if (!isAlreadyShortcut) {
+                        // Count existing dynamic shortcuts
+                        val dynamicShortcuts = currentShortcuts.filter {
+                            it.shortcutType == ShortcutType.DYNAMIC && !it.isPinned
+                        }
+
+                        // Create the new shortcut
+                        val iconRes = getIconResForUrl(url)
+                        val label = historyEntry.title.takeIf { it.isNotBlank() }
+                            ?: extractDomainFromUrl(url)
+
+                        val newShortcut = ShortcutEntity(
+                            label = label,
+                            url = url,
+                            iconRes = iconRes,
+                            isPinned = false,
+                            shortcutType = ShortcutType.DYNAMIC,
+                            visitCount = historyEntry.visitCount,
+                            lastVisited = historyEntry.lastVisited.time
+                        )
+
+                        // If we're at the limit, replace the least visited
+                        if (dynamicShortcuts.size >= maxDynamicShortcuts) {
+                            // Find the least visited dynamic shortcut
+                            val leastVisited = dynamicShortcuts.minByOrNull { it.visitCount }
+
+                            // Only replace if the new one has more visits
+                            if (leastVisited != null && historyEntry.visitCount > leastVisited.visitCount) {
+                                Log.d("ShortcutViewModel", "Replacing least visited shortcut: ${leastVisited.url} with: $url")
+                                shortcutRepository.deleteShortcut(leastVisited)
+                                shortcutRepository.insertShortcut(newShortcut)
+                            }
+                        } else {
+                            // We have room for another shortcut
+                            Log.d("ShortcutViewModel", "Adding dynamic shortcut for: $url with visit count: ${historyEntry.visitCount}")
+                            shortcutRepository.insertShortcut(newShortcut)
+                        }
+                    }
+                }
             } catch (e: Exception) {
                 Log.e("ShortcutViewModel", "Error recording visit", e)
             }
