@@ -16,6 +16,7 @@ fun GeckoViewComponent(
     onUrlChange: (String) -> Unit,
     onCanGoBackChange: (Boolean) -> Unit,
     onCanGoForwardChange: (Boolean) -> Unit,
+    onViewCreated: (android.view.View) -> Unit,
     modifier: Modifier = Modifier
 ) {
     LocalContext.current
@@ -47,6 +48,7 @@ fun GeckoViewComponent(
             Log.d("GeckoViewComponent", "Creating GeckoView with URL: $url")
             GeckoView(context).apply {
                 setSession(geckoSession)
+                onViewCreated(this)
             }
         },
         modifier = modifier,

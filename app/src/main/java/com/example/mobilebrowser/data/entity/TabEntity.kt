@@ -6,7 +6,6 @@ import java.util.Date
 
 /**
  * Represents a browser tab in the database.
- *
  */
 @Entity(tableName = "tabs")
 data class TabEntity(
@@ -32,5 +31,8 @@ data class TabEntity(
     val position: Int = 0,
 
     // Records when the tab was closed. Null if the tab is still open.
-    val closedAt: Date? = null
+    val closedAt: Date? = null,
+
+    // New thumbnail field to store the thumbnail URI/path
+    val thumbnail: String? = null
 )

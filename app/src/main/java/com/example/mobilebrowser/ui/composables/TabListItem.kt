@@ -25,6 +25,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.Language
+import coil.compose.AsyncImage
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -52,9 +53,7 @@ fun LazyItemScope.TabListItem(
             .padding(horizontal = 8.dp, vertical = 4.dp)
             .combinedClickable(
                 onClick = onTabClick,
-                onLongClick = {
-                    showContextMenu = true
-                }
+                onLongClick = { showContextMenu = true }
             )
             .then(modifier),
         colors = CardDefaults.cardColors(
@@ -65,9 +64,38 @@ fun LazyItemScope.TabListItem(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.Start,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Thumbnail display area.
+            if (!tab.thumbnail.isNullOrEmpty()) {
+                // Using Coil's AsyncImage to load the thumbnail from file.
+                AsyncImage(
+                    model = "file://${tab.thumbnail}",
+                    contentDescription = "Tab Thumbnail",
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(MaterialTheme.shapes.small)
+                )
+            } else {
+                // Placeholder thumbnail.
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(MaterialTheme.shapes.small)
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Image,
+                        contentDescription = "Placeholder Thumbnail",
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
             // Tab Title & URL
             Column(
                 modifier = Modifier.weight(1f)
@@ -87,7 +115,7 @@ fun LazyItemScope.TabListItem(
                 )
             }
 
-            // Three Vertical Dots Button (Replaces Close Button)
+            // Three Vertical Dots Button (for context menu)
             Box {
                 IconButton(onClick = { showContextMenu = true }) {
                     Icon(Icons.Default.MoreVert, contentDescription = "More options")
@@ -104,7 +132,7 @@ fun LazyItemScope.TabListItem(
                             showContextMenu = false
                         },
                         leadingIcon = {
-                            Icon(Icons.Default.Close, "Close Tab")
+                            Icon(Icons.Default.Close, contentDescription = "Close Tab")
                         }
                     )
                     DropdownMenuItem(
@@ -114,7 +142,7 @@ fun LazyItemScope.TabListItem(
                             showContextMenu = false
                         },
                         leadingIcon = {
-                            Icon(Icons.Default.BookmarkAdd, "Bookmark Tab")
+                            Icon(Icons.Default.BookmarkAdd, contentDescription = "Bookmark Tab")
                         }
                     )
                 }
@@ -122,3 +150,4 @@ fun LazyItemScope.TabListItem(
         }
     }
 }
+

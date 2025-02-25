@@ -2,6 +2,7 @@ package com.example.mobilebrowser.ui.viewmodels
 
 import android.content.Context
 import android.util.Log
+import android.view.View
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.ExistingWorkPolicy
@@ -11,11 +12,13 @@ import androidx.work.workDataOf
 import com.example.mobilebrowser.data.entity.TabEntity
 import com.example.mobilebrowser.data.repository.TabRepository
 import com.example.mobilebrowser.data.util.DataStoreManager
+import com.example.mobilebrowser.util.ThumbnailUtil
 import com.example.mobilebrowser.worker.TabAutoCloseWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.io.File
 import java.util.Date
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -293,4 +296,23 @@ class TabViewModel @Inject constructor(
     fun clearError() {
         _error.value = null
     }
+
+    fun updateTabThumbnail(tabId: Long, view: View) {
+        viewModelScope.launch {
+            // Capture the thumbnail from the provided view.
+            val bitmap = ThumbnailUtil.captureThumbnail(view)
+            if (bitmap != null) {
+                // Define where to store the thumbnail. Here we use the cache directory.
+                val thumbnailFile = File(context.cacheDir, "thumbnail_$tabId.png")
+                val thumbnailPath = ThumbnailUtil.saveBitmapToFile(bitmap, thumbnailFile)
+                if (thumbnailPath != null) {
+                    // Retrieve the tab, update its thumbnail property, and save it.
+                    repository.getTabById(tabId)?.let { tab ->
+                        repository.updateTab(tab.copy(thumbnail = thumbnailPath))
+                    }
+                }
+            }
+        }
+    }
+
 }

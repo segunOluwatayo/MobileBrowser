@@ -1,5 +1,6 @@
 [versions]
 agp = "8.7.3"
+coilCompose = "2.2.2"
 datastorePreferences = "1.1.2"
 geckoview = "121.0.20240108143603"
 hiltAndroid = "2.55"
@@ -30,6 +31,7 @@ androidx-material-icons-extended = { module = "androidx.compose.material:materia
 androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "roomRuntime" }
 androidx-room-ktx = { module = "androidx.room:room-ktx", version.ref = "roomRuntime" }
 androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "roomRuntime" }
+coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coilCompose" }
 geckoview = { module = "org.mozilla.geckoview:geckoview", version.ref = "geckoview" }
 hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hiltAndroid" }
 hilt-compiler = { module = "com.google.dagger:hilt-compiler", version.ref = "hiltAndroid" }

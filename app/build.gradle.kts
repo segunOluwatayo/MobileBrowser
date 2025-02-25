@@ -69,6 +69,7 @@ dependencies {
     implementation(libs.geckoview)
     implementation(libs.androidx.hilt.navigation.compose)
     implementation (libs.androidx.datastore.preferences)
+    implementation(libs.coil.compose)
     // Room
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)

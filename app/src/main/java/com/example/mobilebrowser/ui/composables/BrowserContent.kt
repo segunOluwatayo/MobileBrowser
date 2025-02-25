@@ -91,12 +91,15 @@ fun BrowserContent(
     var shortcutToEdit: ShortcutEntity? by remember { mutableStateOf<ShortcutEntity?>(null) }
     val shortcuts by shortcutViewModel.shortcuts.collectAsState()
 
+
     // State for Download Confirmation Dialog and tracking current download.
     var showDownloadCompletionDialog by remember { mutableStateOf(false) }
     var currentDownloadId by remember { mutableStateOf<Long?>(null) }
 
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
+    var geckoViewReference by remember { mutableStateOf<android.view.View?>(null) }
+
 
     // Back handler: Clear focus if editing.
     BackHandler(isEditing) {
@@ -378,6 +381,9 @@ fun BrowserContent(
                         },
                         onCanGoBackChange = onCanGoBackChange,
                         onCanGoForwardChange = onCanGoForwardChange,
+                        onViewCreated = { view ->
+                            geckoViewReference = view
+                        },
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxWidth()

@@ -58,6 +58,7 @@ class MainActivity : ComponentActivity() {
                 else -> systemDarkTheme // "SYSTEM" mode follows the system setting.
             }
             MobileBrowserTheme(darkTheme = darkTheme){
+                val geckoViewReference by remember { mutableStateOf<android.view.View?>(null) }
                 // Define UI state variables.
                 var currentUrl by remember { mutableStateOf("") }
 //                var currentUrl by remember { mutableStateOf("https://www.mozilla.org") }
@@ -137,13 +138,19 @@ class MainActivity : ComponentActivity() {
                                 tabViewModel.updateActiveTabContent(newUrl, currentPageTitle)
                             },
                             onTitleChange = { newTitle ->
-                                //  Log.d("MainActivity", "onTitleChange in LaunchedEffect: $newTitle") // Add logging here
                                 if (newTitle.isNotBlank() && newTitle != "Loading...") {
                                     currentPageTitle = newTitle
                                     tabViewModel.updateActiveTabContent(currentUrl, newTitle)
                                     recordHistory(currentUrl, newTitle)
+                                    // Now trigger the thumbnail update using the stored GeckoView reference
+                                    geckoViewReference?.let { view ->
+                                        activeTab?.let { tab ->
+                                            tabViewModel.updateTabThumbnail(tab.id, view)
+                                        }
+                                    }
                                 }
-                            },
+                            }
+                            ,
                             onCanGoBack = { canGoBack = it },
                             onCanGoForward = { canGoForward = it },
                             downloadDelegate = geckoDownloadDelegate  // Pass the delegate
