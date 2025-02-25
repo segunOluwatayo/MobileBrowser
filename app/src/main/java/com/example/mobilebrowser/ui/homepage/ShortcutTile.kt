@@ -30,13 +30,14 @@ fun ShortcutTile(
     onLongPress: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Determine the container color based on shortcut type and pinned status
-    val containerColor = if (shortcut.shortcutType == ShortcutType.DYNAMIC && !shortcut.isPinned)
-        MaterialTheme.colorScheme.surfaceVariant
-    else
-        MaterialTheme.colorScheme.surface
+    // Choose container color based on pinned/dynamic status
+    val containerColor = when {
+        shortcut.isPinned -> MaterialTheme.colorScheme.primaryContainer
+        shortcut.shortcutType == ShortcutType.DYNAMIC -> MaterialTheme.colorScheme.surfaceVariant
+        else -> MaterialTheme.colorScheme.surface
+    }
 
-    // Hoisting the dynamic color outside the Canvas lambda
+    // Dynamic indicator color
     val dynamicColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
 
     Card(
@@ -49,11 +50,13 @@ fun ShortcutTile(
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(
-            containerColor = containerColor
+            containerColor = containerColor,
+            // Automatically picks a readable color for text/icons based on containerColor
+            contentColor = contentColorFor(containerColor)
         )
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // Pin icon at the top-right corner, if pinned
+            // Show pin icon if pinned
             if (shortcut.isPinned) {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_pin),
@@ -66,7 +69,7 @@ fun ShortcutTile(
                 )
             }
 
-            // Add a subtle indicator for dynamic shortcuts
+            // If it's a dynamic shortcut and not pinned, show a small indicator
             if (shortcut.shortcutType == ShortcutType.DYNAMIC && !shortcut.isPinned) {
                 Canvas(
                     modifier = Modifier
@@ -88,19 +91,15 @@ fun ShortcutTile(
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Main shortcut icon.
                 Icon(
                     painter = painterResource(id = shortcut.iconRes),
                     contentDescription = shortcut.label,
-                    modifier = Modifier.size(36.dp),
-                    tint = MaterialTheme.colorScheme.onSurface
+                    modifier = Modifier.size(36.dp)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                // Shortcut label.
                 Text(
                     text = shortcut.label,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -108,4 +107,5 @@ fun ShortcutTile(
         }
     }
 }
+
 
