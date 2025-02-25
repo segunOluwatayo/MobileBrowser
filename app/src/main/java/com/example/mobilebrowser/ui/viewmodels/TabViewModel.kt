@@ -12,7 +12,7 @@ import androidx.work.workDataOf
 import com.example.mobilebrowser.data.entity.TabEntity
 import com.example.mobilebrowser.data.repository.TabRepository
 import com.example.mobilebrowser.data.util.DataStoreManager
-import com.example.mobilebrowser.util.ThumbnailUtil
+import com.example.mobilebrowser.data.util.ThumbnailUtil
 import com.example.mobilebrowser.worker.TabAutoCloseWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext

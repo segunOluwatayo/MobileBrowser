@@ -1,4 +1,4 @@
-package com.example.mobilebrowser.util
+package com.example.mobilebrowser.data.util
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
