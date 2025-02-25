@@ -343,6 +343,15 @@ fun BrowserContent(
                 }
             }
 
+            HorizontalDivider(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                thickness = 2.dp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+            )
+
+
             // Add a clickable overlay only when editing URL (to dismiss keyboard when tapped elsewhere)
             if (isEditing) {
                 Box(
