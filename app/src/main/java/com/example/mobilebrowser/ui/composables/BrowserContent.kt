@@ -128,18 +128,8 @@ fun BrowserContent(
 
         // Main content (navigation bar and web view or spacer) drawn on top.
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .clickable(
-                    enabled = true,
-                    onClick = {
-                        if (isEditing) {
-                            isEditing = false
-                            urlText = currentUrl
-                            focusManager.clearFocus()
-                        }
-                    }
-                )
+            modifier = Modifier.fillMaxSize()
+            // Remove the full-screen clickable modifier
         ) {
             // Navigation bar with URL field and buttons.
             Row(
@@ -353,8 +343,20 @@ fun BrowserContent(
                 }
             }
 
+            // Add a clickable overlay only when editing URL (to dismiss keyboard when tapped elsewhere)
+            if (isEditing) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clickable {
+                            isEditing = false
+                            urlText = currentUrl
+                            focusManager.clearFocus()
+                        }
+                ) {}
+            }
             // Only show the GeckoView when the homepage is not active.
-            if (!isHomepageActive) {
+            else if (!isHomepageActive) {
                 key(geckoSession) {
                     GeckoViewComponent(
                         geckoSession = geckoSession,
