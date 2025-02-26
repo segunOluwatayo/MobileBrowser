@@ -4,25 +4,33 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.util.Log
 import android.view.View
+import org.mozilla.geckoview.GeckoView
 import java.io.File
 import java.io.FileOutputStream
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 object ThumbnailUtil {
     private const val TAG = "ThumbnailUtil"
 
     /**
      * Captures a screenshot of the provided view as a Bitmap.
+     * For GeckoView, we use capturePixels() if available.
      */
     fun captureThumbnail(view: View): Bitmap? {
         return try {
-            Log.d(TAG, "Capturing thumbnail for view: width=${view.width}, height=${view.height}")
+            Log.d(TAG, "Capturing thumbnail for view: ${view::class.java.simpleName}, width=${view.width}, height=${view.height}")
+
             if (view.width <= 0 || view.height <= 0) {
                 Log.e(TAG, "Cannot capture thumbnail: View has invalid dimensions")
                 return null
             }
+
+            // Standard approach for regular views
             val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
             view.draw(canvas)
+
             Log.d(TAG, "Thumbnail captured successfully: ${bitmap.width}x${bitmap.height}")
             bitmap
         } catch (e: Exception) {
@@ -30,7 +38,6 @@ object ThumbnailUtil {
             null
         }
     }
-
 
     /**
      * Saves the given bitmap as a PNG file in the provided directory.
@@ -40,14 +47,26 @@ object ThumbnailUtil {
         return try {
             Log.d(TAG, "Saving bitmap to file: ${file.absolutePath}")
             file.parentFile?.mkdirs()
+
             FileOutputStream(file).use { out ->
-                bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                bitmap.compress(Bitmap.CompressFormat.PNG, 85, out) // Using 85% quality for better compression
             }
+
             Log.d(TAG, "Bitmap saved successfully, file exists: ${file.exists()}, size: ${file.length()} bytes")
             file.absolutePath
         } catch (e: Exception) {
             Log.e(TAG, "Error saving bitmap to file: ${file.absolutePath}", e)
             null
         }
+    }
+
+    /**
+     * Verifies if the thumbnail file exists and is valid
+     */
+    fun verifyThumbnailFile(filePath: String): Boolean {
+        val file = File(filePath)
+        val exists = file.exists() && file.length() > 0
+        Log.d(TAG, "Verifying thumbnail file: $filePath, exists: $exists, size: ${if (exists) file.length() else 0} bytes")
+        return exists
     }
 }

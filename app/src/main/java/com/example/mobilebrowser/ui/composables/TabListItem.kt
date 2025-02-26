@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.Language
 import coil.compose.AsyncImage
+import com.example.mobilebrowser.data.util.ThumbnailUtil
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -69,7 +70,7 @@ fun LazyItemScope.TabListItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Thumbnail display area.
-            if (!tab.thumbnail.isNullOrEmpty()) {
+            if (!tab.thumbnail.isNullOrEmpty() && ThumbnailUtil.verifyThumbnailFile(tab.thumbnail!!)) {
                 // Using Coil's AsyncImage to load the thumbnail from file.
                 AsyncImage(
                     model = "file://${tab.thumbnail}",
@@ -94,7 +95,7 @@ fun LazyItemScope.TabListItem(
                         .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Log.d("TabListItem", "Using placeholder for tab ${tab.id} - no thumbnail available")
+                    Log.d("TabListItem", "Using placeholder for tab ${tab.id} - ${if (tab.thumbnail.isNullOrEmpty()) "no thumbnail path" else "invalid thumbnail file"}")
                     Icon(
                         imageVector = Icons.Default.Image,
                         contentDescription = "Placeholder Thumbnail",

@@ -374,10 +374,15 @@ fun updateTabThumbnail(tabId: Long, view: View) {
             val allTabs = tabs.value
             Log.d("TabViewModel", "Debugging thumbnails for ${allTabs.size} tabs")
             allTabs.forEach { tab ->
-                Log.d("TabViewModel", "Tab ${tab.id}: URL=${tab.url}, Thumbnail=${tab.thumbnail}")
+                Log.d("TabViewModel", "Tab ${tab.id}: URL=${tab.url}, Title=${tab.title}, Thumbnail=${tab.thumbnail}")
                 if (!tab.thumbnail.isNullOrEmpty()) {
                     val file = File(tab.thumbnail!!)
                     Log.d("TabViewModel", "  Thumbnail file exists: ${file.exists()}, size: ${file.length()} bytes")
+                    if (!file.exists() || file.length() == 0L) {
+                        Log.w("TabViewModel", "  ⚠️ Thumbnail file is missing or empty!")
+                    }
+                } else {
+                    Log.d("TabViewModel", "  No thumbnail path set for this tab")
                 }
             }
         }

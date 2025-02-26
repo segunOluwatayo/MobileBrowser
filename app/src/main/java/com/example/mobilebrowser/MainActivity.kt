@@ -131,12 +131,12 @@ class MainActivity : ComponentActivity() {
                     activeTab?.let { tab ->
                         delay(1000) // wait a bit for the view to be ready
                         if (geckoViewReference == null) {
-                            Log.d("MainActivity", "geckoViewReference is null!")
+                            Log.d("MainActivity", "Waiting for GeckoView reference to be created")
                         } else {
-                            Log.d("MainActivity", "geckoViewReference class: ${geckoViewReference!!::class.java}")
-                            tabViewModel.updateTabThumbnail(tab.id, geckoViewReference!!)
+                            Log.d("MainActivity", "GeckoView reference already exists, will use for thumbnails")
                         }
                     }
+
                     Log.d("MainActivity", "LaunchedEffect: activeTab = $activeTab")
                     activeTab?.let { tab ->
                         Log.d("MainActivity", "Active tab URL = ${tab.url}, title = ${tab.title}")
@@ -215,6 +215,18 @@ class MainActivity : ComponentActivity() {
                                 canGoForward = canGoForward,
                                 currentUrl = currentUrl,
                                 tabCount = tabCount,
+                                onGeckoViewCreated = { view ->
+                                    Log.d("MainActivity", "Received GeckoView reference: ${view::class.java}")
+                                    geckoViewReference = view
+
+                                    // Use the existing scope from MainActivity
+                                    scope.launch {
+                                        activeTab?.let { tab ->
+                                            Log.d("MainActivity", "Updating thumbnail for tab ${tab.id} after getting GeckoView reference")
+                                            tabViewModel.updateTabThumbnail(tab.id, view)
+                                        }
+                                    }
+                                },
                                 onNewTab = {
                                     scope.launch {
                                         // Create a new tab and session.

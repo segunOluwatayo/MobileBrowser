@@ -22,6 +22,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.mobilebrowser.MainActivity
 import com.example.mobilebrowser.R
 import com.example.mobilebrowser.browser.GeckoDownloadDelegate
 import com.example.mobilebrowser.data.entity.ShortcutEntity
@@ -64,6 +65,7 @@ fun BrowserContent(
     onDismissDownloadConfirmationDialog: () -> Unit,
     isHomepageActive: Boolean,  // Flag to control homepage overlay.
     modifier: Modifier = Modifier,
+    onGeckoViewCreated: (android.view.View) -> Unit,
     shortcutViewModel: ShortcutViewModel = hiltViewModel(),
     downloadViewModel: DownloadViewModel = hiltViewModel()
 ) {
@@ -382,8 +384,10 @@ fun BrowserContent(
                         onCanGoBackChange = onCanGoBackChange,
                         onCanGoForwardChange = onCanGoForwardChange,
                         onViewCreated = { view ->
-                            Log.d("BrowserContent", "geckoViewReference class: ${view::class.java}")
+                            Log.d("BrowserContent", "GeckoView created, passing reference up")
                             geckoViewReference = view
+                            // Pass the view up to the caller (MainActivity)
+                            onGeckoViewCreated(view)
                         },
                         modifier = Modifier
                             .weight(1f)
