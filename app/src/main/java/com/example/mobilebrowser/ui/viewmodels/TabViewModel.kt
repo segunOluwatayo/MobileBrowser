@@ -298,6 +298,7 @@ class TabViewModel @Inject constructor(
     }
 
     fun updateTabThumbnail(tabId: Long, view: View) {
+        Log.d("TabViewModel", "updateTabThumbnail called for tabId: $tabId")
         viewModelScope.launch {
             // Capture the thumbnail from the provided view.
             val bitmap = ThumbnailUtil.captureThumbnail(view)
@@ -310,6 +311,21 @@ class TabViewModel @Inject constructor(
                     repository.getTabById(tabId)?.let { tab ->
                         repository.updateTab(tab.copy(thumbnail = thumbnailPath))
                     }
+                }
+            }
+        }
+    }
+
+    fun debugThumbnails() {
+        viewModelScope.launch {
+            val allTabs = tabs.value
+            Log.d("TabViewModel", "Debugging thumbnails for ${allTabs.size} tabs")
+
+            allTabs.forEach { tab ->
+                Log.d("TabViewModel", "Tab ${tab.id}: URL=${tab.url}, Thumbnail=${tab.thumbnail}")
+                if (!tab.thumbnail.isNullOrEmpty()) {
+                    val file = File(tab.thumbnail!!)
+                    Log.d("TabViewModel", "  Thumbnail file exists: ${file.exists()}, size: ${file.length()} bytes")
                 }
             }
         }

@@ -47,6 +47,10 @@ fun TabScreen(
         }
     )
 
+    LaunchedEffect(Unit) {
+        viewModel.debugThumbnails()
+    }
+
     // Animate the screen’s appearance
     AnimatedVisibility(
         visible = true,

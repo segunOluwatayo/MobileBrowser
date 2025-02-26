@@ -1,5 +1,6 @@
 package com.example.mobilebrowser.ui.composables
 
+import android.util.Log
 import androidx.compose.animation.*
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -75,7 +76,14 @@ fun LazyItemScope.TabListItem(
                     contentDescription = "Tab Thumbnail",
                     modifier = Modifier
                         .size(48.dp)
-                        .clip(MaterialTheme.shapes.small)
+                        .clip(MaterialTheme.shapes.small),
+                    onSuccess = {
+                        Log.d("TabListItem", "Successfully loaded thumbnail for tab ${tab.id}")
+                    },
+                    onError = { state ->
+                        Log.e("TabListItem", "Error loading thumbnail for tab ${tab.id}: ${state.result.throwable?.message}",
+                            state.result.throwable)
+                    }
                 )
             } else {
                 // Placeholder thumbnail.
@@ -86,6 +94,7 @@ fun LazyItemScope.TabListItem(
                         .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)),
                     contentAlignment = Alignment.Center
                 ) {
+                    Log.d("TabListItem", "Using placeholder for tab ${tab.id} - no thumbnail available")
                     Icon(
                         imageVector = Icons.Default.Image,
                         contentDescription = "Placeholder Thumbnail",
