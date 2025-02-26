@@ -245,6 +245,8 @@ class MainActivity : ComponentActivity() {
                     onShowTabs = { currentOverlay = OverlayScreen.Tabs },
                     onShowSettings = { currentOverlay = OverlayScreen.Settings },
                     onShowDownloads = { currentOverlay = OverlayScreen.Downloads },
+                    activeTab = activeTab,
+                    tabViewModel = tabViewModel,
                     onAddBookmark = { url, title ->
                         bookmarkViewModel.quickAddBookmark(url, title)
                     },

@@ -1,14 +1,24 @@
-
 package com.example.mobilebrowser.ui.composables
 
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
+import android.view.View
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoView
 
+/**
+ * This composable creates a GeckoView, sets up the necessary delegates,
+ * and installs a scroll listener that waits for scrolling to stop (using a debounce)
+ * before triggering a callback (onScrollStopped) so the thumbnail can be updated.
+ */
 @Composable
 fun GeckoViewComponent(
     geckoSession: GeckoSession,
@@ -16,39 +26,73 @@ fun GeckoViewComponent(
     onUrlChange: (String) -> Unit,
     onCanGoBackChange: (Boolean) -> Unit,
     onCanGoForwardChange: (Boolean) -> Unit,
-    onViewCreated: (android.view.View) -> Unit,
+    onViewCreated: (View) -> Unit,
+    onScrollStopped: (View) -> Unit, // new callback invoked when scrolling stops
     modifier: Modifier = Modifier
 ) {
-    LocalContext.current
+    val context = LocalContext.current
+    // Handler to debounce scroll events
+    val scrollHandler = remember { Handler(Looper.getMainLooper()) }
+    // Debounce delay in milliseconds
+    val scrollStopDelay = 300L
 
-    // Configure navigation delegate for the shared session
-    geckoSession.navigationDelegate = object : GeckoSession.NavigationDelegate {
-        override fun onLocationChange(
-            session: GeckoSession,
-            url: String?,
-            perms: MutableList<GeckoSession.PermissionDelegate.ContentPermission>
-        ) {
-            Log.d("GeckoViewComponent", "onLocationChange: $url")
-            url?.let { onUrlChange(it) }
-        }
+    // Hold a reference to the created GeckoView
+    var geckoViewRef = remember { mutableStateOf<View?>(null) }
 
-        override fun onCanGoBack(session: GeckoSession, canGoBack: Boolean) {
-            Log.d("GeckoViewComponent", "onCanGoBack: $canGoBack")
-            onCanGoBackChange(canGoBack)
+    // Set up a scroll delegate on the GeckoSession that debounces scroll events.
+    DisposableEffect(geckoSession) {
+        val scrollDelegate = object : GeckoSession.ScrollDelegate {
+            override fun onScrollChanged(session: GeckoSession, scrollX: Int, scrollY: Int) {
+                // Reset any previous scroll-stop callback
+                scrollHandler.removeCallbacksAndMessages(null)
+                // Post a delayed callback – if no further scroll events occur for scrollStopDelay, we trigger onScrollStopped.
+                scrollHandler.postDelayed({
+                    geckoViewRef.value?.let { view ->
+                        Log.d("GeckoViewComponent", "Scroll stopped; invoking onScrollStopped callback")
+                        onScrollStopped(view)
+                    }
+                }, scrollStopDelay)
+            }
         }
+        geckoSession.setScrollDelegate(scrollDelegate)
+        onDispose {
+            geckoSession.setScrollDelegate(null)
+            scrollHandler.removeCallbacksAndMessages(null)
+        }
+    }
 
-        override fun onCanGoForward(session: GeckoSession, canGoForward: Boolean) {
-            Log.d("GeckoViewComponent", "onCanGoForward: $canGoForward")
-            onCanGoForwardChange(canGoForward)
+    // Set up navigation delegate for handling URL changes and navigation state.
+    DisposableEffect(geckoSession) {
+        geckoSession.navigationDelegate = object : GeckoSession.NavigationDelegate {
+            override fun onLocationChange(
+                session: GeckoSession,
+                url: String?,
+                perms: MutableList<GeckoSession.PermissionDelegate.ContentPermission>
+            ) {
+                Log.d("GeckoViewComponent", "onLocationChange: $url")
+                url?.let { onUrlChange(it) }
+            }
+
+            override fun onCanGoBack(session: GeckoSession, canGoBack: Boolean) {
+                Log.d("GeckoViewComponent", "onCanGoBack: $canGoBack")
+                onCanGoBackChange(canGoBack)
+            }
+
+            override fun onCanGoForward(session: GeckoSession, canGoForward: Boolean) {
+                Log.d("GeckoViewComponent", "onCanGoForward: $canGoForward")
+                onCanGoForwardChange(canGoForward)
+            }
         }
+        onDispose { }
     }
 
     Log.d("GeckoViewComponent", "Creating AndroidView for GeckoView with URL: $url")
     AndroidView(
-        factory = { context ->
+        factory = { ctx ->
             Log.d("GeckoViewComponent", "Factory: Creating GeckoView instance")
-            GeckoView(context).apply {
+            GeckoView(ctx).apply {
                 setSession(geckoSession)
+                geckoViewRef.value = this
                 onViewCreated(this)
             }
         },
@@ -59,4 +103,3 @@ fun GeckoViewComponent(
         }
     )
 }
-

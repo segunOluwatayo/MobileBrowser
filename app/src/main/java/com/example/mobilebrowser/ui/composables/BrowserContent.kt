@@ -26,11 +26,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.mobilebrowser.R
 import com.example.mobilebrowser.browser.GeckoDownloadDelegate
 import com.example.mobilebrowser.data.entity.ShortcutEntity
+import com.example.mobilebrowser.data.entity.TabEntity
 import com.example.mobilebrowser.ui.homepage.ShortcutEditDialog
 import com.example.mobilebrowser.ui.homepage.ShortcutOptionsDialog
 import com.example.mobilebrowser.ui.screens.HomeScreen
 import com.example.mobilebrowser.ui.viewmodels.DownloadViewModel
 import com.example.mobilebrowser.ui.viewmodels.ShortcutViewModel
+import com.example.mobilebrowser.ui.viewmodels.TabViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -57,6 +59,8 @@ fun BrowserContent(
     onCanGoForwardChange: (Boolean) -> Unit,
     tabCount: Int,
     onNewTab: () -> Unit,
+    activeTab: TabEntity?,
+    tabViewModel: TabViewModel,
     onCloseAllTabs: () -> Unit,
     onShowDownloads: () -> Unit,
     onShowSettings: () -> Unit,
@@ -392,6 +396,14 @@ fun BrowserContent(
                                 geckoViewReference = view
                                 // Pass the view up to the caller (MainActivity)
                                 onGeckoViewCreated(view)
+                            },
+                            onScrollStopped = { view ->
+                                // Use the active tab ID (if available) to update its thumbnail.
+                                activeTab?.id?.let { tabId ->
+                                    // Here we call our existing updateTabThumbnail method,
+                                    // which uses capturePixels() internally.
+                                    tabViewModel.updateTabThumbnail(tabId, view)
+                                }
                             },
                             // The web content is visible only when NOT on homepage AND when NO overlay is active
                             modifier = Modifier
