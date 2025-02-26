@@ -320,80 +320,81 @@ class TabViewModel @Inject constructor(
 fun updateTabThumbnail(tabId: Long, view: View) {
     Log.d("TabViewModel", "updateTabThumbnail called for tabId: $tabId with view: $view")
     viewModelScope.launch {
-        // Introduce a short delay to debounce rapid calls
-        delay(500)
         if (view is GeckoView) {
-            Log.d("TabViewModel", "View is a GeckoView, calling capturePixels()")
-            val result: GeckoResult<Bitmap> = view.capturePixels()
-            result.accept { bitmap: Bitmap? ->
-                if (bitmap != null) {
-                    Log.d("TabViewModel", "capturePixels() returned a bitmap of size ${bitmap.width}x${bitmap.height}")
-                    // Optionally, add a check here to see if the bitmap is "blank"
-                    if (isBitmapBlank(bitmap)) {
-                        Log.w("TabViewModel", "Captured bitmap appears blank; skipping update.")
-                        return@accept
-                    }
-                    val thumbnailFile = File(context.cacheDir, "thumbnail_$tabId.png")
-                    val thumbnailPath = ThumbnailUtil.saveBitmapToFile(bitmap, thumbnailFile)
-                    if (thumbnailPath != null) {
-                        Log.d("TabViewModel", "Thumbnail saved at: $thumbnailPath")
-                        viewModelScope.launch {
-                            repository.getTabById(tabId)?.let { tab ->
-                                repository.updateTab(tab.copy(thumbnail = thumbnailPath))
-                                Log.d("TabViewModel", "Updated thumbnail for tab $tabId via GeckoView capture")
-                            } ?: Log.e("TabViewModel", "No tab found with ID: $tabId")
+            Log.d("TabViewModel", "View is a GeckoView, checking if ready for capture")
+            try {
+                // Add a small delay to allow the compositor to initialize
+                delay(500)
+
+                // Use try-catch to safely handle the potential exception
+                try {
+                    val result: GeckoResult<Bitmap> = view.capturePixels()
+                    result.accept { bitmap: Bitmap? ->
+                        if (bitmap != null) {
+                            Log.d("TabViewModel", "capturePixels() returned a bitmap of size ${bitmap.width}x${bitmap.height}")
+                            // Optionally downscale/process bitmap if desired.
+                            val thumbnailFile = File(context.cacheDir, "thumbnail_$tabId.png")
+                            val thumbnailPath = ThumbnailUtil.saveBitmapToFile(bitmap, thumbnailFile)
+                            if (thumbnailPath != null) {
+                                Log.d("TabViewModel", "Thumbnail saved at: $thumbnailPath")
+                                viewModelScope.launch {
+                                    repository.getTabById(tabId)?.let { tab ->
+                                        repository.updateTab(tab.copy(thumbnail = thumbnailPath))
+                                        Log.d("TabViewModel", "Updated thumbnail for tab $tabId via GeckoView capture")
+                                    } ?: Log.e("TabViewModel", "No tab found with ID: $tabId")
+                                }
+                            } else {
+                                Log.e("TabViewModel", "Failed to save captured thumbnail for tab $tabId")
+                            }
+                        } else {
+                            Log.e("TabViewModel", "GeckoView capturePixels returned null for tab $tabId")
+                            captureUsingFallbackMethod(tabId, view)
                         }
-                    } else {
-                        Log.e("TabViewModel", "Failed to save captured thumbnail for tab $tabId")
                     }
-                } else {
-                    Log.e("TabViewModel", "GeckoView capturePixels returned null for tab $tabId")
+                } catch (e: IllegalStateException) {
+                    // This happens when the compositor isn't ready
+                    Log.w("TabViewModel", "Compositor not ready, using fallback capture method: ${e.message}")
+                    captureUsingFallbackMethod(tabId, view)
+                } catch (e: Exception) {
+                    // Handle any other exception
+                    Log.e("TabViewModel", "Error capturing pixels from GeckoView", e)
+                    captureUsingFallbackMethod(tabId, view)
                 }
+            } catch (e: Exception) {
+                Log.e("TabViewModel", "Error in updateTabThumbnail", e)
             }
         } else {
-            // Fallback for non-GeckoView
-            val bitmap = ThumbnailUtil.captureThumbnail(view)
-            if (bitmap != null) {
-                if (isBitmapBlank(bitmap)) {
-                    Log.w("TabViewModel", "Fallback captured bitmap appears blank; skipping update.")
-                    return@launch
-                }
-                Log.d("TabViewModel", "Fallback capture method returned bitmap of size ${bitmap.width}x${bitmap.height}")
-                val thumbnailFile = File(context.cacheDir, "thumbnail_$tabId.png")
-                val thumbnailPath = ThumbnailUtil.saveBitmapToFile(bitmap, thumbnailFile)
-                if (thumbnailPath != null) {
-                    Log.d("TabViewModel", "Fallback thumbnail saved at: $thumbnailPath")
-                    viewModelScope.launch {
-                        repository.getTabById(tabId)?.let { tab ->
-                            repository.updateTab(tab.copy(thumbnail = thumbnailPath))
-                            Log.d("TabViewModel", "Updated thumbnail for tab $tabId via fallback capture")
-                        } ?: Log.e("TabViewModel", "No tab found with ID: $tabId in fallback")
-                    }
-                } else {
-                    Log.e("TabViewModel", "Fallback: Failed to save thumbnail for tab $tabId")
-                }
-            } else {
-                Log.e("TabViewModel", "Fallback: Failed to capture thumbnail for tab $tabId")
-            }
+            Log.d("TabViewModel", "View is not a GeckoView, using fallback capture method")
+            captureUsingFallbackMethod(tabId, view)
         }
     }
 }
 
-    private fun isBitmapBlank(bitmap: Bitmap): Boolean {
-        // A simple heuristic: calculate the average color brightness
-        // You could refine this by checking a few sample pixels.
-        var sum = 0L
-        val width = bitmap.width
-        val height = bitmap.height
-        for (x in 0 until width step (width / 10).coerceAtLeast(1)) {
-            for (y in 0 until height step (height / 10).coerceAtLeast(1)) {
-                sum += bitmap.getPixel(x, y)
+    // Extracted fallback method to avoid code duplication
+    private fun captureUsingFallbackMethod(tabId: Long, view: View) {
+        viewModelScope.launch {
+            try {
+                val bitmap = ThumbnailUtil.captureThumbnail(view)
+                if (bitmap != null) {
+                    Log.d("TabViewModel", "Fallback capture method returned bitmap of size ${bitmap.width}x${bitmap.height}")
+                    val thumbnailFile = File(context.cacheDir, "thumbnail_$tabId.png")
+                    val thumbnailPath = ThumbnailUtil.saveBitmapToFile(bitmap, thumbnailFile)
+                    if (thumbnailPath != null) {
+                        Log.d("TabViewModel", "Fallback thumbnail saved at: $thumbnailPath")
+                        repository.getTabById(tabId)?.let { tab ->
+                            repository.updateTab(tab.copy(thumbnail = thumbnailPath))
+                            Log.d("TabViewModel", "Updated thumbnail for tab $tabId via fallback capture")
+                        } ?: Log.e("TabViewModel", "No tab found with ID: $tabId in fallback")
+                    } else {
+                        Log.e("TabViewModel", "Fallback: Failed to save thumbnail for tab $tabId")
+                    }
+                } else {
+                    Log.e("TabViewModel", "Fallback: Failed to capture thumbnail for tab $tabId")
+                }
+            } catch (e: Exception) {
+                Log.e("TabViewModel", "Error in fallback capture method", e)
             }
         }
-        // For example, if the average pixel is near white, consider it blank.
-        // (This is a very rough check; adjust as needed.)
-        val avg = (sum / 100).toInt()
-        return avg == -1 // In ARGB, white is 0xFFFFFFFF (-1 in signed Int)
     }
 
 

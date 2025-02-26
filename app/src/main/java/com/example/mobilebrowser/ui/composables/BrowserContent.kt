@@ -14,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -22,7 +23,6 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.mobilebrowser.MainActivity
 import com.example.mobilebrowser.R
 import com.example.mobilebrowser.browser.GeckoDownloadDelegate
 import com.example.mobilebrowser.data.entity.ShortcutEntity
@@ -63,7 +63,9 @@ fun BrowserContent(
     showDownloadConfirmationDialog: Boolean,
     currentDownloadRequest: GeckoDownloadDelegate.DownloadRequest?,
     onDismissDownloadConfirmationDialog: () -> Unit,
-    isHomepageActive: Boolean,  // Flag to control homepage overlay.
+    isHomepageActive: Boolean,
+    // New parameter to know when we should keep the GeckoView visible
+    isOverlayActive: Boolean,
     modifier: Modifier = Modifier,
     onGeckoViewCreated: (android.view.View) -> Unit,
     shortcutViewModel: ShortcutViewModel = hiltViewModel(),
@@ -93,15 +95,13 @@ fun BrowserContent(
     var shortcutToEdit: ShortcutEntity? by remember { mutableStateOf<ShortcutEntity?>(null) }
     val shortcuts by shortcutViewModel.shortcuts.collectAsState()
 
-
-    // State for Download Confirmation Dialog and tracking current download.
+    // State for Download Completion Dialog and tracking current download.
     var showDownloadCompletionDialog by remember { mutableStateOf(false) }
     var currentDownloadId by remember { mutableStateOf<Long?>(null) }
 
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
     var geckoViewReference by remember { mutableStateOf<android.view.View?>(null) }
-
 
     // Back handler: Clear focus if editing.
     BackHandler(isEditing) {
@@ -134,7 +134,6 @@ fun BrowserContent(
         // Main content (navigation bar and web view or spacer) drawn on top.
         Column(
             modifier = Modifier.fillMaxSize()
-            // Remove the full-screen clickable modifier
         ) {
             // Navigation bar with URL field and buttons.
             Row(
@@ -240,7 +239,6 @@ fun BrowserContent(
                                 tint = MaterialTheme.colorScheme.onSurface
                             )
                         }
-
 
                         DropdownMenu(
                             expanded = showOverflowMenu,
@@ -356,7 +354,6 @@ fun BrowserContent(
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
             )
 
-
             // Add a clickable overlay only when editing URL (to dismiss keyboard when tapped elsewhere)
             if (isEditing) {
                 Box(
@@ -369,33 +366,46 @@ fun BrowserContent(
                         }
                 ) {}
             }
-            // Only show the GeckoView when the homepage is not active.
-            else if (!isHomepageActive) {
+            // CRITICAL CHANGE: Keep GeckoView in memory even when overlays are active or homepage is shown
+            else {
                 key(geckoSession, currentUrl) {
-                    GeckoViewComponent(
-                        geckoSession = geckoSession,
-                        url = currentUrl,
-                        onUrlChange = { newUrl ->
-                            val normalizedUrl = if (newUrl == "about:blank") "" else newUrl
-                            if (!isEditing && normalizedUrl != currentUrl) {
-                                onNavigate(normalizedUrl)
-                            }
-                        },
-                        onCanGoBackChange = onCanGoBackChange,
-                        onCanGoForwardChange = onCanGoForwardChange,
-                        onViewCreated = { view ->
-                            Log.d("BrowserContent", "GeckoView created, passing reference up")
-                            geckoViewReference = view
-                            // Pass the view up to the caller (MainActivity)
-                            onGeckoViewCreated(view)
-                        },
+                    // The GeckoView remains loaded but we toggle its visibility
+                    Box(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxWidth()
-                    )
+                    ) {
+                        // Always keep GeckoView in composition, but toggle visibility
+                        GeckoViewComponent(
+                            geckoSession = geckoSession,
+                            url = currentUrl,
+                            onUrlChange = { newUrl ->
+                                val normalizedUrl = if (newUrl == "about:blank") "" else newUrl
+                                if (!isEditing && normalizedUrl != currentUrl) {
+                                    onNavigate(normalizedUrl)
+                                }
+                            },
+                            onCanGoBackChange = onCanGoBackChange,
+                            onCanGoForwardChange = onCanGoForwardChange,
+                            onViewCreated = { view ->
+                                Log.d("BrowserContent", "GeckoView created, passing reference up")
+                                geckoViewReference = view
+                                // Pass the view up to the caller (MainActivity)
+                                onGeckoViewCreated(view)
+                            },
+                            // The web content is visible only when NOT on homepage AND when NO overlay is active
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .then(
+                                    if (isHomepageActive || isOverlayActive) {
+                                        Modifier.alpha(0f) // Invisible but still in memory
+                                    } else {
+                                        Modifier.alpha(1f) // Fully visible
+                                    }
+                                )
+                        )
+                    }
                 }
-            } else {
-                Spacer(modifier = Modifier.weight(1f))
             }
         }
 
