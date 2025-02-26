@@ -35,7 +35,6 @@ fun TabScreen(
     val isSelectionMode by viewModel.isSelectionModeActive.collectAsState()
     val selectedTabs by viewModel.selectedTabs.collectAsState()
     val tabCount by viewModel.tabCount.collectAsState()
-
     var showMenu by remember { mutableStateOf(false) }
     var draggingTabId by remember { mutableStateOf<Long?>(null) }
 
@@ -51,151 +50,159 @@ fun TabScreen(
         viewModel.debugThumbnails()
     }
 
-    // Animate the screen’s appearance
-    AnimatedVisibility(
-        visible = true,
-        enter = slideInHorizontally() + fadeIn(),
-        exit = slideOutHorizontally() + fadeOut()
-    ) {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = {
-                        if (isSelectionMode) {
-                            Text("${selectedTabs.size} selected")
-                        } else {
-                            Text("Tabs")
-                        }
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onNavigateBack) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                        }
-                    },
-                    actions = {
-                        if (!isSelectionMode) {
-                            // **New Tab Count Box**
-                            Box(
-                                modifier = Modifier
-                                    .padding(end = 8.dp)
-                                    .background(MaterialTheme.colorScheme.primary, shape = MaterialTheme.shapes.small)
-                                    .clip(MaterialTheme.shapes.small)
-                                    .size(28.dp), // Adjust size
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = tabCount.toString(),
-                                    color = MaterialTheme.colorScheme.onPrimary,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    modifier = Modifier.padding(4.dp)
-                                )
-                            }
-
-                            Box {
-                                IconButton(onClick = { showMenu = true }) {
-                                    Icon(Icons.Default.MoreVert, contentDescription = "More options")
-                                }
-
-                                DropdownMenu(
-                                    expanded = showMenu,
-                                    onDismissRequest = { showMenu = false }
-                                ) {
-                                    DropdownMenuItem(
-                                        text = { Text("New Tab") },
-                                        onClick = {
-                                            showMenu = false
-                                            viewModel.viewModelScope.launch {
-                                                val newTabId = viewModel.createTab()
-                                                onTabSelected(newTabId)
-                                                onNavigateBack()
-                                            }
-                                        },
-                                        leadingIcon = { Icon(Icons.Default.Add, contentDescription = "New Tab") }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("Close All Tabs") },
-                                        onClick = {
-                                            showMenu = false
-                                            viewModel.closeAllTabs()
-                                        },
-                                        leadingIcon = { Icon(Icons.Default.Close, contentDescription = "Close All Tabs") }
-                                    )
-                                }
-                            }
-
+    Scaffold(
+        topBar = {
+            LargeTopAppBar(
+                title = {
+                    if (isSelectionMode) {
+                        Text(
+                            "${selectedTabs.size} selected",
+                            style = MaterialTheme.typography.headlineSmall
+                        )
+                    } else {
+                        Column {
+                            Text(
+                                "Tabs",
+                                style = MaterialTheme.typography.headlineSmall
+                            )
+                            Text(
+                                "$tabCount tabs open",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
-                )
-            }
-        ) { padding ->
-            if (tabs.isEmpty()) {
-                AnimatedVisibility(
-                    visible = true,
-                    enter = fadeIn() + expandVertically(),
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            Text("No tabs open")
-                            Button(
-                                onClick = {
-                                    viewModel.viewModelScope.launch {
-                                        val newTabId = viewModel.createTab()
-                                        onTabSelected(newTabId)
-                                        onNavigateBack()
-                                    }
-                                }
-                            ) {
-                                Icon(Icons.Default.Add, "New tab")
-                                Spacer(Modifier.width(8.dp))
-                                Text("New Tab")
-                            }
-                        }
+                },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
-                }
-            } else {
-                LazyColumn(
-                    state = lazyListState,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
-                ) {
-                    items(
-                        items = tabs,
-                        key = { it.id }
-                    ) { tab ->
-                        TabListItem(
-                            tab = tab,
-                            isSelected = selectedTabs.contains(tab.id),
-                            isSelectionMode = isSelectionMode,
-                            isDragging = (tab.id == draggingTabId),
-                            onStartDrag = { draggingTabId = tab.id },
-                            onTabClick = {
-                                if (isSelectionMode) {
-                                    viewModel.toggleTabSelection(tab.id)
-                                } else {
-                                    onTabSelected(tab.id)
-                                    onNavigateBack()
-                                }
-                            },
-                            onCloseTab = { viewModel.closeTab(tab) }, // Updated callback
-                            onNewTab = {
+                },
+                actions = {
+                    if (!isSelectionMode) {
+                        // New Tab Button
+                        FilledTonalIconButton(
+                            onClick = {
                                 viewModel.viewModelScope.launch {
                                     val newTabId = viewModel.createTab()
                                     onTabSelected(newTabId)
                                     onNavigateBack()
                                 }
                             },
-                            onBookmarkTab = {
-                                bookmarkViewModel.quickAddBookmark(tab.url, tab.title)
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = "New Tab")
+                        }
+
+                        // More Options Menu
+                        Box {
+                            IconButton(onClick = { showMenu = true }) {
+                                Icon(Icons.Default.MoreVert, contentDescription = "More options")
                             }
-                        )
+
+                            DropdownMenu(
+                                expanded = showMenu,
+                                onDismissRequest = { showMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Close All Tabs") },
+                                    onClick = {
+                                        showMenu = false
+                                        viewModel.closeAllTabs()
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            Icons.Default.Close,
+                                            contentDescription = "Close All Tabs"
+                                        )
+                                    }
+                                )
+                            }
+                        }
                     }
+                },
+                colors = TopAppBarDefaults.largeTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            )
+        }
+    ) { padding ->
+        if (tabs.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Tab,
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        "No tabs open",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    FilledTonalButton(
+                        onClick = {
+                            viewModel.viewModelScope.launch {
+                                val newTabId = viewModel.createTab()
+                                onTabSelected(newTabId)
+                                onNavigateBack()
+                            }
+                        }
+                    ) {
+                        Icon(Icons.Default.Add, "New tab")
+                        Spacer(Modifier.width(8.dp))
+                        Text("New Tab")
+                    }
+                }
+            }
+        } else {
+            LazyColumn(
+                state = lazyListState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .background(MaterialTheme.colorScheme.surface),
+                contentPadding = PaddingValues(vertical = 8.dp)
+            ) {
+                items(
+                    items = tabs,
+                    key = { it.id }
+                ) { tab ->
+                    TabListItem(
+                        tab = tab,
+                        isSelected = selectedTabs.contains(tab.id),
+                        isSelectionMode = isSelectionMode,
+                        isDragging = (tab.id == draggingTabId),
+                        onStartDrag = { draggingTabId = tab.id },
+                        onTabClick = {
+                            if (isSelectionMode) {
+                                viewModel.toggleTabSelection(tab.id)
+                            } else {
+                                onTabSelected(tab.id)
+                                onNavigateBack()
+                            }
+                        },
+                        onCloseTab = { viewModel.closeTab(tab) },
+                        onNewTab = {
+                            viewModel.viewModelScope.launch {
+                                val newTabId = viewModel.createTab()
+                                onTabSelected(newTabId)
+                                onNavigateBack()
+                            }
+                        },
+                        onBookmarkTab = {
+                            bookmarkViewModel.quickAddBookmark(tab.url, tab.title)
+                        }
+                    )
                 }
             }
         }
