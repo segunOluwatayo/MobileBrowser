@@ -219,6 +219,16 @@ class MainActivity : ComponentActivity() {
                                     Log.d("MainActivity", "Received GeckoView reference: ${view::class.java}")
                                     geckoViewReference = view
 
+                                    // Add a scroll listener to update the thumbnail after scrolling
+                                    view.viewTreeObserver.addOnScrollChangedListener {
+                                        // Optionally, debounce the calls to avoid rapid updates
+                                        view.postDelayed({
+                                            // Trigger the thumbnail update after scrolling settles
+                                            activeTab?.let { tab ->
+                                                tabViewModel.updateTabThumbnail(tab.id, view)
+                                            }
+                                        }, 500)
+                                    }
                                     // Use the existing scope from MainActivity
                                     scope.launch {
                                         activeTab?.let { tab ->

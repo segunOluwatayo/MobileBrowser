@@ -17,6 +17,7 @@ import com.example.mobilebrowser.data.util.ThumbnailUtil
 import com.example.mobilebrowser.worker.TabAutoCloseWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import org.mozilla.geckoview.GeckoResult
@@ -319,13 +320,19 @@ class TabViewModel @Inject constructor(
 fun updateTabThumbnail(tabId: Long, view: View) {
     Log.d("TabViewModel", "updateTabThumbnail called for tabId: $tabId with view: $view")
     viewModelScope.launch {
+        // Introduce a short delay to debounce rapid calls
+        delay(500)
         if (view is GeckoView) {
             Log.d("TabViewModel", "View is a GeckoView, calling capturePixels()")
             val result: GeckoResult<Bitmap> = view.capturePixels()
             result.accept { bitmap: Bitmap? ->
                 if (bitmap != null) {
                     Log.d("TabViewModel", "capturePixels() returned a bitmap of size ${bitmap.width}x${bitmap.height}")
-                    // Optionally downscale/process bitmap if desired.
+                    // Optionally, add a check here to see if the bitmap is "blank"
+                    if (isBitmapBlank(bitmap)) {
+                        Log.w("TabViewModel", "Captured bitmap appears blank; skipping update.")
+                        return@accept
+                    }
                     val thumbnailFile = File(context.cacheDir, "thumbnail_$tabId.png")
                     val thumbnailPath = ThumbnailUtil.saveBitmapToFile(bitmap, thumbnailFile)
                     if (thumbnailPath != null) {
@@ -344,9 +351,13 @@ fun updateTabThumbnail(tabId: Long, view: View) {
                 }
             }
         } else {
-            Log.d("TabViewModel", "View is not a GeckoView, using fallback capture method")
+            // Fallback for non-GeckoView
             val bitmap = ThumbnailUtil.captureThumbnail(view)
             if (bitmap != null) {
+                if (isBitmapBlank(bitmap)) {
+                    Log.w("TabViewModel", "Fallback captured bitmap appears blank; skipping update.")
+                    return@launch
+                }
                 Log.d("TabViewModel", "Fallback capture method returned bitmap of size ${bitmap.width}x${bitmap.height}")
                 val thumbnailFile = File(context.cacheDir, "thumbnail_$tabId.png")
                 val thumbnailPath = ThumbnailUtil.saveBitmapToFile(bitmap, thumbnailFile)
@@ -367,6 +378,24 @@ fun updateTabThumbnail(tabId: Long, view: View) {
         }
     }
 }
+
+    private fun isBitmapBlank(bitmap: Bitmap): Boolean {
+        // A simple heuristic: calculate the average color brightness
+        // You could refine this by checking a few sample pixels.
+        var sum = 0L
+        val width = bitmap.width
+        val height = bitmap.height
+        for (x in 0 until width step (width / 10).coerceAtLeast(1)) {
+            for (y in 0 until height step (height / 10).coerceAtLeast(1)) {
+                sum += bitmap.getPixel(x, y)
+            }
+        }
+        // For example, if the average pixel is near white, consider it blank.
+        // (This is a very rough check; adjust as needed.)
+        val avg = (sum / 100).toInt()
+        return avg == -1 // In ARGB, white is 0xFFFFFFFF (-1 in signed Int)
+    }
+
 
 
     fun debugThumbnails() {
