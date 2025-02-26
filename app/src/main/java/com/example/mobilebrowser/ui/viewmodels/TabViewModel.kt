@@ -108,19 +108,17 @@ class TabViewModel @Inject constructor(
 
 
 
-    suspend fun createTab(
-        url: String = "",
-        title: String = "New Tab"
-    ): Long {
+    suspend fun createTab(url: String = "", title: String = "New Tab"): Long {
         return try {
             val newTabId = repository.createTab(url, title, tabCount.value)
-            Log.d("TabViewModel", "Created new tab: $newTabId")
+            Log.d("TabViewModel", "Created new tab with ID: $newTabId, URL: $url, Title: $title")
             newTabId
         } catch (e: Exception) {
-            Log.e("TabViewModel", "Failed to create tab: ${e.message}")
+            Log.e("TabViewModel", "Failed to create tab: ${e.message}", e)
             throw e
         }
     }
+
 
 
     fun switchToTab(tabId: Long) {
@@ -319,21 +317,24 @@ class TabViewModel @Inject constructor(
 //        }
 //    }
 fun updateTabThumbnail(tabId: Long, view: View) {
+    Log.d("TabViewModel", "updateTabThumbnail called for tabId: $tabId with view: $view")
     viewModelScope.launch {
         if (view is GeckoView) {
+            Log.d("TabViewModel", "View is a GeckoView, calling capturePixels()")
             val result: GeckoResult<Bitmap> = view.capturePixels()
             result.accept { bitmap: Bitmap? ->
                 if (bitmap != null) {
-                    // Optionally downscale or process bitmap if desired.
+                    Log.d("TabViewModel", "capturePixels() returned a bitmap of size ${bitmap.width}x${bitmap.height}")
+                    // Optionally downscale/process bitmap if desired.
                     val thumbnailFile = File(context.cacheDir, "thumbnail_$tabId.png")
                     val thumbnailPath = ThumbnailUtil.saveBitmapToFile(bitmap, thumbnailFile)
                     if (thumbnailPath != null) {
-                        // Launch another coroutine to call suspend functions.
+                        Log.d("TabViewModel", "Thumbnail saved at: $thumbnailPath")
                         viewModelScope.launch {
                             repository.getTabById(tabId)?.let { tab ->
                                 repository.updateTab(tab.copy(thumbnail = thumbnailPath))
                                 Log.d("TabViewModel", "Updated thumbnail for tab $tabId via GeckoView capture")
-                            }
+                            } ?: Log.e("TabViewModel", "No tab found with ID: $tabId")
                         }
                     } else {
                         Log.e("TabViewModel", "Failed to save captured thumbnail for tab $tabId")
@@ -343,17 +344,19 @@ fun updateTabThumbnail(tabId: Long, view: View) {
                 }
             }
         } else {
-            // Fallback: use your existing capture method.
+            Log.d("TabViewModel", "View is not a GeckoView, using fallback capture method")
             val bitmap = ThumbnailUtil.captureThumbnail(view)
             if (bitmap != null) {
+                Log.d("TabViewModel", "Fallback capture method returned bitmap of size ${bitmap.width}x${bitmap.height}")
                 val thumbnailFile = File(context.cacheDir, "thumbnail_$tabId.png")
                 val thumbnailPath = ThumbnailUtil.saveBitmapToFile(bitmap, thumbnailFile)
                 if (thumbnailPath != null) {
+                    Log.d("TabViewModel", "Fallback thumbnail saved at: $thumbnailPath")
                     viewModelScope.launch {
                         repository.getTabById(tabId)?.let { tab ->
                             repository.updateTab(tab.copy(thumbnail = thumbnailPath))
                             Log.d("TabViewModel", "Updated thumbnail for tab $tabId via fallback capture")
-                        }
+                        } ?: Log.e("TabViewModel", "No tab found with ID: $tabId in fallback")
                     }
                 } else {
                     Log.e("TabViewModel", "Fallback: Failed to save thumbnail for tab $tabId")
@@ -370,7 +373,6 @@ fun updateTabThumbnail(tabId: Long, view: View) {
         viewModelScope.launch {
             val allTabs = tabs.value
             Log.d("TabViewModel", "Debugging thumbnails for ${allTabs.size} tabs")
-
             allTabs.forEach { tab ->
                 Log.d("TabViewModel", "Tab ${tab.id}: URL=${tab.url}, Thumbnail=${tab.thumbnail}")
                 if (!tab.thumbnail.isNullOrEmpty()) {
@@ -380,5 +382,6 @@ fun updateTabThumbnail(tabId: Long, view: View) {
             }
         }
     }
+
 
 }

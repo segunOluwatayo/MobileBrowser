@@ -369,7 +369,7 @@ fun BrowserContent(
             }
             // Only show the GeckoView when the homepage is not active.
             else if (!isHomepageActive) {
-                key(geckoSession) {
+                key(geckoSession, currentUrl) {
                     GeckoViewComponent(
                         geckoSession = geckoSession,
                         url = currentUrl,
@@ -382,6 +382,7 @@ fun BrowserContent(
                         onCanGoBackChange = onCanGoBackChange,
                         onCanGoForwardChange = onCanGoForwardChange,
                         onViewCreated = { view ->
+                            Log.d("BrowserContent", "geckoViewReference class: ${view::class.java}")
                             geckoViewReference = view
                         },
                         modifier = Modifier

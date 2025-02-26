@@ -32,12 +32,14 @@ import com.example.mobilebrowser.ui.viewmodels.ShortcutViewModel
 import com.example.mobilebrowser.ui.viewmodels.TabViewModel
 import com.example.mobilebrowser.worker.DynamicShortcutWorker
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.mozilla.geckoview.GeckoSession
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     private lateinit var sessionManager: GeckoSessionManager
+    private var geckoViewReference: android.view.View? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -58,7 +60,6 @@ class MainActivity : ComponentActivity() {
                 else -> systemDarkTheme // "SYSTEM" mode follows the system setting.
             }
             MobileBrowserTheme(darkTheme = darkTheme){
-                val geckoViewReference by remember { mutableStateOf<android.view.View?>(null) }
                 // Define UI state variables.
                 var currentUrl by remember { mutableStateOf("") }
 //                var currentUrl by remember { mutableStateOf("https://www.mozilla.org") }
@@ -128,6 +129,16 @@ class MainActivity : ComponentActivity() {
                 LaunchedEffect(activeTab) {
                     Log.d("MainActivity", "LaunchedEffect: activeTab = $activeTab")
                     activeTab?.let { tab ->
+                        delay(1000) // wait a bit for the view to be ready
+                        if (geckoViewReference == null) {
+                            Log.d("MainActivity", "geckoViewReference is null!")
+                        } else {
+                            Log.d("MainActivity", "geckoViewReference class: ${geckoViewReference!!::class.java}")
+                            tabViewModel.updateTabThumbnail(tab.id, geckoViewReference!!)
+                        }
+                    }
+                    Log.d("MainActivity", "LaunchedEffect: activeTab = $activeTab")
+                    activeTab?.let { tab ->
                         Log.d("MainActivity", "Active tab URL = ${tab.url}, title = ${tab.title}")
                         currentSession = sessionManager.getOrCreateSession(
                             tabId = tab.id,
@@ -138,13 +149,16 @@ class MainActivity : ComponentActivity() {
                                 tabViewModel.updateActiveTabContent(newUrl, currentPageTitle)
                             },
                             onTitleChange = { newTitle ->
+                                Log.d("MainActivity", "onTitleChange triggered with newTitle: $newTitle")
                                 if (newTitle.isNotBlank() && newTitle != "Loading...") {
                                     currentPageTitle = newTitle
                                     tabViewModel.updateActiveTabContent(currentUrl, newTitle)
                                     recordHistory(currentUrl, newTitle)
                                     // Now trigger the thumbnail update using the stored GeckoView reference
                                     geckoViewReference?.let { view ->
+                                        Log.d("MainActivity", "geckoViewReference class: ${view::class.java}")
                                         activeTab?.let { tab ->
+                                            Log.d("MainActivity", "Triggering updateTabThumbnail for tab ${tab.id}")
                                             tabViewModel.updateTabThumbnail(tab.id, view)
                                         }
                                     }

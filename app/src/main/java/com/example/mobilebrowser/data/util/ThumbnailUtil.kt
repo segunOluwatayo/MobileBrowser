@@ -15,19 +15,14 @@ object ThumbnailUtil {
      */
     fun captureThumbnail(view: View): Bitmap? {
         return try {
-            // Log dimensions to check if the view has a valid size
             Log.d(TAG, "Capturing thumbnail for view: width=${view.width}, height=${view.height}")
-
             if (view.width <= 0 || view.height <= 0) {
                 Log.e(TAG, "Cannot capture thumbnail: View has invalid dimensions")
                 return null
             }
-
-            // Created a bitmap with the view's dimensions and draw the view onto the bitmap.
             val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
             view.draw(canvas)
-
             Log.d(TAG, "Thumbnail captured successfully: ${bitmap.width}x${bitmap.height}")
             bitmap
         } catch (e: Exception) {
@@ -36,6 +31,7 @@ object ThumbnailUtil {
         }
     }
 
+
     /**
      * Saves the given bitmap as a PNG file in the provided directory.
      * Returns the absolute path of the saved file.
@@ -43,14 +39,10 @@ object ThumbnailUtil {
     fun saveBitmapToFile(bitmap: Bitmap, file: File): String? {
         return try {
             Log.d(TAG, "Saving bitmap to file: ${file.absolutePath}")
-
-            // Create parent directories if they don't exist
             file.parentFile?.mkdirs()
-
             FileOutputStream(file).use { out ->
                 bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
             }
-
             Log.d(TAG, "Bitmap saved successfully, file exists: ${file.exists()}, size: ${file.length()} bytes")
             file.absolutePath
         } catch (e: Exception) {

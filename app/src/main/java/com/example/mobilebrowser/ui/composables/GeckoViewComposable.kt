@@ -43,17 +43,18 @@ fun GeckoViewComponent(
         }
     }
 
+    Log.d("GeckoViewComponent", "Creating AndroidView for GeckoView with URL: $url")
     AndroidView(
         factory = { context ->
-            Log.d("GeckoViewComponent", "Creating GeckoView with URL: $url")
+            Log.d("GeckoViewComponent", "Factory: Creating GeckoView instance")
             GeckoView(context).apply {
                 setSession(geckoSession)
                 onViewCreated(this)
             }
         },
         modifier = modifier,
-        update = { _ ->
-            Log.d("GeckoViewComponent", "Loading URL: $url")
+        update = { view ->
+            Log.d("GeckoViewComponent", "Update: Loading URL: $url")
             geckoSession.loadUri(url)
         }
     )
