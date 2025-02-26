@@ -1,6 +1,7 @@
 package com.example.mobilebrowser.ui.viewmodels
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.util.Log
 import android.view.View
 import androidx.lifecycle.ViewModel
@@ -18,6 +19,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import org.mozilla.geckoview.GeckoResult
+import org.mozilla.geckoview.GeckoView
 import java.io.File
 import java.util.Date
 import java.util.concurrent.TimeUnit
@@ -297,24 +300,71 @@ class TabViewModel @Inject constructor(
         _error.value = null
     }
 
-    fun updateTabThumbnail(tabId: Long, view: View) {
-        Log.d("TabViewModel", "updateTabThumbnail called for tabId: $tabId")
-        viewModelScope.launch {
-            // Capture the thumbnail from the provided view.
+//    fun updateTabThumbnail(tabId: Long, view: View) {
+//        Log.d("TabViewModel", "updateTabThumbnail called for tabId: $tabId")
+//        viewModelScope.launch {
+//            // Capture the thumbnail from the provided view.
+//            val bitmap = ThumbnailUtil.captureThumbnail(view)
+//            if (bitmap != null) {
+//                // Define where to store the thumbnail. Here we use the cache directory.
+//                val thumbnailFile = File(context.cacheDir, "thumbnail_$tabId.png")
+//                val thumbnailPath = ThumbnailUtil.saveBitmapToFile(bitmap, thumbnailFile)
+//                if (thumbnailPath != null) {
+//                    // Retrieve the tab, update its thumbnail property, and save it.
+//                    repository.getTabById(tabId)?.let { tab ->
+//                        repository.updateTab(tab.copy(thumbnail = thumbnailPath))
+//                    }
+//                }
+//            }
+//        }
+//    }
+fun updateTabThumbnail(tabId: Long, view: View) {
+    viewModelScope.launch {
+        if (view is GeckoView) {
+            val result: GeckoResult<Bitmap> = view.capturePixels()
+            result.accept { bitmap: Bitmap? ->
+                if (bitmap != null) {
+                    // Optionally downscale or process bitmap if desired.
+                    val thumbnailFile = File(context.cacheDir, "thumbnail_$tabId.png")
+                    val thumbnailPath = ThumbnailUtil.saveBitmapToFile(bitmap, thumbnailFile)
+                    if (thumbnailPath != null) {
+                        // Launch another coroutine to call suspend functions.
+                        viewModelScope.launch {
+                            repository.getTabById(tabId)?.let { tab ->
+                                repository.updateTab(tab.copy(thumbnail = thumbnailPath))
+                                Log.d("TabViewModel", "Updated thumbnail for tab $tabId via GeckoView capture")
+                            }
+                        }
+                    } else {
+                        Log.e("TabViewModel", "Failed to save captured thumbnail for tab $tabId")
+                    }
+                } else {
+                    Log.e("TabViewModel", "GeckoView capturePixels returned null for tab $tabId")
+                }
+            }
+        } else {
+            // Fallback: use your existing capture method.
             val bitmap = ThumbnailUtil.captureThumbnail(view)
             if (bitmap != null) {
-                // Define where to store the thumbnail. Here we use the cache directory.
                 val thumbnailFile = File(context.cacheDir, "thumbnail_$tabId.png")
                 val thumbnailPath = ThumbnailUtil.saveBitmapToFile(bitmap, thumbnailFile)
                 if (thumbnailPath != null) {
-                    // Retrieve the tab, update its thumbnail property, and save it.
-                    repository.getTabById(tabId)?.let { tab ->
-                        repository.updateTab(tab.copy(thumbnail = thumbnailPath))
+                    viewModelScope.launch {
+                        repository.getTabById(tabId)?.let { tab ->
+                            repository.updateTab(tab.copy(thumbnail = thumbnailPath))
+                            Log.d("TabViewModel", "Updated thumbnail for tab $tabId via fallback capture")
+                        }
                     }
+                } else {
+                    Log.e("TabViewModel", "Fallback: Failed to save thumbnail for tab $tabId")
                 }
+            } else {
+                Log.e("TabViewModel", "Fallback: Failed to capture thumbnail for tab $tabId")
             }
         }
     }
+}
+
 
     fun debugThumbnails() {
         viewModelScope.launch {
