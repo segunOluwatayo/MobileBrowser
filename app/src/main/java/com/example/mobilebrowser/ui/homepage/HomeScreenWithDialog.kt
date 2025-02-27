@@ -17,15 +17,15 @@ fun HomeScreenWithDialog(viewModel: ShortcutViewModel = hiltViewModel()) {
     var selectedShortcut by remember { mutableStateOf<ShortcutEntity?>(null) }
 
     // Render the HomeScreen
-    HomeScreen(
-        shortcuts = shortcuts,
-        onShortcutClick = { shortcut ->
-            viewModel.onShortcutClick(shortcut)
-        },
-        onShortcutLongPressed = { shortcut ->
-            selectedShortcut = shortcut
-        }
-    )
+//    HomeScreen(
+//        shortcuts = shortcuts,
+//        onShortcutClick = { shortcut ->
+//            viewModel.onShortcutClick(shortcut)
+//        },
+//        onShortcutLongPressed = { shortcut ->
+//            selectedShortcut = shortcut
+//        }
+//    )
 
     // If a shortcut is selected, display the options dialog
     selectedShortcut?.let { shortcut ->

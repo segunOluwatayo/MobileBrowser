@@ -16,13 +16,13 @@ fun HomeScreenWithViewModel(
     val shortcuts by viewModel.shortcuts.collectAsState()
 
     // Render the HomeScreen with the shortcuts data and event handlers
-    HomeScreen(
-        shortcuts = shortcuts,
-        onShortcutClick = { shortcut ->
-            viewModel.onShortcutClick(shortcut)
-        },
-        onShortcutLongPressed = { shortcut ->
-            viewModel.onShortcutLongPress(shortcut)
-        }
-    )
+//    HomeScreen(
+//        shortcuts = shortcuts,
+//        onShortcutClick = { shortcut ->
+//            viewModel.onShortcutClick(shortcut)
+//        },
+//        onShortcutLongPressed = { shortcut ->
+//            viewModel.onShortcutLongPress(shortcut)
+//        }
+//    )
 }

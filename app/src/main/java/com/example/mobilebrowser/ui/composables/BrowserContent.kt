@@ -128,6 +128,9 @@ fun BrowserContent(
                     onShortcutLongPressed = { shortcut ->
                         selectedShortcut = shortcut
                     },
+                    onShowAllTabs = { onShowTabs() },
+
+                    recentTab = activeTab,
                     modifier = Modifier.fillMaxSize()
                 )
             }

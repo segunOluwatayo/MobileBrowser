@@ -2,6 +2,7 @@ package com.example.mobilebrowser.ui.screens
 
 import Shortcut
 import ShortcutTile
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -14,6 +15,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.mobilebrowser.data.entity.ShortcutEntity
 import com.example.mobilebrowser.data.entity.ShortcutType
+import com.example.mobilebrowser.data.entity.TabEntity
+import com.example.mobilebrowser.ui.composables.TabListItem
 
 /**
  * HomeScreen displays a grid of shortcuts.
@@ -28,6 +31,8 @@ fun HomeScreen(
     shortcuts: List<ShortcutEntity>,
     onShortcutClick: (ShortcutEntity) -> Unit,
     onShortcutLongPressed: (ShortcutEntity) -> Unit,
+    onShowAllTabs: () -> Unit,
+    recentTab: TabEntity? = null,
     modifier: Modifier = Modifier
 ) {
     // Group shortcuts by type
@@ -51,7 +56,8 @@ fun HomeScreen(
                 text = "Pinned Shortcuts",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.padding(start = 16.dp, bottom = 8.dp, top = 8.dp)
+                modifier = Modifier
+                    .padding(start = 16.dp, bottom = 8.dp, top = 8.dp)
                     .align(Alignment.Start)
             )
 
@@ -78,7 +84,8 @@ fun HomeScreen(
                 text = "Frequently Visited",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.padding(start = 16.dp, bottom = 8.dp, top = 16.dp)
+                modifier = Modifier
+                    .padding(start = 16.dp, bottom = 8.dp, top = 16.dp)
                     .align(Alignment.Start)
             )
 
@@ -97,6 +104,42 @@ fun HomeScreen(
                     )
                 }
             }
+        }
+
+        // NEW: Resume browsing section
+        if (recentTab != null) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Resume browsing",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+                Text(
+                    text = "Show all",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.clickable { onShowAllTabs() }
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            // Display the recent tab card using your existing TabListItem composable.
+            TabListItem(
+                tab = recentTab,
+                isSelected = false,
+                isSelectionMode = false,
+                isDragging = false,
+                onTabClick = { /* Optionally navigate to or activate this tab */ },
+                onCloseTab = { /* Optionally handle tab close */ },
+                onBookmarkTab = { /* Optionally handle bookmarking */ },
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
         }
     }
 }
