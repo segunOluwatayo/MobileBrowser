@@ -337,7 +337,7 @@ fun BrowserContent(
                         }
                 ) {}
             }
-            // Keep GeckoView in memory even when overlays are active or homepage is shown
+            // CRITICAL CHANGE: Keep GeckoView in memory even when overlays are active or homepage is shown
             else {
                 key(geckoSession, currentUrl) {
                     // The GeckoView remains loaded but we toggle its visibility
