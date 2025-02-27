@@ -68,7 +68,6 @@ fun BrowserContent(
     currentDownloadRequest: GeckoDownloadDelegate.DownloadRequest?,
     onDismissDownloadConfirmationDialog: () -> Unit,
     isHomepageActive: Boolean,
-    // New parameter to know when we should keep the GeckoView visible
     isOverlayActive: Boolean,
     modifier: Modifier = Modifier,
     onGeckoViewCreated: (android.view.View) -> Unit,
@@ -337,53 +336,56 @@ fun BrowserContent(
                         }
                 ) {}
             }
-            // CRITICAL CHANGE: Keep GeckoView in memory even when overlays are active or homepage is shown
             else {
-                key(geckoSession, currentUrl) {
-                    // The GeckoView remains loaded but we toggle its visibility
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                    ) {
-                        // Always keep GeckoView in composition, but toggle visibility
-                        GeckoViewComponent(
-                            geckoSession = geckoSession,
-                            url = currentUrl,
-                            onUrlChange = { newUrl ->
-                                val normalizedUrl = if (newUrl == "about:blank") "" else newUrl
-                                if (!isEditing && normalizedUrl != currentUrl) {
-                                    onNavigate(normalizedUrl)
-                                }
-                            },
-                            onCanGoBackChange = onCanGoBackChange,
-                            onCanGoForwardChange = onCanGoForwardChange,
-                            onViewCreated = { view ->
-                                Log.d("BrowserContent", "GeckoView created, passing reference up")
-                                geckoViewReference = view
-                                // Pass the view up to the caller (MainActivity)
-                                onGeckoViewCreated(view)
-                            },
-                            onScrollStopped = { view ->
-                                // Use the active tab ID (if available) to update its thumbnail.
-                                activeTab?.id?.let { tabId ->
-                                    // Here we call our existing updateTabThumbnail method,
-                                    // which uses capturePixels() internally.
-                                    tabViewModel.updateTabThumbnail(tabId, view)
-                                }
-                            },
-                            // The web content is visible only when NOT on homepage AND when NO overlay is active
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .then(
-                                    if (isHomepageActive || isOverlayActive) {
-                                        Modifier.alpha(0f) // Invisible but still in memory
-                                    } else {
-                                        Modifier.alpha(1f) // Fully visible
+                // Keep layout structure by always adding a Box with weight
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                ) {
+                    // The key fix: Only add GeckoView to the composition when needed
+                    if (!isHomepageActive) {
+                        key(geckoSession, currentUrl) {
+                            // Only add GeckoView when not on homepage
+                            GeckoViewComponent(
+                                geckoSession = geckoSession,
+                                url = currentUrl,
+                                onUrlChange = { newUrl ->
+                                    val normalizedUrl = if (newUrl == "about:blank") "" else newUrl
+                                    if (!isEditing && normalizedUrl != currentUrl) {
+                                        onNavigate(normalizedUrl)
                                     }
-                                )
-                        )
+                                },
+                                onCanGoBackChange = onCanGoBackChange,
+                                onCanGoForwardChange = onCanGoForwardChange,
+                                onViewCreated = { view ->
+                                    Log.d("BrowserContent", "GeckoView created, passing reference up")
+                                    geckoViewReference = view
+                                    // Pass the view up to the caller (MainActivity)
+                                    onGeckoViewCreated(view)
+                                },
+                                onScrollStopped = { view ->
+                                    // Use the active tab ID (if available) to update its thumbnail.
+                                    activeTab?.id?.let { tabId ->
+                                        // Here we call our existing updateTabThumbnail method,
+                                        // which uses capturePixels() internally.
+                                        tabViewModel.updateTabThumbnail(tabId, view)
+                                    }
+                                },
+                                // When overlays are active, make GeckoView invisible
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .then(
+                                        if (isOverlayActive) {
+                                            Modifier.alpha(0f) // Invisible when overlay active
+                                        } else {
+                                            Modifier.alpha(1f) // Fully visible
+                                        }
+                                    )
+                            )
+                        }
                     }
+                    // No else branch needed - HomeScreen already rendered in background
                 }
             }
         }
