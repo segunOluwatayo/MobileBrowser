@@ -344,7 +344,14 @@ class MainActivity : ComponentActivity() {
                                             currentUrl = tab.url
                                             currentPageTitle = tab.title
                                             bookmarkViewModel.updateCurrentUrl(tab.url)
-                                            currentSession?.loadUri(tab.url)
+
+                                            // Check if this is a new tab that should show the homepage
+                                            if (tab.url.isBlank() || tab.url == "about:blank") {
+                                                isHomepageActive = true
+                                            } else {
+                                                isHomepageActive = false
+                                                currentSession?.loadUri(tab.url)
+                                            }
                                         }
                                         currentOverlay = OverlayScreen.None
                                     }

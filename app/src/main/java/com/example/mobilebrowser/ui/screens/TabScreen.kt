@@ -187,7 +187,7 @@ fun TabScreen(
                     TabListItemNewTabCard(
                         onClick = {
                             scope.launch {
-                                val newTabId = viewModel.createTab()
+                                val newTabId = viewModel.createTab(url = "", title = "New Tab")
                                 onTabSelected(newTabId)
                                 onNavigateBack()
                             }
