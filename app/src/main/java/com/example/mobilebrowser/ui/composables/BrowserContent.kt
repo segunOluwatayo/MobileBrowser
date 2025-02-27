@@ -77,7 +77,6 @@ fun BrowserContent(
 ) {
     var urlText by remember { mutableStateOf(currentUrl) }
     var isEditing by remember { mutableStateOf(false) }
-    var showTabMenu by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
     val settingsViewModel: com.example.mobilebrowser.ui.viewmodels.SettingsViewModel =
@@ -181,55 +180,23 @@ fun BrowserContent(
                 }
 
                 if (!isEditing) {
-                    // Tab button with counter and dropdown menu.
-                    Box {
-                        IconButton(onClick = { showTabMenu = true }) {
-                            Box(
-                                modifier = Modifier
-                                    .size(28.dp)
-                                    .background(
-                                        MaterialTheme.colorScheme.primary,
-                                        shape = MaterialTheme.shapes.small
-                                    )
-                                    .clip(MaterialTheme.shapes.small),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = tabCount.toString(),
-                                    color = MaterialTheme.colorScheme.onPrimary,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    modifier = Modifier.padding(4.dp)
+                    // Tab button that directly opens the tabs view.
+                    IconButton(onClick = { onShowTabs() }) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .background(
+                                    MaterialTheme.colorScheme.primary,
+                                    shape = MaterialTheme.shapes.small
                                 )
-                            }
-                        }
-
-                        DropdownMenu(
-                            expanded = showTabMenu,
-                            onDismissRequest = { showTabMenu = false }
+                                .clip(MaterialTheme.shapes.small),
+                            contentAlignment = Alignment.Center
                         ) {
-                            DropdownMenuItem(
-                                text = { Text("View Tabs") },
-                                onClick = {
-                                    showTabMenu = false
-                                    onShowTabs()
-                                },
-                                leadingIcon = { Icon(Icons.Default.Tab, contentDescription = null) }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("New Tab") },
-                                onClick = {
-                                    showTabMenu = false
-                                    onNewTab()
-                                },
-                                leadingIcon = { Icon(Icons.Default.Add, contentDescription = null) }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Close All Tabs") },
-                                onClick = {
-                                    showTabMenu = false
-                                    onCloseAllTabs()
-                                },
-                                leadingIcon = { Icon(Icons.Default.Close, contentDescription = null) }
+                            Text(
+                                text = tabCount.toString(),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(4.dp)
                             )
                         }
                     }
@@ -370,7 +337,7 @@ fun BrowserContent(
                         }
                 ) {}
             }
-            // CRITICAL CHANGE: Keep GeckoView in memory even when overlays are active or homepage is shown
+            // Keep GeckoView in memory even when overlays are active or homepage is shown
             else {
                 key(geckoSession, currentUrl) {
                     // The GeckoView remains loaded but we toggle its visibility
