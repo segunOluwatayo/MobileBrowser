@@ -112,6 +112,12 @@ fun BrowserContent(
         focusManager.clearFocus()
     }
 
+    LaunchedEffect(currentUrl, isHomepageActive) {
+        if (!isEditing) {
+            urlText = currentUrl
+        }
+    }
+
     Box(modifier = modifier.fillMaxSize()) {
         // Render the HomeScreen as a background layer with a theme-based background.
         if (isHomepageActive) {
