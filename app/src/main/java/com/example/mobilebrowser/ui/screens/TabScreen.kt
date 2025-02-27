@@ -25,6 +25,7 @@ import kotlinx.coroutines.launch
 fun TabScreen(
     onNavigateBack: () -> Unit,
     onTabSelected: (Long) -> Unit,
+    onNewTabHome: () -> Unit,
     viewModel: TabViewModel = hiltViewModel(),
     bookmarkViewModel: BookmarkViewModel = hiltViewModel()
 ) {
@@ -188,8 +189,7 @@ fun TabScreen(
                     TabListItemNewTabCard(
                         onClick = {
                             scope.launch {
-                                val newTabId = viewModel.createTab(url = "", title = "New Tab")
-                                onTabSelected(newTabId)
+                                onNewTabHome()
                                 onNavigateBack()
                             }
                         }

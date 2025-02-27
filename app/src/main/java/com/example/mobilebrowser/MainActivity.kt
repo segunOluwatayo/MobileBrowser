@@ -227,20 +227,58 @@ class MainActivity : ComponentActivity() {
                     geckoSession = session,
                     onNavigate = { url ->
                         if (url.isNotBlank()) {
-                            isHomepageActive = false
-                            currentUrl = url
-                            bookmarkViewModel.updateCurrentUrl(url)
-                            tabViewModel.updateActiveTabContent(url, currentPageTitle)
-                            if (currentPageTitle.isNotBlank() && currentPageTitle != "Loading...") {
-                                recordHistory(url, currentPageTitle)
+                            if (isHomepageActive) {
+                                // We're on the homepage. Create a new tab for the search query.
+                                scope.launch {
+                                    // Create a new tab with the search URL.
+                                    val newTabId = tabViewModel.createTab(url = url, title = "Loading...")
+                                    // Create a new session for the new tab.
+                                    currentSession = sessionManager.getOrCreateSession(
+                                        tabId = newTabId,
+                                        url = url,
+                                        onUrlChange = { newUrl ->
+                                            currentUrl = newUrl
+                                            bookmarkViewModel.updateCurrentUrl(newUrl)
+                                            tabViewModel.updateActiveTabContent(newUrl, currentPageTitle)
+                                        },
+                                        onTitleChange = { newTitle ->
+                                            if (newTitle.isNotBlank() && newTitle != "Loading...") {
+                                                currentPageTitle = newTitle
+                                                tabViewModel.updateActiveTabContent(url, newTitle)
+                                                recordHistory(url, newTitle)
+                                                if (newTitle != "New Tab" && newTitle != "about:blank") {
+                                                    scope.launch {
+                                                        delay(1000)
+                                                        safelyCaptureThumbnail(newTabId)
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        onCanGoBack = { canGoBack = it },
+                                        onCanGoForward = { canGoForward = it },
+                                        downloadDelegate = geckoDownloadDelegate
+                                    )
+                                    tabViewModel.switchToTab(newTabId)
+                                    currentUrl = url
+                                    isHomepageActive = false
+                                }
+                            } else {
+                                // Not on homepage: update the current active tab.
+                                isHomepageActive = false
+                                currentUrl = url
+                                bookmarkViewModel.updateCurrentUrl(url)
+                                tabViewModel.updateActiveTabContent(url, currentPageTitle)
+                                if (currentPageTitle.isNotBlank() && currentPageTitle != "Loading...") {
+                                    recordHistory(url, currentPageTitle)
+                                }
                             }
                         } else {
-                            // If the URL is blank (or normalized to blank), show the homepage overlay.
+                            // When url is blank, revert to homepage.
                             isHomepageActive = true
                             currentUrl = url
                         }
                     },
-                    onBack = { session.goBack() },
+                            onBack = { session.goBack() },
                     isHomepageActive = isHomepageActive,
                     onForward = { session.goForward() },
                     onReload = { session.reload() },
@@ -277,37 +315,67 @@ class MainActivity : ComponentActivity() {
                     },
                     onNewTab = {
                         scope.launch {
-                            // Create a new tab and session.
-                            val newTabId = tabViewModel.createTab(url = "", title = "New Tab")
-                            val newSession = sessionManager.getOrCreateSession(
-                                tabId = newTabId,
-                                url = "",
-                                onUrlChange = { newUrl ->
-                                    currentUrl = newUrl
-                                    bookmarkViewModel.updateCurrentUrl(newUrl)
-                                    tabViewModel.updateActiveTabContent(newUrl, currentPageTitle)
-                                },
-                                onTitleChange = { newTitle ->
-                                    if (newTitle.isNotBlank() && newTitle != "Loading...") {
-                                        currentPageTitle = newTitle
-                                        tabViewModel.updateActiveTabContent(currentUrl, newTitle)
-                                        recordHistory(currentUrl, newTitle)
-
-                                        // Schedule a safe thumbnail capture when title changes
-                                        if (newTitle != "New Tab" && newTitle != "about:blank") {
-                                            scope.launch {
-                                                delay(1000)  // Let the page finish rendering
-                                                safelyCaptureThumbnail(newTabId)
+                            // Check if a blank tab already exists.
+                            val existingBlankTab = tabsState.value.find { it.url.isBlank() }
+                            if (existingBlankTab != null) {
+                                // Reuse the existing blank tab.
+                                tabViewModel.switchToTab(existingBlankTab.id)
+                                currentSession = sessionManager.getOrCreateSession(
+                                    tabId = existingBlankTab.id,
+                                    url = "",
+                                    onUrlChange = { newUrl ->
+                                        currentUrl = newUrl
+                                        bookmarkViewModel.updateCurrentUrl(newUrl)
+                                        tabViewModel.updateActiveTabContent(newUrl, currentPageTitle)
+                                    },
+                                    onTitleChange = { newTitle ->
+                                        if (newTitle.isNotBlank() && newTitle != "Loading...") {
+                                            currentPageTitle = newTitle
+                                            tabViewModel.updateActiveTabContent(currentUrl, newTitle)
+                                            recordHistory(currentUrl, newTitle)
+                                            if (newTitle != "New Tab" && newTitle != "about:blank") {
+                                                scope.launch {
+                                                    delay(1000)
+                                                    safelyCaptureThumbnail(existingBlankTab.id)
+                                                }
                                             }
                                         }
-                                    }
-                                },
-                                onCanGoBack = { canGoBack = it },
-                                onCanGoForward = { canGoForward = it },
-                                downloadDelegate = geckoDownloadDelegate  // Pass the delegate
-                            )
-                            currentSession = newSession
-                            tabViewModel.switchToTab(newTabId)
+                                    },
+                                    onCanGoBack = { canGoBack = it },
+                                    onCanGoForward = { canGoForward = it },
+                                    downloadDelegate = geckoDownloadDelegate
+                                )
+                            } else {
+                                // Otherwise, create a new blank tab.
+                                val newTabId = tabViewModel.createTab(url = "", title = "New Tab")
+                                val newSession = sessionManager.getOrCreateSession(
+                                    tabId = newTabId,
+                                    url = "",
+                                    onUrlChange = { newUrl ->
+                                        currentUrl = newUrl
+                                        bookmarkViewModel.updateCurrentUrl(newUrl)
+                                        tabViewModel.updateActiveTabContent(newUrl, currentPageTitle)
+                                    },
+                                    onTitleChange = { newTitle ->
+                                        if (newTitle.isNotBlank() && newTitle != "Loading...") {
+                                            currentPageTitle = newTitle
+                                            tabViewModel.updateActiveTabContent(currentUrl, newTitle)
+                                            recordHistory(currentUrl, newTitle)
+                                            if (newTitle != "New Tab" && newTitle != "about:blank") {
+                                                scope.launch {
+                                                    delay(1000)
+                                                    safelyCaptureThumbnail(newTabId)
+                                                }
+                                            }
+                                        }
+                                    },
+                                    onCanGoBack = { canGoBack = it },
+                                    onCanGoForward = { canGoForward = it },
+                                    downloadDelegate = geckoDownloadDelegate
+                                )
+                                currentSession = newSession
+                                tabViewModel.switchToTab(newTabId)
+                            }
                             currentUrl = ""
                             currentPageTitle = "New Tab"
                             isHomepageActive = true
@@ -363,6 +431,13 @@ class MainActivity : ComponentActivity() {
                                         }
                                         currentOverlay = OverlayScreen.None
                                     }
+                                },
+                                onNewTabHome = {
+                                    // Simply set homepage state; no new blank tab is created.
+                                    isHomepageActive = true
+                                    currentUrl = ""
+                                    currentPageTitle = "New Tab"
+                                    currentOverlay = OverlayScreen.None
                                 }
                             )
                         }
