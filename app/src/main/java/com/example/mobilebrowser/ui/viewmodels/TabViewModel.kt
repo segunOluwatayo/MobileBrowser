@@ -90,22 +90,22 @@ class TabViewModel @Inject constructor(
         }
     }
 
-    private fun initializeDefaultTab() {
-        viewModelScope.launch {
-            try {
-                val count = repository.getTabCount().first()
-                if (count == 0) {
-                    Log.d("TabViewModel", "Initializing with default tab...")
-                    val newTabId = createTab()
-                    switchToTab(newTabId)  // Ensuring it's set as active
-                    _isInitialized.value = true
-                }
-            } catch (e: Exception) {
-                Log.e("TabViewModel", "Failed to initialize browser: ${e.message}")
-                _error.value = "Failed to initialize browser: ${e.message}"
-            }
-        }
-    }
+//    private fun initializeDefaultTab() {
+//        viewModelScope.launch {
+//            try {
+//                val count = repository.getTabCount().first()
+//                if (count == 0) {
+//                    Log.d("TabViewModel", "Initializing with default tab...")
+//                    val newTabId = createTab()
+//                    switchToTab(newTabId)  // Ensuring it's set as active
+//                    _isInitialized.value = true
+//                }
+//            } catch (e: Exception) {
+//                Log.e("TabViewModel", "Failed to initialize browser: ${e.message}")
+//                _error.value = "Failed to initialize browser: ${e.message}"
+//            }
+//        }
+//    }
 
     suspend fun createTab(url: String = "", title: String = "New Tab"): Long {
         return try {
@@ -168,7 +168,7 @@ class TabViewModel @Inject constructor(
 
                 // If no open tabs remain, create a new one.
                 if (tabCount.value == 0) {
-                    createTab()
+//                    createTab()
                 }
             } catch (e: Exception) {
                 Log.e("TabViewModel", "Failed to close tab: ${e.message}")
