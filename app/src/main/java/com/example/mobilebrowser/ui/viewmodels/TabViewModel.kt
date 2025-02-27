@@ -84,7 +84,7 @@ class TabViewModel @Inject constructor(
     init {
         // Initialize browser with default tab on startup
         viewModelScope.launch {
-            initializeDefaultTab()
+//            initializeDefaultTab()
             // Schedule auto-close worker based on the current policy at startup.
             scheduleTabAutoClose(currentTabPolicy.value)
         }
