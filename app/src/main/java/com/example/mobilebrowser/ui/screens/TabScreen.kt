@@ -34,6 +34,7 @@ fun TabScreen(
     val tabCount by viewModel.tabCount.collectAsState()
     var showMenu by remember { mutableStateOf(false) }
     val gridState = rememberLazyGridState()
+    val displayTabs = tabs.filter { it.url.isNotBlank() }
 
     val scope = rememberCoroutineScope()
 
@@ -109,7 +110,7 @@ fun TabScreen(
             )
         }
     ) { padding ->
-        if (tabs.isEmpty()) {
+        if (displayTabs.isEmpty()) {
             // Empty state - show prompt to create a new tab
             Box(
                 modifier = Modifier

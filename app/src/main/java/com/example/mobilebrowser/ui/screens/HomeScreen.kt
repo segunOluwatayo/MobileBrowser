@@ -109,7 +109,7 @@ fun HomeScreen(
         }
 
         // Resume browsing section - only if recentTab is not a new tab
-        if (recentTab != null && recentTab.title.isNotEmpty() && recentTab.title != "New Tab") {
+        if (recentTab != null) {
             Spacer(modifier = Modifier.height(16.dp))
             Row(
                 modifier = Modifier

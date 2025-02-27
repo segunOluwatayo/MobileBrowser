@@ -80,6 +80,10 @@ class MainActivity : ComponentActivity() {
 
         val bookmarkViewModel: BookmarkViewModel = hiltViewModel()
         val tabViewModel: TabViewModel = hiltViewModel()
+        val tabsState = tabViewModel.tabs.collectAsState()
+        val displayTabCount by remember {
+            derivedStateOf { tabsState.value.count { it.url.isNotBlank() } }
+        }
         val historyViewModel: HistoryViewModel = hiltViewModel()
         val shortcutViewModel: ShortcutViewModel = hiltViewModel()
         val downloadViewModel: DownloadViewModel = hiltViewModel()
@@ -255,7 +259,8 @@ class MainActivity : ComponentActivity() {
                     canGoBack = canGoBack,
                     canGoForward = canGoForward,
                     currentUrl = currentUrl,
-                    tabCount = tabViewModel.tabCount.collectAsState().value,
+//                    tabCount = tabViewModel.tabCount.collectAsState().value,
+                    tabCount = displayTabCount,
                     onGeckoViewCreated = { view ->
                         Log.d("MainActivity", "Received GeckoView reference: ${view::class.java}")
                         geckoViewReference = view
@@ -311,6 +316,9 @@ class MainActivity : ComponentActivity() {
                     onCloseAllTabs = {
                         sessionManager.removeAllSessions()
                         tabViewModel.closeAllTabs()
+                        isHomepageActive = true
+                        currentUrl = ""
+                        currentPageTitle = "New Tab"
                     },
                     onCanGoBackChange = { canGoBack = it },
                     onCanGoForwardChange = { canGoForward = it },
