@@ -17,6 +17,7 @@ import com.example.mobilebrowser.data.entity.ShortcutEntity
 import com.example.mobilebrowser.data.entity.ShortcutType
 import com.example.mobilebrowser.data.entity.TabEntity
 import com.example.mobilebrowser.ui.composables.TabListItem
+import com.example.mobilebrowser.ui.homepage.RecentTabItem
 
 /**
  * HomeScreen displays a grid of shortcuts.
@@ -32,6 +33,7 @@ fun HomeScreen(
     onShortcutClick: (ShortcutEntity) -> Unit,
     onShortcutLongPressed: (ShortcutEntity) -> Unit,
     onShowAllTabs: () -> Unit,
+    onRecentTabClick: (TabEntity) -> Unit,
     recentTab: TabEntity? = null,
     modifier: Modifier = Modifier
 ) {
@@ -106,8 +108,8 @@ fun HomeScreen(
             }
         }
 
-        // NEW: Resume browsing section
-        if (recentTab != null) {
+        // Resume browsing section - only if recentTab is not a new tab
+        if (recentTab != null && recentTab.title.isNotEmpty() && recentTab.title != "New Tab") {
             Spacer(modifier = Modifier.height(16.dp))
             Row(
                 modifier = Modifier
@@ -129,15 +131,9 @@ fun HomeScreen(
                 )
             }
             Spacer(modifier = Modifier.height(8.dp))
-            // Display the recent tab card using your existing TabListItem composable.
-            TabListItem(
+            RecentTabItem(
                 tab = recentTab,
-                isSelected = false,
-                isSelectionMode = false,
-                isDragging = false,
-                onTabClick = { /* Optionally navigate to or activate this tab */ },
-                onCloseTab = { /* Optionally handle tab close */ },
-                onBookmarkTab = { /* Optionally handle bookmarking */ },
+                onClick = { onRecentTabClick(recentTab) },
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
         }

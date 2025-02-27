@@ -129,7 +129,9 @@ fun BrowserContent(
                         selectedShortcut = shortcut
                     },
                     onShowAllTabs = { onShowTabs() },
-
+                    onRecentTabClick = { activeTab ->
+                        onNavigate(activeTab.url)
+                    },
                     recentTab = activeTab,
                     modifier = Modifier.fillMaxSize()
                 )
