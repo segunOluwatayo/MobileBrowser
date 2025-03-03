@@ -84,28 +84,28 @@ class TabViewModel @Inject constructor(
     init {
         // Initialize browser with default tab on startup
         viewModelScope.launch {
-//            initializeDefaultTab()
+            initializeDefaultTab()
             // Schedule auto-close worker based on the current policy at startup.
             scheduleTabAutoClose(currentTabPolicy.value)
         }
     }
 
-//    private fun initializeDefaultTab() {
-//        viewModelScope.launch {
-//            try {
-//                val count = repository.getTabCount().first()
-//                if (count == 0) {
-//                    Log.d("TabViewModel", "Initializing with default tab...")
-//                    val newTabId = createTab()
-//                    switchToTab(newTabId)  // Ensuring it's set as active
-//                    _isInitialized.value = true
-//                }
-//            } catch (e: Exception) {
-//                Log.e("TabViewModel", "Failed to initialize browser: ${e.message}")
-//                _error.value = "Failed to initialize browser: ${e.message}"
-//            }
-//        }
-//    }
+    private fun initializeDefaultTab() {
+        viewModelScope.launch {
+            try {
+                val count = repository.getTabCount().first()
+                if (count == 0) {
+                    Log.d("TabViewModel", "Initializing with default tab...")
+                    val newTabId = createTab()
+                    switchToTab(newTabId)  // Ensuring it's set as active
+                    _isInitialized.value = true
+                }
+            } catch (e: Exception) {
+                Log.e("TabViewModel", "Failed to initialize browser: ${e.message}")
+                _error.value = "Failed to initialize browser: ${e.message}"
+            }
+        }
+    }
 
     suspend fun createTab(url: String = "", title: String = "New Tab"): Long {
         return try {
@@ -121,8 +121,15 @@ class TabViewModel @Inject constructor(
     fun switchToTab(tabId: Long) {
         viewModelScope.launch {
             try {
-                repository.switchToTab(tabId)
-                Log.d("TabViewModel", "Switched to tab: $tabId")
+                // Get the current tab
+                val tab = repository.getTabById(tabId)
+                if (tab != null) {
+                    // Update last visited time
+                    repository.updateTab(tab.copy(lastVisited = Date()))
+                    // Activate this tab
+                    repository.switchToTab(tabId)
+                    Log.d("TabViewModel", "Switched to tab: $tabId, updated lastVisited timestamp")
+                }
             } catch (e: Exception) {
                 Log.e("TabViewModel", "Failed to switch tab: ${e.message}")
                 _error.value = "Failed to switch tab: ${e.message}"

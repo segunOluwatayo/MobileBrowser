@@ -144,6 +144,10 @@ fun BrowserContent(
                     onRecentTabClick = { activeTab ->
                         onNavigate(activeTab.url)
                     },
+                    onRestoreDefaultShortcuts = {
+                        // Call the new method we added
+                        shortcutViewModel.restoreDefaultShortcuts()
+                    },
                     recentTab = activeTab,
                     modifier = Modifier.fillMaxSize()
                 )
@@ -406,6 +410,8 @@ fun BrowserContent(
                 }
             }
         }
+        // Add after the Column definition in BrowserContent:
+        Log.d("BrowserContent", "Rendering with isHomepageActive=$isHomepageActive, activeTab=$activeTab")
 
         selectedShortcut?.let { shortcut ->
             val shortcutEntity = ShortcutEntity(

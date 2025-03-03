@@ -340,4 +340,48 @@ class ShortcutViewModel @Inject constructor(
             }
         }
     }
+
+    fun restoreDefaultShortcuts() {
+        viewModelScope.launch {
+            // Define default shortcuts
+            val defaultShortcuts = listOf(
+                Triple("Google", "https://www.google.com", R.drawable.google_icon),
+                Triple("Bing", "https://www.bing.com", R.drawable.bing_icon),
+                Triple("DuckDuckGo", "https://www.duckduckgo.com", R.drawable.duckduckgo_icon)
+            )
+
+            // Get all current shortcuts to check if defaults exist
+            val currentShortcuts = shortcutRepository.getAllShortcuts().first()
+
+            // Process each default shortcut
+            for ((label, url, iconRes) in defaultShortcuts) {
+                // Check if the shortcut exists
+                val existingShortcut = currentShortcuts.find { it.url == url }
+
+                if (existingShortcut != null) {
+                    // Shortcut exists but might be unpinned - update it to be pinned
+                    if (!existingShortcut.isPinned) {
+                        shortcutRepository.updateShortcut(existingShortcut.copy(
+                            isPinned = true,
+                            timestamp = System.currentTimeMillis()
+                        ))
+                        Log.d("ShortcutViewModel", "Repinned existing shortcut: $label")
+                    }
+                } else {
+                    // Shortcut doesn't exist - create a new one
+                    val newShortcut = ShortcutEntity(
+                        label = label,
+                        url = url,
+                        iconRes = iconRes,
+                        isPinned = true,
+                        shortcutType = ShortcutType.MANUAL,
+                        timestamp = System.currentTimeMillis()
+                    )
+                    shortcutRepository.insertShortcut(newShortcut)
+                    Log.d("ShortcutViewModel", "Created new default shortcut: $label")
+                }
+            }
+        }
+    }
+
 }

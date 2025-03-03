@@ -432,7 +432,26 @@ class MainActivity : ComponentActivity() {
                                                 isHomepageActive = true
                                             } else {
                                                 isHomepageActive = false
-                                                currentSession?.loadUri(tab.url)
+
+                                                // Get the current time and calculate tab age
+                                                val now = System.currentTimeMillis()
+                                                val lastVisited = tab.lastVisited.time
+                                                val tabAge = now - lastVisited
+
+                                                // 24 hours in milliseconds
+                                                val staleThreshold = 24 * 60 * 60 * 1000L
+                                                val isStale = tabAge > staleThreshold
+
+                                                // Switch to the session without explicitly reloading
+                                                currentSession = sessionManager.switchToSession(tabId)
+
+                                                // Only reload if the tab is stale (older than 24 hours)
+                                                if (isStale) {
+                                                    Log.d("MainActivity", "Tab $tabId is stale, reloading content")
+                                                    currentSession?.loadUri(tab.url)
+                                                } else {
+                                                    Log.d("MainActivity", "Tab $tabId is not stale, keeping content as is")
+                                                }
                                             }
                                         }
                                         currentOverlay = OverlayScreen.None
