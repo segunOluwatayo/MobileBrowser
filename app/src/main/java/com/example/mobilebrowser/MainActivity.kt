@@ -181,7 +181,7 @@ class MainActivity : ComponentActivity() {
                     tabId = tab.id,
                     url = tab.url,
                     onUrlChange = { newUrl ->
-                        currentUrl = newUrl
+                        currentUrl = if (isHomepageActive) "" else newUrl
                         bookmarkViewModel.updateCurrentUrl(newUrl)
                         tabViewModel.updateActiveTabContent(newUrl, currentPageTitle)
                     },
@@ -207,7 +207,13 @@ class MainActivity : ComponentActivity() {
                     downloadDelegate = geckoDownloadDelegate  // Pass the delegate
                 )
                 // Update UI state with the tab's stored URL and title.
-                currentUrl = tab.url
+                if (isHomepageActive) {
+                    currentUrl = ""
+                } else {
+                    currentUrl = tab.url
+                }
+                currentPageTitle = tab.title
+//                currentUrl = tab.url
                 currentPageTitle = tab.title
 
                 // Schedule a safe thumbnail capture after the tab is loaded

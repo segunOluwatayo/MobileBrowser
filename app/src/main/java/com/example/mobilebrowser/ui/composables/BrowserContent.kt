@@ -114,7 +114,13 @@ fun BrowserContent(
 
     LaunchedEffect(currentUrl, isHomepageActive) {
         if (!isEditing) {
-            urlText = currentUrl
+            urlText = if (isHomepageActive) "" else currentUrl
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (isHomepageActive && !isEditing) {
+            urlText = ""
         }
     }
 
