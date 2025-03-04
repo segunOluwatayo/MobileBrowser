@@ -19,6 +19,37 @@ class HistoryRepository @Inject constructor(
     fun searchHistory(query: String): Flow<List<HistoryEntity>> =
         historyDao.searchHistory("%$query%")
 
+    // Get history entries for a specific date range
+    fun getHistoryInRange(startDate: Date, endDate: Date): Flow<List<HistoryEntity>> =
+        historyDao.getHistoryInRange(startDate, endDate)
+
+    // Get today's history
+    fun getTodayHistory(): Flow<List<HistoryEntity>> {
+        val calendar = Calendar.getInstance()
+        val endDate = calendar.time
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        val startDate = calendar.time
+        return historyDao.getHistoryInRange(startDate, endDate)
+    }
+
+    // Get last week's history (excluding today)
+    fun getLastWeekHistory(): Flow<List<HistoryEntity>> {
+        val calendar = Calendar.getInstance()
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        val todayStart = calendar.time
+
+        calendar.add(Calendar.DAY_OF_YEAR, -7)
+        val weekStart = calendar.time
+
+        return historyDao.getHistoryInRange(weekStart, todayStart)
+    }
+
     // Add or update history entry
     suspend fun addHistoryEntry(url: String, title: String, favicon: String? = null) {
         val existingEntry = historyDao.getHistoryByUrl(url)
@@ -83,10 +114,6 @@ class HistoryRepository @Inject constructor(
         val endDate = calendar.time
         historyDao.deleteHistoryInRange(startDate, endDate)
     }
-
-    // Get history for specific time range
-    fun getHistoryInRange(startDate: Date, endDate: Date): Flow<List<HistoryEntity>> =
-        historyDao.getHistoryInRange(startDate, endDate)
 
     // Check if URL exists in history
     suspend fun isUrlInHistory(url: String): Boolean =

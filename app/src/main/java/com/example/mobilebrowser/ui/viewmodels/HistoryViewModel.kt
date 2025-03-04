@@ -9,6 +9,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.util.Calendar
 import java.util.Date
 import javax.inject.Inject
 
@@ -20,13 +21,70 @@ class HistoryViewModel @Inject constructor(
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
-    // History entries filtered by search query
+    // Error state
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
+
+    // Today's date range
+    private val todayStart = Calendar.getInstance().apply {
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }.time
+
+    private val now = Date()
+
+    // Last week's date range (excluding today)
+    private val lastWeekStart = Calendar.getInstance().apply {
+        add(Calendar.DAY_OF_YEAR, -7)
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }.time
+
+    // All history entries for combined display and debugging
+    private val allHistoryEntries = repository.getAllHistory()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    // Today's history
+    val todayHistory = allHistoryEntries
+        .map { entries ->
+            entries.filter { entry ->
+                entry.lastVisited.time >= todayStart.time
+            }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    // Last week's history (excluding today)
+    val lastWeekHistory = allHistoryEntries
+        .map { entries ->
+            entries.filter { entry ->
+                entry.lastVisited.time < todayStart.time && entry.lastVisited.time >= lastWeekStart.time
+            }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    // Search results
     @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
-    val historyEntries = _searchQuery
+    val searchResults = _searchQuery
         .debounce(300L) // Debounce search input
         .flatMapLatest { query ->
             if (query.isBlank()) {
-                repository.getAllHistory()
+                flowOf(emptyList())
             } else {
                 repository.searchHistory(query)
             }
@@ -44,10 +102,6 @@ class HistoryViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
-
-    // Error state
-    private val _error = MutableStateFlow<String?>(null)
-    val error: StateFlow<String?> = _error.asStateFlow()
 
     // Update search query
     fun updateSearchQuery(query: String) {
@@ -95,6 +149,11 @@ class HistoryViewModel @Inject constructor(
     // Clear error
     fun clearError() {
         _error.value = null
+    }
+
+    // Expose all history for debugging purposes
+    fun getAllHistoryForDebug(): Flow<List<HistoryEntity>> {
+        return repository.getAllHistory()
     }
 }
 
