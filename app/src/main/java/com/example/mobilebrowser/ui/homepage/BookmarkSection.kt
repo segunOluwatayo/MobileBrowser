@@ -21,17 +21,19 @@ fun BookmarkSection(
     Column(modifier = modifier.padding(horizontal = 16.dp)) {
         // Header with "Bookmarks" title and "See All" clickable text.
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
                 text = "Bookmarks",
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.secondary
+                color = MaterialTheme.colorScheme.onBackground
             )
             Text(
-                text = "See All",
-                style = MaterialTheme.typography.bodyMedium,
+                text = "Show All",
+                style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.clickable { onSeeAllClick() }
             )

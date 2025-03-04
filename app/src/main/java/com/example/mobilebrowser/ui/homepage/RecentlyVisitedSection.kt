@@ -44,7 +44,7 @@ fun RecentlyVisitedSection(
         ) {
             Text(
                 text = "Recently visited",
-                style = MaterialTheme.typography.headlineMedium,
+                style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onBackground
             )
             Text(

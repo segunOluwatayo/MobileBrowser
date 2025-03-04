@@ -97,7 +97,7 @@ fun HomeScreen(
             Text(
                 text = "Pinned Shortcuts",
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.secondary,
+                color = MaterialTheme.colorScheme.onBackground,
             )
             if (pinnedShortcuts.isEmpty()) {
                 Button(
@@ -152,7 +152,7 @@ fun HomeScreen(
             Text(
                 text = "Frequently Visited",
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.secondary,
+                color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier
                     .padding(start = 16.dp, bottom = 8.dp, top = 16.dp)
                     .align(Alignment.Start)
@@ -186,11 +186,11 @@ fun HomeScreen(
                 Text(
                     text = "Resume browsing",
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.secondary
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
                     text = "Show all",
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.clickable { onShowAllTabs() }
                 )
