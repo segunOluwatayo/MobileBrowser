@@ -7,7 +7,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -18,6 +21,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.example.mobilebrowser.R
 import com.example.mobilebrowser.data.entity.HistoryEntity
 import java.net.URI
 
@@ -107,21 +111,31 @@ private fun HistoryItem(
             modifier = Modifier
                 .size(40.dp)
                 .clip(CircleShape)
-                .background(if (historyEntry.favicon == null) domainColor else Color.Transparent),
+                .background(domainColor),
             contentAlignment = Alignment.Center
         ) {
-            if (historyEntry.favicon != null) {
-                AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(historyEntry.favicon)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Fit
-                )
-            } else {
-                // Fallback with first letter of domain
+            // Generate favicon URL if not present
+            val faviconUrl = remember(historyEntry.url) {
+                historyEntry.favicon ?: "https://$domain/favicon.ico"
+            }
+
+            // Track image loading state
+            var imageLoaded by remember { mutableStateOf(false) }
+
+            AsyncImage(
+                model = ImageRequest.Builder(context)
+                    .data(faviconUrl)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize().padding(8.dp),
+                contentScale = ContentScale.Fit,
+                onSuccess = { imageLoaded = true },
+                onError = { imageLoaded = false }
+            )
+
+            // Show the letter only when image hasn't loaded
+            if (!imageLoaded) {
                 Text(
                     text = domain.take(1).uppercase(),
                     style = MaterialTheme.typography.titleMedium,
