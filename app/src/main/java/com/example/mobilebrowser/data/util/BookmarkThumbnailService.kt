@@ -6,6 +6,7 @@ import android.net.Uri
 import android.util.Log
 import com.example.mobilebrowser.data.entity.BookmarkEntity
 import com.example.mobilebrowser.data.repository.BookmarkRepository
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -26,7 +27,7 @@ import kotlin.coroutines.resumeWithException
  */
 @Singleton
 class BookmarkThumbnailService @Inject constructor(
-    private val context: Context,
+    @ApplicationContext private val context: Context,
     private val bookmarkRepository: BookmarkRepository
 ) {
     private val TAG = "BookmarkThumbnailService"
