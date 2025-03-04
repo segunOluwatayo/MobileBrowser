@@ -37,6 +37,14 @@ class HistoryViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
+    // Recent history entries
+    val recentHistory = repository.getRecentHistory()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
     // Error state
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()

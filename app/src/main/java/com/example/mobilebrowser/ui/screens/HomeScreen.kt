@@ -9,6 +9,8 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
@@ -24,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.mobilebrowser.data.entity.BookmarkEntity
+import com.example.mobilebrowser.data.entity.HistoryEntity
 import com.example.mobilebrowser.data.entity.ShortcutEntity
 import com.example.mobilebrowser.data.entity.ShortcutType
 import com.example.mobilebrowser.data.entity.TabEntity
@@ -31,6 +34,7 @@ import com.example.mobilebrowser.ui.composables.TabListItem
 import com.example.mobilebrowser.ui.homepage.BookmarkSection
 import com.example.mobilebrowser.ui.homepage.BookmarkTile
 import com.example.mobilebrowser.ui.homepage.RecentTabItem
+import com.example.mobilebrowser.ui.homepage.RecentlyVisitedSection
 import com.example.mobilebrowser.ui.viewmodels.BookmarkViewModel
 import com.example.mobilebrowser.ui.viewmodels.ShortcutViewModel
 
@@ -42,7 +46,6 @@ import com.example.mobilebrowser.ui.viewmodels.ShortcutViewModel
  * @param onShortcutClick Callback when a shortcut is clicked.
  * @param modifier Modifier for styling.
  */
-// In HomeScreen.kt, update the function signature
 @Composable
 fun HomeScreen(
     shortcuts: List<ShortcutEntity>,
@@ -53,6 +56,9 @@ fun HomeScreen(
     onRestoreDefaultShortcuts: () -> Unit,
     onShowBookmarks: () -> Unit,
     recentTab: TabEntity? = null,
+    recentHistory: List<HistoryEntity>,
+    onRecentHistoryClick: (HistoryEntity) -> Unit,
+    onShowAllHistory: () -> Unit,
     bookmarkViewModel: BookmarkViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
@@ -63,8 +69,14 @@ fun HomeScreen(
     val pinnedShortcuts = shortcuts.filter { it.isPinned }
     val dynamicShortcuts = shortcuts.filter { !it.isPinned && it.shortcutType == ShortcutType.DYNAMIC }
 
+    // Create a scroll state that will allow the column to be scrolled
+    val scrollState = rememberScrollState()
+
     Column(
-        modifier = modifier.padding(top = 72.dp),
+        modifier = modifier
+            .padding(top = 72.dp)
+            // Add verticalScroll modifier to make the column scrollable
+            .verticalScroll(scrollState),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
@@ -120,20 +132,19 @@ fun HomeScreen(
                 )
             }
         } else {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(4),
-                contentPadding = PaddingValues(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                items(pinnedShortcuts) { shortcut ->
-                    ShortcutTile(
-                        shortcut = shortcut,
-                        onClick = { onShortcutClick(shortcut) },
-                        onLongPress = { onShortcutLongPressed(shortcut) }
-                    )
-                }
+            // Use a regular Grid instead of LazyVerticalGrid to avoid nested scrolling issues
+            BoxedGrid(
+                items = pinnedShortcuts,
+                columns = 4,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) { shortcut ->
+                ShortcutTile(
+                    shortcut = shortcut,
+                    onClick = { onShortcutClick(shortcut) },
+                    onLongPress = { onShortcutLongPressed(shortcut) }
+                )
             }
         }
 
@@ -147,20 +158,19 @@ fun HomeScreen(
                     .align(Alignment.Start)
             )
 
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(4),
-                contentPadding = PaddingValues(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                items(dynamicShortcuts) { shortcut ->
-                    ShortcutTile(
-                        shortcut = shortcut,
-                        onClick = { onShortcutClick(shortcut) },
-                        onLongPress = { onShortcutLongPressed(shortcut) }
-                    )
-                }
+            // Use a regular Grid for frequently visited as well
+            BoxedGrid(
+                items = dynamicShortcuts,
+                columns = 4,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) { shortcut ->
+                ShortcutTile(
+                    shortcut = shortcut,
+                    onClick = { onShortcutClick(shortcut) },
+                    onLongPress = { onShortcutLongPressed(shortcut) }
+                )
             }
         }
 
@@ -203,8 +213,52 @@ fun HomeScreen(
                 onSeeAllClick = { onShowBookmarks() }
             )
         }
+
+        if (recentHistory.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(16.dp))
+            RecentlyVisitedSection(
+                history = recentHistory,
+                onHistoryClick = onRecentHistoryClick,
+                onShowAllClick = onShowAllHistory
+            )
+        }
+
+        // Add some padding at the bottom to ensure all content is visible
+        Spacer(modifier = Modifier.height(32.dp))
     }
 }
 
+/**
+ * A simple grid implementation that doesn't use LazyVerticalGrid to avoid nested scrolling issues
+ */
+@Composable
+fun <T> BoxedGrid(
+    items: List<T>,
+    columns: Int,
+    modifier: Modifier = Modifier,
+    content: @Composable (T) -> Unit
+) {
+    Column(modifier = modifier) {
+        val rows = (items.size + columns - 1) / columns // Calculate number of rows (ceiling division)
 
-
+        for (row in 0 until rows) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                for (col in 0 until columns) {
+                    val index = row * columns + col
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(4.dp)
+                    ) {
+                        if (index < items.size) {
+                            content(items[index])
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

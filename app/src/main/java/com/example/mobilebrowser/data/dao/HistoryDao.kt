@@ -51,4 +51,8 @@ interface HistoryDao {
     // Get history entry by URL
     @Query("SELECT * FROM history WHERE url = :url LIMIT 1")
     suspend fun getHistoryByUrl(url: String): HistoryEntity?
+
+    // Get the most recently visited URL
+    @Query("SELECT * FROM history ORDER BY lastVisited DESC LIMIT :limit")
+    fun getRecentHistory(limit: Int): Flow<List<HistoryEntity>>
 }

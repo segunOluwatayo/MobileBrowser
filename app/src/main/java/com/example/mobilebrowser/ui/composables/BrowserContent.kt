@@ -31,6 +31,7 @@ import com.example.mobilebrowser.ui.homepage.ShortcutEditDialog
 import com.example.mobilebrowser.ui.homepage.ShortcutOptionsDialog
 import com.example.mobilebrowser.ui.screens.HomeScreen
 import com.example.mobilebrowser.ui.viewmodels.DownloadViewModel
+import com.example.mobilebrowser.ui.viewmodels.HistoryViewModel
 import com.example.mobilebrowser.ui.viewmodels.ShortcutViewModel
 import com.example.mobilebrowser.ui.viewmodels.TabViewModel
 import kotlinx.coroutines.CoroutineScope
@@ -72,7 +73,8 @@ fun BrowserContent(
     modifier: Modifier = Modifier,
     onGeckoViewCreated: (android.view.View) -> Unit,
     shortcutViewModel: ShortcutViewModel = hiltViewModel(),
-    downloadViewModel: DownloadViewModel = hiltViewModel()
+    downloadViewModel: DownloadViewModel = hiltViewModel(),
+    historyViewModel: HistoryViewModel = hiltViewModel()
 ) {
     var urlText by remember { mutableStateOf(currentUrl) }
     var isEditing by remember { mutableStateOf(false) }
@@ -96,6 +98,8 @@ fun BrowserContent(
     var showEditDialog by remember { mutableStateOf(false) }
     var shortcutToEdit: ShortcutEntity? by remember { mutableStateOf<ShortcutEntity?>(null) }
     val shortcuts by shortcutViewModel.shortcuts.collectAsState()
+
+    val recentHistory by historyViewModel.recentHistory.collectAsState(initial = emptyList())
 
     // State for Download Completion Dialog and tracking current download.
     var showDownloadCompletionDialog by remember { mutableStateOf(false) }
@@ -145,11 +149,18 @@ fun BrowserContent(
                         onNavigate(activeTab.url)
                     },
                     onRestoreDefaultShortcuts = {
-                        // Call the new method we added
                         shortcutViewModel.restoreDefaultShortcuts()
                     },
                     recentTab = activeTab,
                     onShowBookmarks = { onShowBookmarks() },
+                    recentHistory = recentHistory,
+                    onRecentHistoryClick = { historyEntry ->
+                        onNavigate(historyEntry.url)
+                    },
+                    onShowAllHistory = {
+                        // Navigate to the History screen
+                        onNavigate("history")
+                    },
                     modifier = Modifier.fillMaxSize()
                 )
             }

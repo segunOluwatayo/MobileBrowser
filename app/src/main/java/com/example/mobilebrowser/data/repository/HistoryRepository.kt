@@ -91,4 +91,8 @@ class HistoryRepository @Inject constructor(
     // Check if URL exists in history
     suspend fun isUrlInHistory(url: String): Boolean =
         historyDao.isUrlInHistory(url)
+
+    // Get recent history entries
+    fun getRecentHistory(limit: Int = 10): Flow<List<HistoryEntity>> =
+        historyDao.getRecentHistory(limit)
 }
