@@ -149,6 +149,7 @@ fun BrowserContent(
                         shortcutViewModel.restoreDefaultShortcuts()
                     },
                     recentTab = activeTab,
+                    onShowBookmarks = { onShowBookmarks() },
                     modifier = Modifier.fillMaxSize()
                 )
             }

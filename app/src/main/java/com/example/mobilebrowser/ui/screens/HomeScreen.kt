@@ -4,9 +4,11 @@ import Shortcut
 import ShortcutTile
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
@@ -15,15 +17,21 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.mobilebrowser.data.entity.BookmarkEntity
 import com.example.mobilebrowser.data.entity.ShortcutEntity
 import com.example.mobilebrowser.data.entity.ShortcutType
 import com.example.mobilebrowser.data.entity.TabEntity
 import com.example.mobilebrowser.ui.composables.TabListItem
+import com.example.mobilebrowser.ui.homepage.BookmarkSection
+import com.example.mobilebrowser.ui.homepage.BookmarkTile
 import com.example.mobilebrowser.ui.homepage.RecentTabItem
+import com.example.mobilebrowser.ui.viewmodels.BookmarkViewModel
 import com.example.mobilebrowser.ui.viewmodels.ShortcutViewModel
 
 /**
@@ -42,10 +50,15 @@ fun HomeScreen(
     onShortcutLongPressed: (ShortcutEntity) -> Unit,
     onShowAllTabs: () -> Unit,
     onRecentTabClick: (TabEntity) -> Unit,
-    onRestoreDefaultShortcuts: () -> Unit, // Add this parameter
+    onRestoreDefaultShortcuts: () -> Unit,
+    onShowBookmarks: () -> Unit,
     recentTab: TabEntity? = null,
+    bookmarkViewModel: BookmarkViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
+    // Collect bookmarks from the view model
+    val bookmarks by bookmarkViewModel.bookmarks.collectAsState(initial = emptyList())
+
     // Group shortcuts by type
     val pinnedShortcuts = shortcuts.filter { it.isPinned }
     val dynamicShortcuts = shortcuts.filter { !it.isPinned && it.shortcutType == ShortcutType.DYNAMIC }
@@ -74,8 +87,6 @@ fun HomeScreen(
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.secondary,
             )
-
-            // Only show restore button if no pinned shortcuts exist
             if (pinnedShortcuts.isEmpty()) {
                 Button(
                     onClick = onRestoreDefaultShortcuts,
@@ -94,7 +105,6 @@ fun HomeScreen(
             }
         }
 
-        // Empty state message when no shortcuts
         if (pinnedShortcuts.isEmpty()) {
             Box(
                 modifier = Modifier
@@ -110,7 +120,6 @@ fun HomeScreen(
                 )
             }
         } else {
-            // The existing LazyVerticalGrid for pinned shortcuts
             LazyVerticalGrid(
                 columns = GridCells.Fixed(4),
                 contentPadding = PaddingValues(16.dp),
@@ -128,7 +137,6 @@ fun HomeScreen(
             }
         }
 
-        // Dynamic Shortcuts Section
         if (dynamicShortcuts.isNotEmpty()) {
             Text(
                 text = "Frequently Visited",
@@ -156,9 +164,8 @@ fun HomeScreen(
             }
         }
 
-        // Resume browsing section - only if recentTab is not a new tab
         if (recentTab != null) {
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(26.dp))
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -185,5 +192,19 @@ fun HomeScreen(
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
         }
+
+        if (bookmarks.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(16.dp))
+            BookmarkSection(
+                bookmarks = bookmarks,
+                onBookmarkClick = { bookmark ->
+                    // Handle the bookmark click (e.g., navigate to the bookmark's URL)
+                },
+                onSeeAllClick = { onShowBookmarks() }
+            )
+        }
     }
 }
+
+
+
