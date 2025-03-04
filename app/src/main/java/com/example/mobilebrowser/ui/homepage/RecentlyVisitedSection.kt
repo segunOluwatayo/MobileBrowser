@@ -1,22 +1,16 @@
 package com.example.mobilebrowser.ui.homepage
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
@@ -34,7 +28,7 @@ fun RecentlyVisitedSection(
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.padding(horizontal = 16.dp)) {
-        // Header section with title and "Show all" button
+        // Header section with modernized styling
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -49,19 +43,19 @@ fun RecentlyVisitedSection(
             )
             Text(
                 text = "Show all",
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.clickable { onShowAllClick() }
             )
         }
 
-        // Horizontal scrollable row of history cards
+        // Horizontal scrollable row with modern cards
         LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(end = 8.dp)
         ) {
             items(history) { historyEntry ->
-                HistoryCard(
+                ModernHistoryCard(
                     historyEntry = historyEntry,
                     onClick = { onHistoryClick(historyEntry) }
                 )
@@ -71,13 +65,13 @@ fun RecentlyVisitedSection(
 }
 
 @Composable
-private fun HistoryCard(
+private fun ModernHistoryCard(
     historyEntry: HistoryEntity,
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
 
-    // Extract domain for favicon fallback
+    // Extract domain for favicon
     val domain = remember(historyEntry.url) {
         try {
             val uri = URI(historyEntry.url)
@@ -87,74 +81,55 @@ private fun HistoryCard(
         }
     }
 
-    // Generate color based on domain for favicon fallback
-    val domainColor = remember(domain) {
-        val hash = domain.hashCode()
-        val r = ((hash and 0xFF0000) shr 16) / 255f
-        val g = ((hash and 0x00FF00) shr 8) / 255f
-        val b = (hash and 0x0000FF) / 255f
-        Color(r, g, b)
-    }
-
-    // Card with fixed width to ensure approximately 3 items per view
-    Card(
-        modifier = Modifier
-            .width(280.dp)
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
-        )
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.width(320.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        tonalElevation = 1.dp
     ) {
         Row(
             modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Favicon/Icon container
+            // Website icon
             Box(
                 modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(domainColor),
-                contentAlignment = Alignment.Center
+                    .size(32.dp)
+                    .clip(RoundedCornerShape(8.dp))
             ) {
-                // Generate favicon URL if not present
-                val faviconUrl = remember(historyEntry.url) {
-                    historyEntry.favicon ?: "https://$domain/favicon.ico"
-                }
-
-                // Track image loading state
-                var imageLoaded by remember { mutableStateOf(false) }
-
                 AsyncImage(
                     model = ImageRequest.Builder(context)
-                        .data(faviconUrl)
+                        .data(historyEntry.favicon ?: "https://$domain/favicon.ico")
                         .crossfade(true)
                         .build(),
                     contentDescription = null,
-                    modifier = Modifier.size(24.dp),
+                    modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Fit,
-                    onSuccess = { imageLoaded = true },
-                    onError = { imageLoaded = false }
+//                    fallback = {
+//                        Box(
+//                            modifier = Modifier
+//                                .fillMaxSize()
+//                                .background(MaterialTheme.colorScheme.surfaceVariant),
+//                            contentAlignment = Alignment.Center
+//                        ) {
+//                            Text(
+//                                text = domain.take(1).uppercase(),
+//                                style = MaterialTheme.typography.titleMedium,
+//                                color = MaterialTheme.colorScheme.onSurfaceVariant
+//                            )
+//                        }
+//                    }
                 )
-
-                // Show the letter only when image hasn't loaded
-                if (!imageLoaded) {
-                    Text(
-                        text = domain.take(1).uppercase(),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = Color.White
-                    )
-                }
             }
 
-            // Title and URL
+            // Title and URL with modern styling
             Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 16.dp)
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
                     text = historyEntry.title.takeIf { it.isNotBlank() } ?: domain,
@@ -163,7 +138,6 @@ private fun HistoryCard(
                     overflow = TextOverflow.Ellipsis,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-
                 Text(
                     text = domain,
                     style = MaterialTheme.typography.bodyMedium,
