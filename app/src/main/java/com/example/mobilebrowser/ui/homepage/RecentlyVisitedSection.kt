@@ -3,6 +3,8 @@ package com.example.mobilebrowser.ui.homepage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -21,7 +23,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.example.mobilebrowser.R
 import com.example.mobilebrowser.data.entity.HistoryEntity
 import java.net.URI
 
@@ -33,40 +34,36 @@ fun RecentlyVisitedSection(
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.padding(horizontal = 16.dp)) {
-        // Header row with "Recently visited" and "Show all"
+        // Header section with title and "Show all" button
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = "Recently visited",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.secondary
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onBackground
             )
             Text(
                 text = "Show all",
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.clickable { onShowAllClick() }
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // History items with dividers
-        history.take(5).forEachIndexed { index, historyEntry ->
-            HistoryItem(
-                historyEntry = historyEntry,
-                onClick = { onHistoryClick(historyEntry) },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            // Add divider except after the last item
-            if (index < history.size - 1 && index < 4) {
-                Divider(
-                    modifier = Modifier.padding(vertical = 8.dp),
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+        // Horizontal scrollable row of history cards
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(end = 8.dp)
+        ) {
+            items(history) { historyEntry ->
+                HistoryCard(
+                    historyEntry = historyEntry,
+                    onClick = { onHistoryClick(historyEntry) }
                 )
             }
         }
@@ -74,10 +71,9 @@ fun RecentlyVisitedSection(
 }
 
 @Composable
-private fun HistoryItem(
+private fun HistoryCard(
     historyEntry: HistoryEntity,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    onClick: () -> Unit
 ) {
     val context = LocalContext.current
 
@@ -100,59 +96,82 @@ private fun HistoryItem(
         Color(r, g, b)
     }
 
-    Row(
-        modifier = modifier
-            .clickable(onClick = onClick)
-            .padding(vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
+    // Card with fixed width to ensure approximately 3 items per view
+    Card(
+        modifier = Modifier
+            .width(280.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+        )
     ) {
-        // Favicon with fallback
-        Box(
+        Row(
             modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(domainColor),
-            contentAlignment = Alignment.Center
+                .padding(16.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Generate favicon URL if not present
-            val faviconUrl = remember(historyEntry.url) {
-                historyEntry.favicon ?: "https://$domain/favicon.ico"
+            // Favicon/Icon container
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(domainColor),
+                contentAlignment = Alignment.Center
+            ) {
+                // Generate favicon URL if not present
+                val faviconUrl = remember(historyEntry.url) {
+                    historyEntry.favicon ?: "https://$domain/favicon.ico"
+                }
+
+                // Track image loading state
+                var imageLoaded by remember { mutableStateOf(false) }
+
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(faviconUrl)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    contentScale = ContentScale.Fit,
+                    onSuccess = { imageLoaded = true },
+                    onError = { imageLoaded = false }
+                )
+
+                // Show the letter only when image hasn't loaded
+                if (!imageLoaded) {
+                    Text(
+                        text = domain.take(1).uppercase(),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White
+                    )
+                }
             }
 
-            // Track image loading state
-            var imageLoaded by remember { mutableStateOf(false) }
-
-            AsyncImage(
-                model = ImageRequest.Builder(context)
-                    .data(faviconUrl)
-                    .crossfade(true)
-                    .build(),
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize().padding(8.dp),
-                contentScale = ContentScale.Fit,
-                onSuccess = { imageLoaded = true },
-                onError = { imageLoaded = false }
-            )
-
-            // Show the letter only when image hasn't loaded
-            if (!imageLoaded) {
+            // Title and URL
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 16.dp)
+            ) {
                 Text(
-                    text = domain.take(1).uppercase(),
+                    text = historyEntry.title.takeIf { it.isNotBlank() } ?: domain,
                     style = MaterialTheme.typography.titleMedium,
-                    color = Color.White
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                Text(
+                    text = domain,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
-
-        Spacer(modifier = Modifier.width(16.dp))
-
-        // Title or URL
-        Text(
-            text = historyEntry.title.takeIf { it.isNotBlank() } ?: domain,
-            style = MaterialTheme.typography.bodyLarge,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            color = MaterialTheme.colorScheme.onBackground
-        )
     }
 }
