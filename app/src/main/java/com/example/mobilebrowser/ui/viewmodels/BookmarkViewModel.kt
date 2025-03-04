@@ -1,18 +1,27 @@
 package com.example.mobilebrowser.ui.viewmodels
 
+import android.content.Context
+import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.mobilebrowser.data.entity.BookmarkEntity
 import com.example.mobilebrowser.data.repository.BookmarkRepository
+import com.example.mobilebrowser.data.util.BookmarkThumbnailService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileOutputStream
 import javax.inject.Inject
 import java.util.Date
+import dagger.hilt.android.qualifiers.ApplicationContext
+
 
 @HiltViewModel
 class BookmarkViewModel @Inject constructor(
-    private val repository: BookmarkRepository
+    private val repository: BookmarkRepository,
+    private val thumbnailService: BookmarkThumbnailService,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     // StateFlow to store the current search query
@@ -109,6 +118,83 @@ class BookmarkViewModel @Inject constructor(
             if (bookmark.url == _currentUrl.value) {
                 _isCurrentUrlBookmarked.value = false
             }
+        }
+    }
+    /**
+     * Generate thumbnails for bookmarks that don't have them yet
+     */
+    fun generateThumbnails() {
+        viewModelScope.launch {
+            repository.getAllBookmarks().first().forEach { bookmark ->
+                if (bookmark.favicon.isNullOrEmpty() || !bookmark.favicon.startsWith("file://")) {
+                    // Try to generate a thumbnail
+                    thumbnailService.generateThumbnailForBookmark(bookmark)
+                }
+            }
+        }
+    }
+
+    /**
+     * Get or generate thumbnail for a specific bookmark
+     */
+    fun getThumbnailForBookmark(bookmarkId: Long) {
+        viewModelScope.launch {
+            repository.getBookmarkById(bookmarkId)?.let { bookmark ->
+                if (bookmark.favicon.isNullOrEmpty() || !bookmark.favicon.startsWith("file://")) {
+                    // Try to generate a thumbnail
+                    thumbnailService.generateThumbnailForBookmark(bookmark)
+                }
+            }
+        }
+    }
+
+    /**
+     * Capture thumbnail when adding a new bookmark from the current webpage
+     */
+    fun quickAddBookmarkWithThumbnail(url: String, title: String, thumbnail: Bitmap?) {
+        viewModelScope.launch {
+            // Create and add the bookmark
+            val bookmark = BookmarkEntity(
+                title = title.ifBlank() {
+                    try {
+                        java.net.URL(url).host.removePrefix("www.")
+                    } catch (e: Exception) {
+                        "Untitled"
+                    }
+                },
+                url = url,
+                favicon = null,
+                lastVisited = Date(),
+                tags = null
+            )
+
+            val bookmarkId = repository.addBookmark(bookmark)
+
+            // If we have a thumbnail bitmap, save it
+            if (thumbnail != null) {
+                val thumbnailFile = File(context.cacheDir, "bookmark_thumbnails/bookmark_${bookmarkId}.png")
+                thumbnailFile.parentFile?.mkdirs()
+
+                FileOutputStream(thumbnailFile).use { out ->
+                    thumbnail.compress(Bitmap.CompressFormat.PNG, 90, out)
+                }
+
+                // Update the bookmark with the thumbnail path
+                repository.getBookmarkById(bookmarkId)?.let { savedBookmark ->
+                    repository.updateBookmark(
+                        savedBookmark.copy(
+                            favicon = "file://${thumbnailFile.absolutePath}"
+                        )
+                    )
+                }
+            } else {
+                // Try to generate a thumbnail
+                repository.getBookmarkById(bookmarkId)?.let { savedBookmark ->
+                    thumbnailService.generateThumbnailForBookmark(savedBookmark)
+                }
+            }
+
+            _isCurrentUrlBookmarked.value = true
         }
     }
 }
