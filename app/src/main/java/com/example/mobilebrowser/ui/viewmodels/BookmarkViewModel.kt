@@ -124,28 +124,28 @@ class BookmarkViewModel @Inject constructor(
      * Generate thumbnails for bookmarks that don't have them yet
      */
     fun generateThumbnails() {
-        viewModelScope.launch {
-            repository.getAllBookmarks().first().forEach { bookmark ->
-                if (bookmark.favicon.isNullOrEmpty() || !bookmark.favicon.startsWith("file://")) {
-                    // Try to generate a thumbnail
-                    thumbnailService.generateThumbnailForBookmark(bookmark)
-                }
-            }
-        }
+//        viewModelScope.launch {
+//            repository.getAllBookmarks().first().forEach { bookmark ->
+//                if (bookmark.favicon.isNullOrEmpty() || !bookmark.favicon.startsWith("file://")) {
+//                    // Try to generate a thumbnail
+//                    thumbnailService.generateThumbnailForBookmark(bookmark)
+//                }
+//            }
+//        }
     }
 
     /**
      * Get or generate thumbnail for a specific bookmark
      */
     fun getThumbnailForBookmark(bookmarkId: Long) {
-        viewModelScope.launch {
-            repository.getBookmarkById(bookmarkId)?.let { bookmark ->
-                if (bookmark.favicon.isNullOrEmpty() || !bookmark.favicon.startsWith("file://")) {
-                    // Try to generate a thumbnail
-                    thumbnailService.generateThumbnailForBookmark(bookmark)
-                }
-            }
-        }
+//        viewModelScope.launch {
+//            repository.getBookmarkById(bookmarkId)?.let { bookmark ->
+//                if (bookmark.favicon.isNullOrEmpty() || !bookmark.favicon.startsWith("file://")) {
+//                    // Try to generate a thumbnail
+//                    thumbnailService.generateThumbnailForBookmark(bookmark)
+//                }
+//            }
+//        }
     }
 
     /**
@@ -190,7 +190,7 @@ class BookmarkViewModel @Inject constructor(
             } else {
                 // Try to generate a thumbnail
                 repository.getBookmarkById(bookmarkId)?.let { savedBookmark ->
-                    thumbnailService.generateThumbnailForBookmark(savedBookmark)
+//                    thumbnailService.generateThumbnailForBookmark(savedBookmark)
                 }
             }
 

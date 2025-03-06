@@ -35,4 +35,10 @@ class BookmarkRepository @Inject constructor(
     // Fetch bookmarks associated with a specific tag
     fun getBookmarksByTag(tag: String): Flow<List<BookmarkEntity>> =
         bookmarkDao.getBookmarksByTag("%$tag%")
+
+    // Retrieve a bookmark by its URL
+    suspend fun getBookmarkByUrl(url: String): BookmarkEntity? {
+        return bookmarkDao.getBookmarkByUrl(url)
+    }
+
 }

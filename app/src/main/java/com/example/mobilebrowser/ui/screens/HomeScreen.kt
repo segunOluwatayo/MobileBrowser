@@ -73,9 +73,9 @@ fun HomeScreen(
     // Create a scroll state that will allow the column to be scrolled
     val scrollState = rememberScrollState()
 
-    LaunchedEffect(Unit) {
-        bookmarkViewModel.generateThumbnails()
-    }
+//    LaunchedEffect(Unit) {
+//        bookmarkViewModel.generateThumbnails()
+//    }
 
     Column(
         modifier = modifier

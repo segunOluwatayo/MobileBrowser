@@ -37,4 +37,8 @@ interface BookmarkDao {
     // Retrieve bookmarks filtered by a specific tag.
     @Query("SELECT * FROM bookmarks WHERE tags LIKE :tag")
     fun getBookmarksByTag(tag: String): Flow<List<BookmarkEntity>>
+
+    // Retrieve a single bookmark by its URL.
+    @Query("SELECT * FROM bookmarks WHERE url = :url LIMIT 1")
+    suspend fun getBookmarkByUrl(url: String): BookmarkEntity?
 }

@@ -11,6 +11,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.example.mobilebrowser.data.entity.TabEntity
+import com.example.mobilebrowser.data.repository.BookmarkRepository
 import com.example.mobilebrowser.data.repository.TabRepository
 import com.example.mobilebrowser.data.util.DataStoreManager
 import com.example.mobilebrowser.data.util.ThumbnailUtil
@@ -30,6 +31,7 @@ import javax.inject.Inject
 @HiltViewModel
 class TabViewModel @Inject constructor(
     private val repository: TabRepository,
+    private val bookmarkRepository: BookmarkRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
     // Initialization state
@@ -317,42 +319,52 @@ class TabViewModel @Inject constructor(
     // Existing updateTabThumbnail method (for non-scroll capture) remains unchanged.
     fun updateTabThumbnail(tabId: Long, view: View) {
         Log.d("TabViewModel", "updateTabThumbnail called for tabId: $tabId with view: $view")
+
         viewModelScope.launch {
             if (view is GeckoView) {
-                Log.d("TabViewModel", "View is a GeckoView, checking if ready for capture")
                 try {
-                    delay(500)
-                    try {
-                        val result: GeckoResult<Bitmap> = view.capturePixels()
-                        result.accept { bitmap: Bitmap? ->
-                            if (bitmap != null) {
-                                Log.d("TabViewModel", "capturePixels() returned a bitmap of size ${bitmap.width}x${bitmap.height}")
-                                val thumbnailFile = File(context.cacheDir, "thumbnail_$tabId.png")
-                                val thumbnailPath = ThumbnailUtil.saveBitmapToFile(bitmap, thumbnailFile)
-                                if (thumbnailPath != null) {
-                                    viewModelScope.launch {
-                                        repository.getTabById(tabId)?.let { tab ->
-                                            repository.updateTab(tab.copy(thumbnail = thumbnailPath))
-                                            Log.d("TabViewModel", "Updated thumbnail for tab $tabId via GeckoView capture")
-                                        } ?: Log.e("TabViewModel", "No tab found with ID: $tabId")
-                                    }
-                                } else {
-                                    Log.e("TabViewModel", "Failed to save captured thumbnail for tab $tabId")
+                    delay(500)  // wait a bit
+                    val result: GeckoResult<Bitmap> = view.capturePixels()
+                    result.accept { bitmap: Bitmap? ->
+                        if (bitmap != null) {
+                            // Save tab thumbnail file
+                            val thumbnailFile = File(context.cacheDir, "thumbnail_$tabId.png")
+                            val thumbnailPath = ThumbnailUtil.saveBitmapToFile(bitmap, thumbnailFile)
+                            if (thumbnailPath != null) {
+                                // Update the tab record
+                                viewModelScope.launch {
+                                    repository.getTabById(tabId)?.let { tab ->
+                                        repository.updateTab(tab.copy(thumbnail = thumbnailPath))
+                                        Log.d("TabViewModel", "Updated thumbnail for tab $tabId")
+
+                                        // ----------------------------------
+                                        // Here is where we sync to bookmark:
+                                        val bookmark = bookmarkRepository.getBookmarkByUrl(tab.url)
+                                        if (bookmark != null && thumbnailFile.exists()) {
+                                            val bookmarkFile = File(context.cacheDir, "bookmark_thumbnails/bookmark_${bookmark.id}.png")
+                                            thumbnailFile.copyTo(bookmarkFile, overwrite = true)
+
+                                            // Update the bookmark with the new favicon path
+                                            bookmarkRepository.updateBookmark(
+                                                bookmark.copy(favicon = "file://${bookmarkFile.absolutePath}")
+                                            )
+                                            Log.d("TabViewModel", "Synced thumbnail to bookmark #${bookmark.id}")
+                                        }
+                                        // ----------------------------------
+
+                                    } ?: Log.e("TabViewModel", "No tab found with ID: $tabId")
                                 }
                             } else {
-                                Log.e("TabViewModel", "GeckoView capturePixels returned null for tab $tabId")
-                                captureUsingFallbackMethod(tabId, view)
+                                Log.e("TabViewModel", "Failed to save captured thumbnail for tab $tabId")
                             }
+                        } else {
+                            Log.e("TabViewModel", "capturePixels returned null for tab $tabId")
+                            captureUsingFallbackMethod(tabId, view)
                         }
-                    } catch (e: IllegalStateException) {
-                        Log.w("TabViewModel", "Compositor not ready, using fallback capture method: ${e.message}")
-                        captureUsingFallbackMethod(tabId, view)
-                    } catch (e: Exception) {
-                        Log.e("TabViewModel", "Error capturing pixels from GeckoView", e)
-                        captureUsingFallbackMethod(tabId, view)
                     }
                 } catch (e: Exception) {
-                    Log.e("TabViewModel", "Error in updateTabThumbnail", e)
+                    Log.e("TabViewModel", "Error capturing pixels from GeckoView", e)
+                    captureUsingFallbackMethod(tabId, view)
                 }
             } else {
                 Log.d("TabViewModel", "View is not a GeckoView, using fallback capture method")
@@ -360,6 +372,7 @@ class TabViewModel @Inject constructor(
             }
         }
     }
+
 
     // Fallback capture method remains unchanged.
     private fun captureUsingFallbackMethod(tabId: Long, view: View) {
