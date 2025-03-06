@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
 import android.util.Log
+import android.view.View
 import com.example.mobilebrowser.data.entity.BookmarkEntity
 import com.example.mobilebrowser.data.repository.BookmarkRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -11,6 +12,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoSession
@@ -47,39 +49,50 @@ class BookmarkThumbnailService @Inject constructor(
             try {
                 Log.d(TAG, "Generating thumbnail for: ${bookmark.url}")
 
-                val runtime = GeckoRuntime.getDefault(context)
-                val session = GeckoSession()
-                session.open(runtime)
+                // Perform GeckoView and GeckoSession operations on the main thread
+                val (session, geckoView) = withContext(Dispatchers.Main) {
+                    val runtime = GeckoRuntime.getDefault(context)
+                    val session = GeckoSession().apply {
+                        open(runtime)
+                    }
+                    val geckoView = GeckoView(context).apply {
+                        setSession(session)
+                        // Manually measure and layout the view
+                        val desiredWidth = 800
+                        val desiredHeight = 600
+                        val widthMeasureSpec = View.MeasureSpec.makeMeasureSpec(desiredWidth, View.MeasureSpec.EXACTLY)
+                        val heightMeasureSpec = View.MeasureSpec.makeMeasureSpec(desiredHeight, View.MeasureSpec.EXACTLY)
+                        measure(widthMeasureSpec, heightMeasureSpec)
+                        layout(0, 0, measuredWidth, measuredHeight)
+                    }
+                    Pair(session, geckoView)
+                }
 
-                try {
-                    // Use a suspend function to wait for page load
-                    withTimeout(15000) { // 15 second timeout
+                // Wait for page load on the main thread
+                withTimeout(15000) {
+                    withContext(Dispatchers.Main) {
                         waitForPageLoad(session, bookmark.url)
                     }
+                }
 
-                    // Use GeckoView for actual rendering
-                    val geckoView = GeckoView(context)
-                    geckoView.setSession(session)
+                // Allow time for rendering after layout
+                kotlinx.coroutines.delay(1000)
 
-                    // Wait a moment for rendering
-                    kotlinx.coroutines.delay(1000)
+                // Capture the thumbnail; capture may need to be on main thread as well
+                val bitmap = withContext(Dispatchers.Main) {
+                    ThumbnailUtil.captureThumbnail(geckoView)
+                }
 
-                    // Use our existing ThumbnailUtil to capture the view
-                    val bitmap = ThumbnailUtil.captureThumbnail(geckoView)
-                    if (bitmap != null) {
-                        saveThumbnailForBookmark(bookmark, bitmap)
-                    } else {
-                        // Fallback to favicon
-                        val faviconUrl = getFaviconForDomain(bookmark.url)
-                        updateBookmarkWithFavicon(bookmark, faviconUrl)
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error during thumbnail capture: ${e.message}")
-                    // Fallback to favicon
+                if (bitmap != null) {
+                    saveThumbnailForBookmark(bookmark, bitmap)
+                } else {
+                    // Fallback to favicon if capture fails
                     val faviconUrl = getFaviconForDomain(bookmark.url)
                     updateBookmarkWithFavicon(bookmark, faviconUrl)
-                } finally {
-                    // Always close the session
+                }
+
+                // Close the session on the main thread
+                withContext(Dispatchers.Main) {
                     session.close()
                 }
             } catch (e: Exception) {
@@ -87,6 +100,7 @@ class BookmarkThumbnailService @Inject constructor(
             }
         }
     }
+
 
     /**
      * Wait for a page to load using coroutines
