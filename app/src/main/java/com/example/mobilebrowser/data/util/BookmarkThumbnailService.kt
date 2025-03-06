@@ -9,13 +9,8 @@ import android.widget.FrameLayout
 import com.example.mobilebrowser.data.entity.BookmarkEntity
 import com.example.mobilebrowser.data.repository.BookmarkRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoView
@@ -25,12 +20,10 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlin.time.Duration.Companion.seconds
 
 /**
- * Service for managing bookmark thumbnails.
- *
- * This version wraps all UI-related operations in withContext(Dispatchers.Main)
- * so that the GeckoSession and GeckoView work on the main thread.
+ * Service for managing bookmark thumbnails using GeckoView's capturePixels() method.
  */
 @Singleton
 class BookmarkThumbnailService @Inject constructor(
@@ -47,28 +40,26 @@ class BookmarkThumbnailService @Inject constructor(
     }
 
     /**
-     * Generates a thumbnail for a bookmark using GeckoView.
-     *
-     * All operations that involve view creation or manipulation are executed on the main thread.
+     * Generates a thumbnail for a bookmark using an off-screen GeckoView and capturePixels().
      */
     fun generateThumbnailForBookmark(bookmark: BookmarkEntity) {
         scope.launch {
             try {
                 Log.d(TAG, "Generating thumbnail for: ${bookmark.url}")
 
-                // Run all UI related work on the main thread.
+                // Run all UI-related GeckoView work on the main thread.
                 val bitmap = withContext(Dispatchers.Main) {
-                    // Create and open the GeckoSession on the main thread.
                     val runtime = GeckoRuntime.getDefault(context)
-                    val session = GeckoSession()
-                    session.open(runtime)
+                    val session = GeckoSession().apply {
+                        open(runtime)
+                    }
 
                     // Wait for page load (15 second timeout).
-                    withTimeout(15000) {
+                    withTimeout(15.seconds) {
                         waitForPageLoad(session, bookmark.url)
                     }
 
-                    // Create a temporary container and GeckoView with fixed dimensions.
+                    // Create an off-screen container and GeckoView.
                     val frameLayout = FrameLayout(context).apply {
                         layoutParams = FrameLayout.LayoutParams(1080, 1920)
                     }
@@ -78,38 +69,57 @@ class BookmarkThumbnailService @Inject constructor(
                     }
                     frameLayout.addView(geckoView)
 
-                    // Force a measure and layout pass so the view gets valid dimensions.
+                    // Force measure & layout so GeckoView has valid dimensions.
                     val widthSpec = View.MeasureSpec.makeMeasureSpec(1080, View.MeasureSpec.EXACTLY)
                     val heightSpec = View.MeasureSpec.makeMeasureSpec(1920, View.MeasureSpec.EXACTLY)
                     frameLayout.measure(widthSpec, heightSpec)
                     frameLayout.layout(0, 0, frameLayout.measuredWidth, frameLayout.measuredHeight)
 
-                    // Allow a brief delay for the view to render.
+                    // Small delay to allow rendering.
                     delay(3000)
 
-                    // Capture the thumbnail using your existing utility.
-                    val capturedBitmap = ThumbnailUtil.captureThumbnail(geckoView)
-                    if (capturedBitmap != null && capturedBitmap.width > 0 && capturedBitmap.height > 0) {
-                        Log.d(TAG, "Captured bitmap dimensions: ${capturedBitmap.width}x${capturedBitmap.height}")
-                    } else {
-                        Log.e(TAG, "Bitmap capture failed or bitmap is empty!")
+                    // Attempt to capture via GeckoView.capturePixels().
+                    val capturedBitmap = try {
+                        capturePixelsSuspend(geckoView)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "capturePixelsSuspend error: ${e.message}")
+                        null
                     }
 
                     // Close the session on the main thread.
                     session.close()
+
                     capturedBitmap
                 }
 
                 if (bitmap != null) {
                     saveThumbnailForBookmark(bookmark, bitmap)
                 } else {
-                    // Fallback to a favicon URL if capturing fails.
+                    // If capturing fails, fall back to a favicon-based URL.
                     val faviconUrl = getFaviconForDomain(bookmark.url)
                     updateBookmarkWithFavicon(bookmark, faviconUrl)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error generating thumbnail: ${e.message}")
             }
+        }
+    }
+
+    /**
+     * Suspended wrapper around GeckoView.capturePixels() using a CancellableCoroutine.
+     */
+    private suspend fun capturePixelsSuspend(geckoView: GeckoView): Bitmap? = suspendCancellableCoroutine { cont ->
+        try {
+            val result = geckoView.capturePixels()
+            result.accept({ bitmap ->
+                cont.resume(bitmap)
+            }, { throwable ->
+                if (throwable != null) {
+                    cont.resumeWithException(throwable)
+                }
+            })
+        } catch (e: Exception) {
+            cont.resumeWithException(e)
         }
     }
 
@@ -131,7 +141,6 @@ class BookmarkThumbnailService @Inject constructor(
                         }
                     }
                 }
-
                 override fun onProgressChange(session: GeckoSession, progress: Int) {
                     Log.d(TAG, "Loading progress: $progress%")
                 }
@@ -146,7 +155,7 @@ class BookmarkThumbnailService @Inject constructor(
         }
 
     /**
-     * Saves the captured bitmap as a PNG file and updates the bookmark.
+     * Saves the captured bitmap as a PNG file and updates the bookmark entity.
      */
     private fun saveThumbnailForBookmark(bookmark: BookmarkEntity, bitmap: Bitmap) {
         scope.launch {
@@ -169,7 +178,7 @@ class BookmarkThumbnailService @Inject constructor(
     }
 
     /**
-     * Updates the bookmark with a favicon URL.
+     * Updates the bookmark with a favicon URL (if thumbnail capture fails).
      */
     private fun updateBookmarkWithFavicon(bookmark: BookmarkEntity, faviconUrl: String?) {
         if (faviconUrl != null) {
@@ -199,7 +208,7 @@ class BookmarkThumbnailService @Inject constructor(
         return try {
             val uri = Uri.parse(url)
             val host = uri.host ?: return null
-            // Try a common favicon location.
+            // Common favicon location.
             "https://$host/favicon.ico"
         } catch (e: Exception) {
             Log.e(TAG, "Error parsing URL for favicon: ${e.message}")
