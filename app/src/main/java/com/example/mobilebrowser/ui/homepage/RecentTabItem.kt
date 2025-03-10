@@ -6,8 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.surfaceColorAtElevation
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -24,14 +23,17 @@ fun RecentTabItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-//    val domain = remember(tab.url) {
-//        try {
-//            val uri = java.net.URI(tab.url)
-//            uri.host?.removePrefix("www.")?.takeIf { it.isNotEmpty() } ?: "New Tab"
-//        } catch (e: Exception) {
-//            "New Tab"
-//        }
-//    }
+    // State to hold the result of verifying the thumbnail file.
+    var isThumbnailValid by remember { mutableStateOf(false) }
+
+    // Launch a coroutine whenever the thumbnail path changes.
+    LaunchedEffect(tab.thumbnail) {
+        isThumbnailValid = if (!tab.thumbnail.isNullOrEmpty()) {
+            ThumbnailUtil.verifyThumbnailFile(tab.thumbnail!!)
+        } else {
+            false
+        }
+    }
 
     Row(
         modifier = modifier
@@ -46,14 +48,14 @@ fun RecentTabItem(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        // Wider thumbnail
+        // Thumbnail area.
         Box(
             modifier = Modifier
                 .size(width = 80.dp, height = 60.dp)
                 .clip(MaterialTheme.shapes.medium)
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
-            if (!tab.thumbnail.isNullOrEmpty() && ThumbnailUtil.verifyThumbnailFile(tab.thumbnail)) {
+            if (!tab.thumbnail.isNullOrEmpty() && isThumbnailValid) {
                 AsyncImage(
                     model = "file://${tab.thumbnail}",
                     contentDescription = "Tab Thumbnail",
@@ -63,7 +65,7 @@ fun RecentTabItem(
             }
         }
 
-        // Title and URL with proper dark mode text colors
+        // Title and URL.
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -71,7 +73,7 @@ fun RecentTabItem(
             Text(
                 text = tab.title.ifEmpty { "New Tab" },
                 style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,  // Ensures visibility in dark mode
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -79,7 +81,7 @@ fun RecentTabItem(
             Text(
                 text = tab.url,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,  // Secondary text color for dark mode
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )

@@ -20,9 +20,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.mobilebrowser.data.entity.TabEntity
 import com.example.mobilebrowser.data.util.ThumbnailUtil
-import coil.compose.AsyncImage
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -36,6 +36,18 @@ fun TabListItem(
     onBookmarkTab: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // State to hold the result of verifying the thumbnail file.
+    var isThumbnailValid by remember { mutableStateOf(false) }
+
+    // Launch a coroutine when the thumbnail path changes.
+    LaunchedEffect(tab.thumbnail) {
+        isThumbnailValid = if (!tab.thumbnail.isNullOrEmpty()) {
+            ThumbnailUtil.verifyThumbnailFile(tab.thumbnail!!)
+        } else {
+            false
+        }
+    }
+
     Card(
         shape = MaterialTheme.shapes.medium,
         elevation = CardDefaults.cardElevation(
@@ -63,8 +75,8 @@ fun TabListItem(
                     .height(140.dp)
                     .clip(MaterialTheme.shapes.medium)
             ) {
-                // Thumbnail
-                if (!tab.thumbnail.isNullOrEmpty() && ThumbnailUtil.verifyThumbnailFile(tab.thumbnail!!)) {
+                // If a thumbnail path exists and the file is valid, display it.
+                if (!tab.thumbnail.isNullOrEmpty() && isThumbnailValid) {
                     AsyncImage(
                         model = "file://${tab.thumbnail}",
                         contentDescription = "Tab Thumbnail",
@@ -78,7 +90,7 @@ fun TabListItem(
                         }
                     )
                 } else {
-                    // Placeholder when no thumbnail
+                    // Placeholder when no valid thumbnail is available.
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -123,7 +135,7 @@ fun TabListItem(
                     .background(MaterialTheme.colorScheme.surface)
                     .padding(8.dp)
             ) {
-                // Origin/domain
+                // Extract the domain from the tab URL.
                 val domain = remember(tab.url) {
                     try {
                         val uri = java.net.URI(tab.url)
@@ -151,7 +163,7 @@ fun TabListItem(
                 )
             }
 
-            // Selection/active indicator
+            // Selection/active indicator overlay.
             if (isSelected || isSelectionMode) {
                 Box(
                     modifier = Modifier

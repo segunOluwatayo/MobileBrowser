@@ -18,6 +18,7 @@ import com.example.mobilebrowser.data.util.ThumbnailUtil
 import com.example.mobilebrowser.worker.TabAutoCloseWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -298,73 +299,49 @@ class TabViewModel @Inject constructor(
 
     /**
      * Updates the thumbnail for the given tab by capturing the visible portion of the GeckoView.
-     * This method can be called after scrolling stops.
+     * This version offloads file I/O and repository updates to the IO dispatcher.
      */
-    fun updateTabThumbnailFromBitmap(tabId: Long, bitmap: Bitmap) {
-        Log.d("TabViewModel", "updateTabThumbnailFromBitmap called for tabId: $tabId")
-        viewModelScope.launch {
-            val thumbnailFile = File(context.cacheDir, "thumbnail_$tabId.png")
-            val thumbnailPath = ThumbnailUtil.saveBitmapToFile(bitmap, thumbnailFile)
-            if (thumbnailPath != null) {
-                repository.getTabById(tabId)?.let { tab ->
-                    repository.updateTab(tab.copy(thumbnail = thumbnailPath))
-                    Log.d("TabViewModel", "Updated thumbnail for tab $tabId via scroll capture")
-                } ?: Log.e("TabViewModel", "No tab found with ID: $tabId for scroll capture")
-            } else {
-                Log.e("TabViewModel", "Failed to save thumbnail for tab $tabId via scroll capture")
-            }
-        }
-    }
-
-    // Existing updateTabThumbnail method (for non-scroll capture) remains unchanged.
     fun updateTabThumbnail(tabId: Long, view: View) {
         Log.d("TabViewModel", "updateTabThumbnail called for tabId: $tabId with view: $view")
-
         viewModelScope.launch {
             if (view is GeckoView) {
                 try {
-//                    delay(500)  // wait a bit
                     val activeTabId = activeTab.value?.id
                     if (activeTabId != tabId) {
                         Log.w("TabViewModel", "Skipping thumbnail capture - active tab ($activeTabId) doesn't match requested tab ($tabId)")
                         return@launch
                     }
 
-                    // Increase the delay to ensure content is fully rendered
+                    // Delay to ensure content is fully rendered.
                     delay(1000)
 
                     val result: GeckoResult<Bitmap> = view.capturePixels()
                     result.accept { bitmap: Bitmap? ->
                         if (bitmap != null) {
-                            // Save tab thumbnail file
-                            val thumbnailFile = File(context.cacheDir, "thumbnail_$tabId.png")
-                            val thumbnailPath = ThumbnailUtil.saveBitmapToFile(bitmap, thumbnailFile)
-                            if (thumbnailPath != null) {
-                                // Update the tab record
-                                viewModelScope.launch {
+                            viewModelScope.launch(Dispatchers.IO) {
+                                val thumbnailFile = File(context.cacheDir, "thumbnail_$tabId.png")
+                                val thumbnailPath = ThumbnailUtil.saveBitmapToFile(bitmap, thumbnailFile)
+                                if (thumbnailPath != null) {
                                     repository.getTabById(tabId)?.let { tab ->
                                         repository.updateTab(tab.copy(thumbnail = thumbnailPath))
                                         Log.d("TabViewModel", "Updated thumbnail for tab $tabId")
 
-                                        // ----------------------------------
-                                        // Here is where we sync to bookmark:
+                                        // Sync thumbnail to bookmark if available.
                                         val bookmark = bookmarkRepository.getBookmarkByUrl(tab.url)
                                         if (bookmark != null && thumbnailFile.exists()) {
-                                            val bookmarkFile = File(context.cacheDir, "bookmark_thumbnails/bookmark_${bookmark.id}.png")
+                                            val bookmarkDir = File(context.cacheDir, "bookmark_thumbnails")
+                                            if (!bookmarkDir.exists()) bookmarkDir.mkdirs()
+                                            val bookmarkFile = File(bookmarkDir, "bookmark_${bookmark.id}.png")
                                             thumbnailFile.copyTo(bookmarkFile, overwrite = true)
-
-                                            // Update the bookmark with the new favicon path
                                             bookmarkRepository.updateBookmark(
                                                 bookmark.copy(favicon = "file://${bookmarkFile.absolutePath}")
                                             )
                                             Log.d("TabViewModel", "Synced thumbnail to bookmark #${bookmark.id}")
                                         }
-                                        // ----------------------------------
-
                                     } ?: Log.e("TabViewModel", "No tab found with ID: $tabId")
+                                } else {
+                                    Log.e("TabViewModel", "Failed to save captured thumbnail for tab $tabId")
                                 }
-                            } else {
-                                Log.e("TabViewModel", "Failed to save captured thumbnail for tab $tabId")
                             }
                         } else {
                             Log.e("TabViewModel", "capturePixels returned null for tab $tabId")
@@ -382,30 +359,52 @@ class TabViewModel @Inject constructor(
         }
     }
 
-
-    // Fallback capture method remains unchanged.
+    /**
+     * Fallback capture method that offloads thumbnail capture and file I/O to the IO dispatcher.
+     */
     private fun captureUsingFallbackMethod(tabId: Long, view: View) {
         viewModelScope.launch {
             try {
                 val bitmap = ThumbnailUtil.captureThumbnail(view)
                 if (bitmap != null) {
-                    Log.d("TabViewModel", "Fallback capture method returned bitmap of size ${bitmap.width}x${bitmap.height}")
-                    val thumbnailFile = File(context.cacheDir, "thumbnail_$tabId.png")
-                    val thumbnailPath = ThumbnailUtil.saveBitmapToFile(bitmap, thumbnailFile)
-                    if (thumbnailPath != null) {
-                        Log.d("TabViewModel", "Fallback thumbnail saved at: $thumbnailPath")
-                        repository.getTabById(tabId)?.let { tab ->
-                            repository.updateTab(tab.copy(thumbnail = thumbnailPath))
-                            Log.d("TabViewModel", "Updated thumbnail for tab $tabId via fallback capture")
-                        } ?: Log.e("TabViewModel", "No tab found with ID: $tabId in fallback")
-                    } else {
-                        Log.e("TabViewModel", "Fallback: Failed to save thumbnail for tab $tabId")
+                    Log.d("TabViewModel", "Fallback capture returned bitmap of size ${bitmap.width}x${bitmap.height}")
+                    viewModelScope.launch(Dispatchers.IO) {
+                        val thumbnailFile = File(context.cacheDir, "thumbnail_$tabId.png")
+                        val thumbnailPath = ThumbnailUtil.saveBitmapToFile(bitmap, thumbnailFile)
+                        if (thumbnailPath != null) {
+                            repository.getTabById(tabId)?.let { tab ->
+                                repository.updateTab(tab.copy(thumbnail = thumbnailPath))
+                                Log.d("TabViewModel", "Updated thumbnail for tab $tabId via fallback capture")
+                            } ?: Log.e("TabViewModel", "No tab found with ID: $tabId in fallback")
+                        } else {
+                            Log.e("TabViewModel", "Fallback: Failed to save thumbnail for tab $tabId")
+                        }
                     }
                 } else {
                     Log.e("TabViewModel", "Fallback: Failed to capture thumbnail for tab $tabId")
                 }
             } catch (e: Exception) {
                 Log.e("TabViewModel", "Error in fallback capture method", e)
+            }
+        }
+    }
+
+    /**
+     * Updates the thumbnail from a provided bitmap (for example, after a scroll capture).
+     * Offloads file operations to IO.
+     */
+    fun updateTabThumbnailFromBitmap(tabId: Long, bitmap: Bitmap) {
+        Log.d("TabViewModel", "updateTabThumbnailFromBitmap called for tabId: $tabId")
+        viewModelScope.launch(Dispatchers.IO) {
+            val thumbnailFile = File(context.cacheDir, "thumbnail_$tabId.png")
+            val thumbnailPath = ThumbnailUtil.saveBitmapToFile(bitmap, thumbnailFile)
+            if (thumbnailPath != null) {
+                repository.getTabById(tabId)?.let { tab ->
+                    repository.updateTab(tab.copy(thumbnail = thumbnailPath))
+                    Log.d("TabViewModel", "Updated thumbnail for tab $tabId via scroll capture")
+                } ?: Log.e("TabViewModel", "No tab found with ID: $tabId for scroll capture")
+            } else {
+                Log.e("TabViewModel", "Failed to save thumbnail for tab $tabId via scroll capture")
             }
         }
     }
