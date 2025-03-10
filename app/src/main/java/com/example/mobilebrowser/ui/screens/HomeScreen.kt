@@ -60,6 +60,7 @@ fun HomeScreen(
     recentHistory: List<HistoryEntity>,
     onRecentHistoryClick: (HistoryEntity) -> Unit,
     onShowAllHistory: () -> Unit,
+    showShortcuts: Boolean = true, // New parameter to control visibility of shortcuts
     bookmarkViewModel: BookmarkViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
@@ -72,10 +73,6 @@ fun HomeScreen(
 
     // Create a scroll state that will allow the column to be scrolled
     val scrollState = rememberScrollState()
-
-//    LaunchedEffect(Unit) {
-//        bookmarkViewModel.generateThumbnails()
-//    }
 
     Column(
         modifier = modifier
@@ -91,94 +88,98 @@ fun HomeScreen(
             modifier = Modifier.padding(vertical = 24.dp)
         )
 
-        // Pinned Shortcuts Section - add header row with Title and Restore button
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = "Pinned Shortcuts",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onBackground,
-            )
+        // Conditionally show shortcuts based on the showShortcuts parameter
+        if (showShortcuts) {
+            // Pinned Shortcuts Section - add header row with Title and Restore button
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Pinned Shortcuts",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onBackground,
+                )
+                if (pinnedShortcuts.isEmpty()) {
+                    Button(
+                        onClick = onRestoreDefaultShortcuts,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Restore defaults",
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Restore Defaults")
+                    }
+                }
+            }
+
             if (pinnedShortcuts.isEmpty()) {
-                Button(
-                    onClick = onRestoreDefaultShortcuts,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(100.dp)
+                        .padding(horizontal = 16.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = "Restore defaults",
-                        modifier = Modifier.size(18.dp)
+                    Text(
+                        "No pinned shortcuts available",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Restore Defaults")
+                }
+            } else {
+                // Use a regular Grid instead of LazyVerticalGrid to avoid nested scrolling issues
+                BoxedGrid(
+                    items = pinnedShortcuts,
+                    columns = 4,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) { shortcut ->
+                    ShortcutTile(
+                        shortcut = shortcut,
+                        onClick = { onShortcutClick(shortcut) },
+                        onLongPress = { onShortcutLongPressed(shortcut) }
+                    )
+                }
+            }
+
+            if (dynamicShortcuts.isNotEmpty()) {
+                Text(
+                    text = "Frequently Visited",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier
+                        .padding(start = 16.dp, bottom = 8.dp, top = 16.dp)
+                        .align(Alignment.Start)
+                )
+
+                // Use a regular Grid for frequently visited as well
+                BoxedGrid(
+                    items = dynamicShortcuts,
+                    columns = 4,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) { shortcut ->
+                    ShortcutTile(
+                        shortcut = shortcut,
+                        onClick = { onShortcutClick(shortcut) },
+                        onLongPress = { onShortcutLongPressed(shortcut) }
+                    )
                 }
             }
         }
 
-        if (pinnedShortcuts.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(100.dp)
-                    .padding(horizontal = 16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    "No pinned shortcuts available",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        } else {
-            // Use a regular Grid instead of LazyVerticalGrid to avoid nested scrolling issues
-            BoxedGrid(
-                items = pinnedShortcuts,
-                columns = 4,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-            ) { shortcut ->
-                ShortcutTile(
-                    shortcut = shortcut,
-                    onClick = { onShortcutClick(shortcut) },
-                    onLongPress = { onShortcutLongPressed(shortcut) }
-                )
-            }
-        }
-
-        if (dynamicShortcuts.isNotEmpty()) {
-            Text(
-                text = "Frequently Visited",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier
-                    .padding(start = 16.dp, bottom = 8.dp, top = 16.dp)
-                    .align(Alignment.Start)
-            )
-
-            // Use a regular Grid for frequently visited as well
-            BoxedGrid(
-                items = dynamicShortcuts,
-                columns = 4,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-            ) { shortcut ->
-                ShortcutTile(
-                    shortcut = shortcut,
-                    onClick = { onShortcutClick(shortcut) },
-                    onLongPress = { onShortcutLongPressed(shortcut) }
-                )
-            }
-        }
-
+        // The rest of the sections remain unchanged
         if (recentTab != null) {
             Spacer(modifier = Modifier.height(26.dp))
             Row(

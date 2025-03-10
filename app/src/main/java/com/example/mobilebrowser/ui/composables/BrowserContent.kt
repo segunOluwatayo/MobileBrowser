@@ -100,6 +100,7 @@ fun BrowserContent(
     var showEditDialog by remember { mutableStateOf(false) }
     var shortcutToEdit: ShortcutEntity? by remember { mutableStateOf<ShortcutEntity?>(null) }
     val shortcuts by shortcutViewModel.shortcuts.collectAsState()
+    val homepageEnabled by settingsViewModel.homepageEnabled.collectAsState()
 
     val recentHistory by historyViewModel.recentHistory.collectAsState(initial = emptyList())
 
@@ -163,6 +164,7 @@ fun BrowserContent(
                         // Navigate to the History screen
                         onNavigate("history")
                     },
+                    showShortcuts = homepageEnabled,
                     modifier = Modifier.fillMaxSize()
                 )
             }
