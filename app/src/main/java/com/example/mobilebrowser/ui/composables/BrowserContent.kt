@@ -23,6 +23,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.mobilebrowser.R
 import com.example.mobilebrowser.browser.GeckoDownloadDelegate
 import com.example.mobilebrowser.data.entity.ShortcutEntity
@@ -36,6 +37,7 @@ import com.example.mobilebrowser.ui.viewmodels.ShortcutViewModel
 import com.example.mobilebrowser.ui.viewmodels.TabViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.mozilla.geckoview.GeckoSession
@@ -400,9 +402,14 @@ fun BrowserContent(
                                 onScrollStopped = { view ->
                                     // Use the active tab ID (if available) to update its thumbnail.
                                     activeTab?.id?.let { tabId ->
-                                        // Here we call our existing updateTabThumbnail method,
-                                        // which uses capturePixels() internally.
-                                        tabViewModel.updateTabThumbnail(tabId, view)
+                                        // Add a small delay to let rendering complete after scroll
+                                        tabViewModel.viewModelScope.launch {
+                                            delay(300)
+                                            // Double-check the active tab hasn't changed
+                                            if (activeTab?.id == tabId) {
+                                                tabViewModel.updateTabThumbnail(tabId, view)
+                                            }
+                                        }
                                     }
                                 },
                                 // When overlays are active, make GeckoView invisible

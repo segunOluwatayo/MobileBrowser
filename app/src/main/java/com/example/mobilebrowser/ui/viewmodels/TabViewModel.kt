@@ -323,7 +323,16 @@ class TabViewModel @Inject constructor(
         viewModelScope.launch {
             if (view is GeckoView) {
                 try {
-                    delay(500)  // wait a bit
+//                    delay(500)  // wait a bit
+                    val activeTabId = activeTab.value?.id
+                    if (activeTabId != tabId) {
+                        Log.w("TabViewModel", "Skipping thumbnail capture - active tab ($activeTabId) doesn't match requested tab ($tabId)")
+                        return@launch
+                    }
+
+                    // Increase the delay to ensure content is fully rendered
+                    delay(1000)
+
                     val result: GeckoResult<Bitmap> = view.capturePixels()
                     result.accept { bitmap: Bitmap? ->
                         if (bitmap != null) {

@@ -122,19 +122,33 @@ class MainActivity : ComponentActivity() {
 
             scope.launch {
                 try {
-                    // Wait until we're confident the page has loaded and rendered
-                    if (currentPageTitle.isBlank() || currentPageTitle == "Loading...") {
-                        Log.d("MainActivity", "Delaying thumbnail capture until page is fully loaded")
-                        delay(1000)  // Short delay
-                        // If still loading, we'll skip this capture attempt
-                        if (currentPageTitle.isBlank() || currentPageTitle == "Loading...") {
-                            Log.d("MainActivity", "Skipping thumbnail capture - page still loading")
-                            return@launch
-                        }
+                    // Verify the active tab matches the requested tab
+                    val currentActiveTabId = activeTab?.id
+                    if (currentActiveTabId != tabId) {
+                        Log.d("MainActivity", "Skipping thumbnail capture - active tab has changed")
+                        return@launch
                     }
 
-                    // Add additional delay to ensure rendering is complete
-                    delay(500)
+                    // Much longer delay to ensure full page load
+                    delay(1500)
+
+                    // Verify AGAIN that the tab is still active (it could have changed during our delay)
+                    if (activeTab?.id != tabId) {
+                        Log.d("MainActivity", "Aborting thumbnail capture - tab is no longer active")
+                        return@launch
+                    }
+
+                    // Additional check to match URL
+                    if (activeTab?.url != currentUrl) {
+                        Log.d("MainActivity", "URL mismatch, canceling thumbnail capture")
+                        return@launch
+                    }
+
+                    // Wait until page is fully loaded and titled
+                    if (currentPageTitle.isBlank() || currentPageTitle == "Loading...") {
+                        Log.d("MainActivity", "Page not fully loaded, skipping thumbnail capture")
+                        return@launch
+                    }
 
                     Log.d("MainActivity", "Attempting to capture thumbnail for tab $tabId")
                     tabViewModel.updateTabThumbnail(tabId, view)
