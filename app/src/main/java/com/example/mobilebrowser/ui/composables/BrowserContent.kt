@@ -1,6 +1,5 @@
 package com.example.mobilebrowser.ui.composables
 
-import Shortcut
 import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -18,7 +17,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
@@ -101,6 +99,9 @@ fun BrowserContent(
     var shortcutToEdit: ShortcutEntity? by remember { mutableStateOf<ShortcutEntity?>(null) }
     val shortcuts by shortcutViewModel.shortcuts.collectAsState()
     val homepageEnabled by settingsViewModel.homepageEnabled.collectAsState()
+    val recentTabEnabled by settingsViewModel.recentTabEnabled.collectAsState()
+    val bookmarksEnabled by settingsViewModel.bookmarksEnabled.collectAsState()
+    val historyEnabled by settingsViewModel.historyEnabled.collectAsState()
 
     val recentHistory by historyViewModel.recentHistory.collectAsState(initial = emptyList())
 
@@ -165,6 +166,9 @@ fun BrowserContent(
                         onNavigate("history")
                     },
                     showShortcuts = homepageEnabled,
+                    showRecentTab = recentTabEnabled,
+                    showBookmarks = bookmarksEnabled,
+                    showHistory = historyEnabled,
                     modifier = Modifier.fillMaxSize()
                 )
             }

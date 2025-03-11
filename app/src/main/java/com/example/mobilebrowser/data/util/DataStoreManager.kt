@@ -40,6 +40,16 @@ class DataStoreManager(private val context: Context) {
         // New key for homepage setting
         val HOMEPAGE_ENABLED_KEY = booleanPreferencesKey("homepage_enabled")
         const val DEFAULT_HOMEPAGE_ENABLED = true
+
+        // New keys for other settings
+        val RECENT_TAB_ENABLED_KEY = booleanPreferencesKey("recent_tab_enabled")
+        const val DEFAULT_RECENT_TAB_ENABLED = true
+
+        val BOOKMARKS_ENABLED_KEY = booleanPreferencesKey("bookmarks_enabled")
+        const val DEFAULT_BOOKMARKS_ENABLED = true
+
+        val HISTORY_ENABLED_KEY = booleanPreferencesKey("history_enabled")
+        const val DEFAULT_HISTORY_ENABLED = true
     }
 
     /**
@@ -93,6 +103,48 @@ class DataStoreManager(private val context: Context) {
         .map { preferences ->
             preferences[HOMEPAGE_ENABLED_KEY] ?: DEFAULT_HOMEPAGE_ENABLED
         }
+
+    val recentTabEnabledFlow: Flow<Boolean> = context.dataStore.data
+        .catch { exception ->
+            if (exception is IOException) emit(emptyPreferences()) else throw exception
+        }
+        .map { preferences ->
+            preferences[RECENT_TAB_ENABLED_KEY] ?: DEFAULT_RECENT_TAB_ENABLED
+        }
+
+    val bookmarksEnabledFlow: Flow<Boolean> = context.dataStore.data
+        .catch { exception ->
+            if (exception is IOException) emit(emptyPreferences()) else throw exception
+        }
+        .map { preferences ->
+            preferences[BOOKMARKS_ENABLED_KEY] ?: DEFAULT_BOOKMARKS_ENABLED
+        }
+
+    val historyEnabledFlow: Flow<Boolean> = context.dataStore.data
+        .catch { exception ->
+            if (exception is IOException) emit(emptyPreferences()) else throw exception
+        }
+        .map { preferences ->
+            preferences[HISTORY_ENABLED_KEY] ?: DEFAULT_HISTORY_ENABLED
+        }
+
+    suspend fun updateRecentTabEnabled(isEnabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[RECENT_TAB_ENABLED_KEY] = isEnabled
+        }
+    }
+
+    suspend fun updateBookmarksEnabled(isEnabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[BOOKMARKS_ENABLED_KEY] = isEnabled
+        }
+    }
+
+    suspend fun updateHistoryEnabled(isEnabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[HISTORY_ENABLED_KEY] = isEnabled
+        }
+    }
 
     /**
      * Updates the search engine setting.

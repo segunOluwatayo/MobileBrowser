@@ -1,17 +1,12 @@
 package com.example.mobilebrowser.ui.screens
 
-import Shortcut
 import ShortcutTile
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -19,25 +14,20 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.mobilebrowser.data.entity.BookmarkEntity
 import com.example.mobilebrowser.data.entity.HistoryEntity
 import com.example.mobilebrowser.data.entity.ShortcutEntity
 import com.example.mobilebrowser.data.entity.ShortcutType
 import com.example.mobilebrowser.data.entity.TabEntity
-import com.example.mobilebrowser.ui.composables.TabListItem
 import com.example.mobilebrowser.ui.homepage.BookmarkSection
-import com.example.mobilebrowser.ui.homepage.BookmarkTile
 import com.example.mobilebrowser.ui.homepage.RecentTabItem
 import com.example.mobilebrowser.ui.homepage.RecentlyVisitedSection
 import com.example.mobilebrowser.ui.viewmodels.BookmarkViewModel
-import com.example.mobilebrowser.ui.viewmodels.ShortcutViewModel
 
 /**
  * HomeScreen displays a grid of shortcuts.
@@ -60,7 +50,11 @@ fun HomeScreen(
     recentHistory: List<HistoryEntity>,
     onRecentHistoryClick: (HistoryEntity) -> Unit,
     onShowAllHistory: () -> Unit,
-    showShortcuts: Boolean = true, // New parameter to control visibility of shortcuts
+    // Add all the visibility parameters with true as default
+    showShortcuts: Boolean = true,
+    showRecentTab: Boolean = true,
+    showBookmarks: Boolean = true,
+    showHistory: Boolean = true,
     bookmarkViewModel: BookmarkViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
@@ -88,9 +82,9 @@ fun HomeScreen(
             modifier = Modifier.padding(vertical = 24.dp)
         )
 
-        // Conditionally show shortcuts based on the showShortcuts parameter
+        // Conditionally show shortcuts
         if (showShortcuts) {
-            // Pinned Shortcuts Section - add header row with Title and Restore button
+            // Pinned Shortcuts Section
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -136,7 +130,6 @@ fun HomeScreen(
                     )
                 }
             } else {
-                // Use a regular Grid instead of LazyVerticalGrid to avoid nested scrolling issues
                 BoxedGrid(
                     items = pinnedShortcuts,
                     columns = 4,
@@ -162,7 +155,6 @@ fun HomeScreen(
                         .align(Alignment.Start)
                 )
 
-                // Use a regular Grid for frequently visited as well
                 BoxedGrid(
                     items = dynamicShortcuts,
                     columns = 4,
@@ -179,8 +171,8 @@ fun HomeScreen(
             }
         }
 
-        // The rest of the sections remain unchanged
-        if (recentTab != null) {
+        // Conditionally show recent tab section
+        if (showRecentTab && recentTab != null) {
             Spacer(modifier = Modifier.height(26.dp))
             Row(
                 modifier = Modifier
@@ -209,7 +201,8 @@ fun HomeScreen(
             )
         }
 
-        if (bookmarks.isNotEmpty()) {
+        // Conditionally show bookmarks section
+        if (showBookmarks && bookmarks.isNotEmpty()) {
             Spacer(modifier = Modifier.height(16.dp))
             BookmarkSection(
                 bookmarks = bookmarks,
@@ -220,13 +213,48 @@ fun HomeScreen(
             )
         }
 
-        if (recentHistory.isNotEmpty()) {
+        // Conditionally show history section
+        if (showHistory && recentHistory.isNotEmpty()) {
             Spacer(modifier = Modifier.height(16.dp))
             RecentlyVisitedSection(
                 history = recentHistory,
                 onHistoryClick = onRecentHistoryClick,
                 onShowAllClick = onShowAllHistory
             )
+        }
+
+        // Empty state if all sections are hidden
+        if (!showShortcuts && (!showRecentTab || recentTab == null) &&
+            (!showBookmarks || bookmarks.isEmpty()) &&
+            (!showHistory || recentHistory.isEmpty())) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(400.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Home,
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                    )
+                    Text(
+                        "Empty Homepage",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        "Enable sections in Homepage Settings",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         }
 
         // Add some padding at the bottom to ensure all content is visible

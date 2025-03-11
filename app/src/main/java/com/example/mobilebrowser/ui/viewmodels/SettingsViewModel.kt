@@ -110,4 +110,64 @@ class SettingsViewModel @Inject constructor(
             dataStoreManager.updateHomepageEnabled(isEnabled)
         }
     }
+
+    /**
+     * Exposes the "Recent Tab" section visibility setting as a StateFlow.
+     */
+    val recentTabEnabled: StateFlow<Boolean> = dataStoreManager.recentTabEnabledFlow.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = DataStoreManager.DEFAULT_RECENT_TAB_ENABLED
+    )
+
+    /**
+     * Exposes the "Bookmarks" section visibility setting as a StateFlow.
+     */
+    val bookmarksEnabled: StateFlow<Boolean> = dataStoreManager.bookmarksEnabledFlow.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = DataStoreManager.DEFAULT_BOOKMARKS_ENABLED
+    )
+
+    /**
+     * Exposes the "History" section visibility setting as a StateFlow.
+     */
+    val historyEnabled: StateFlow<Boolean> = dataStoreManager.historyEnabledFlow.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = DataStoreManager.DEFAULT_HISTORY_ENABLED
+    )
+
+    /**
+     * Updates the "Recent Tab" section visibility setting.
+     *
+     * @param isEnabled True if the section should be visible.
+     */
+    fun updateRecentTabEnabled(isEnabled: Boolean) {
+        viewModelScope.launch {
+            dataStoreManager.updateRecentTabEnabled(isEnabled)
+        }
+    }
+
+    /**
+     * Updates the "Bookmarks" section visibility setting.
+     *
+     * @param isEnabled True if the section should be visible.
+     */
+    fun updateBookmarksEnabled(isEnabled: Boolean) {
+        viewModelScope.launch {
+            dataStoreManager.updateBookmarksEnabled(isEnabled)
+        }
+    }
+
+    /**
+     * Updates the "History" section visibility setting.
+     *
+     * @param isEnabled True if the section should be visible.
+     */
+    fun updateHistoryEnabled(isEnabled: Boolean) {
+        viewModelScope.launch {
+            dataStoreManager.updateHistoryEnabled(isEnabled)
+        }
+    }
 }

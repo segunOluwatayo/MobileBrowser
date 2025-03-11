@@ -192,8 +192,29 @@ fun SettingsScreen(
                                 style = MaterialTheme.typography.bodyLarge
                             )
                             Spacer(modifier = Modifier.height(4.dp))
+
+                            // Replace "TBD" with descriptive text
+                            val homepageEnabled by viewModel.homepageEnabled.collectAsState()
+                            val recentTabEnabled by viewModel.recentTabEnabled.collectAsState()
+                            val bookmarksEnabled by viewModel.bookmarksEnabled.collectAsState()
+                            val historyEnabled by viewModel.historyEnabled.collectAsState()
+
+                            // Count how many sections are enabled
+                            val enabledSectionCount = listOf(
+                                homepageEnabled,
+                                recentTabEnabled,
+                                bookmarksEnabled,
+                                historyEnabled
+                            ).count { it }
+
                             Text(
-                                text = "TBD",
+                                text = if (enabledSectionCount == 0) {
+                                    "All homepage sections are hidden"
+                                } else if (enabledSectionCount == 4) {
+                                    "All homepage sections are visible"
+                                } else {
+                                    "$enabledSectionCount of 4 homepage sections visible"
+                                },
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
