@@ -55,6 +55,7 @@ fun HomeScreen(
     showRecentTab: Boolean = true,
     showBookmarks: Boolean = true,
     showHistory: Boolean = true,
+    isAddressBarAtTop: Boolean,
     bookmarkViewModel: BookmarkViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
@@ -70,7 +71,7 @@ fun HomeScreen(
 
     Column(
         modifier = modifier
-            .padding(top = 72.dp)
+            .padding(top = if (isAddressBarAtTop) 72.dp else 16.dp)
             // Add verticalScroll modifier to make the column scrollable
             .verticalScroll(scrollState),
         horizontalAlignment = Alignment.CenterHorizontally

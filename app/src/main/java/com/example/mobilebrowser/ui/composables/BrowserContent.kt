@@ -171,6 +171,7 @@ fun BrowserContent(
                     showRecentTab = recentTabEnabled,
                     showBookmarks = bookmarksEnabled,
                     showHistory = historyEnabled,
+                    isAddressBarAtTop = isAddressBarAtTop,
                     modifier = Modifier.fillMaxSize()
                 )
             }
