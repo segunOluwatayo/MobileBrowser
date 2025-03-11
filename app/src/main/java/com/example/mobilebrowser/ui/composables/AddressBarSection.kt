@@ -11,11 +11,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
-import com.example.mobilebrowser.R
+
 
 @Composable
 fun AddressBarSection(
@@ -44,15 +45,18 @@ fun AddressBarSection(
     onShowHistory: () -> Unit,
     onShowDownloads: () -> Unit,
     onShowSettings: () -> Unit,
-    focusRequester: androidx.compose.ui.focus.FocusRequester,
+    focusRequester: FocusRequester,
     modifier: Modifier = Modifier
 ) {
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
 
+    // Give the entire address bar row a background color that automatically adjusts
+    // (MaterialTheme.colorScheme.surface is typical for a top/bottom bar).
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
             .padding(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -80,7 +84,7 @@ fun AddressBarSection(
         )
 
         if (!isEditing) {
-            // Tab button
+            // Tab button with a small colored box
             IconButton(onClick = onShowTabs) {
                 Box(
                     modifier = Modifier
@@ -147,9 +151,7 @@ fun AddressBarSection(
                             )
                         }
                         if (currentUrl.isNotBlank()) {
-                            IconButton(
-                                onClick = onAddBookmark
-                            ) {
+                            IconButton(onClick = onAddBookmark) {
                                 Icon(
                                     if (isCurrentUrlBookmarked) Icons.Default.Star else Icons.Default.StarBorder,
                                     contentDescription = if (isCurrentUrlBookmarked) "Bookmarked" else "Add bookmark",
