@@ -486,8 +486,9 @@ class MainActivity : ComponentActivity() {
                                 onSelectSearchEngine = { currentOverlay = OverlayScreen.SearchEngine },
                                 onSelectTabManagement = { currentOverlay = OverlayScreen.TabManagement },
                                 onSelectTheme = { currentOverlay = OverlayScreen.ThemeSelection },
-                                onNavigateToHomepageSelection = { currentOverlay = OverlayScreen.HomepageSelection }
+                                onNavigateToHomepageSelection = { currentOverlay = OverlayScreen.HomepageSelection },
                             )
+
                         }
                         OverlayScreen.SearchEngine -> {
                             SearchEngineSelectionScreen(

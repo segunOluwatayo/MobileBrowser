@@ -1,5 +1,6 @@
 package com.example.mobilebrowser.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -22,6 +23,7 @@ fun HomepageSelectionScreen(
     val recentTabEnabled by viewModel.recentTabEnabled.collectAsState()
     val bookmarksEnabled by viewModel.bookmarksEnabled.collectAsState()
     val historyEnabled by viewModel.historyEnabled.collectAsState()
+    val addressBarLocation by viewModel.addressBarLocation.collectAsState()
 
     Scaffold(
         topBar = {
@@ -80,6 +82,57 @@ fun HomepageSelectionScreen(
                 isChecked = historyEnabled,
                 onCheckedChange = { viewModel.updateHistoryEnabled(it) }
             )
+
+            // Add this section for Address Bar Position
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 16.dp),
+                thickness = 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant
+            )
+
+            Text(
+                text = "Address Bar Position",
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            // Option for TOP location
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { viewModel.updateAddressBarLocation("TOP") }
+                    .padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Top",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                RadioButton(
+                    selected = (addressBarLocation == "TOP"),
+                    onClick = { viewModel.updateAddressBarLocation("TOP") }
+                )
+            }
+
+            // Option for BOTTOM location
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { viewModel.updateAddressBarLocation("BOTTOM") }
+                    .padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Bottom",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                RadioButton(
+                    selected = (addressBarLocation == "BOTTOM"),
+                    onClick = { viewModel.updateAddressBarLocation("BOTTOM") }
+                )
+            }
         }
     }
 }

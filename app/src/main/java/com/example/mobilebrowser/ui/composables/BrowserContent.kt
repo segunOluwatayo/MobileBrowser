@@ -24,6 +24,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.mobilebrowser.R
 import com.example.mobilebrowser.browser.GeckoDownloadDelegate
+import com.example.mobilebrowser.browser.GeckoDownloadDelegate.DownloadRequest
 import com.example.mobilebrowser.data.entity.ShortcutEntity
 import com.example.mobilebrowser.data.entity.TabEntity
 import com.example.mobilebrowser.ui.homepage.ShortcutEditDialog
@@ -31,6 +32,7 @@ import com.example.mobilebrowser.ui.homepage.ShortcutOptionsDialog
 import com.example.mobilebrowser.ui.screens.HomeScreen
 import com.example.mobilebrowser.ui.viewmodels.DownloadViewModel
 import com.example.mobilebrowser.ui.viewmodels.HistoryViewModel
+import com.example.mobilebrowser.ui.viewmodels.SettingsViewModel
 import com.example.mobilebrowser.ui.viewmodels.ShortcutViewModel
 import com.example.mobilebrowser.ui.viewmodels.TabViewModel
 import kotlinx.coroutines.CoroutineScope
@@ -74,15 +76,15 @@ fun BrowserContent(
     onGeckoViewCreated: (android.view.View) -> Unit,
     shortcutViewModel: ShortcutViewModel = hiltViewModel(),
     downloadViewModel: DownloadViewModel = hiltViewModel(),
-    historyViewModel: HistoryViewModel = hiltViewModel()
+    historyViewModel: HistoryViewModel = hiltViewModel(),
+    settingsViewModel: SettingsViewModel = hiltViewModel()
 ) {
     var urlText by remember { mutableStateOf(currentUrl) }
     var isEditing by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
-    val settingsViewModel: com.example.mobilebrowser.ui.viewmodels.SettingsViewModel =
-        hiltViewModel()
     val currentSearchEngineUrl by settingsViewModel.searchEngine.collectAsState()
+    val addressBarLocation by settingsViewModel.addressBarLocation.collectAsState()
     val searchEngines = listOf(
         SearchEngine("Google", "https://www.google.com/search?q=", R.drawable.google_icon),
         SearchEngine("Bing", "https://www.bing.com/search?q=", R.drawable.bing_icon),
@@ -112,6 +114,9 @@ fun BrowserContent(
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
     var geckoViewReference by remember { mutableStateOf<android.view.View?>(null) }
+
+    // Check if address bar should be at the top
+    val isAddressBarAtTop = addressBarLocation == "TOP"
 
     // Back handler: Clear focus if editing.
     BackHandler(isEditing) {
@@ -161,10 +166,7 @@ fun BrowserContent(
                     onRecentHistoryClick = { historyEntry ->
                         onNavigate(historyEntry.url)
                     },
-                    onShowAllHistory = {
-                        // Navigate to the History screen
-                        onNavigate("history")
-                    },
+                    onShowAllHistory = { onShowHistory() },
                     showShortcuts = homepageEnabled,
                     showRecentTab = recentTabEnabled,
                     showBookmarks = bookmarksEnabled,
@@ -178,192 +180,60 @@ fun BrowserContent(
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            // Navigation bar with URL field and buttons.
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                key("$tabCount") {
-                    SearchUrlBar(
-                        value = urlText,
-                        currentUrl = currentUrl,
-                        onValueChange = {
-                            isEditing = true
-                            urlText = it
-                        },
-                        onSearch = { query, engine ->
-                            isEditing = false
-                            val searchUrl = engine.searchUrl + query
-                            onNavigate(searchUrl)
-                            softwareKeyboardController?.hide()
-                            focusManager.clearFocus()
-                        },
-                        onNavigate = { url ->
-                            isEditing = false
-                            onNavigate(url)
-                            softwareKeyboardController?.hide()
-                            focusManager.clearFocus()
-                        },
-                        isEditing = isEditing,
-                        currentSearchEngine = currentEngine,
-                        onStartEditing = { isEditing = true },
-                        onEndEditing = {
-                            isEditing = false
-                            urlText = currentUrl
-                        },
-                        modifier = Modifier
-                            .weight(1f, fill = !isEditing)
-                            .focusRequester(focusRequester)
-                    )
-                }
-
-                if (!isEditing) {
-                    // Tab button that directly opens the tabs view.
-                    IconButton(onClick = { onShowTabs() }) {
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .background(
-                                    MaterialTheme.colorScheme.primary,
-                                    shape = MaterialTheme.shapes.small
-                                )
-                                .clip(MaterialTheme.shapes.small),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = tabCount.toString(),
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(4.dp)
-                            )
+            // If address bar should be at the top, show it first
+            if (isAddressBarAtTop) {
+                AddressBarSection(
+                    urlText = urlText,
+                    currentUrl = currentUrl,
+                    isEditing = isEditing,
+                    onUrlTextChange = { isEditing = true; urlText = it },
+                    onSearch = { query, engine ->
+                        isEditing = false
+                        val searchUrl = engine.searchUrl + query
+                        onNavigate(searchUrl)
+                        softwareKeyboardController?.hide()
+                        focusManager.clearFocus()
+                    },
+                    onNavigate = { url ->
+                        isEditing = false
+                        onNavigate(url)
+                        softwareKeyboardController?.hide()
+                        focusManager.clearFocus()
+                    },
+                    currentSearchEngine = currentEngine,
+                    onStartEditing = { isEditing = true },
+                    onEndEditing = { isEditing = false; urlText = currentUrl },
+                    tabCount = tabCount,
+                    onShowTabs = onShowTabs,
+                    showOverflowMenu = showOverflowMenu,
+                    onShowOverflowMenu = { showOverflowMenu = true },
+                    onDismissOverflowMenu = { showOverflowMenu = false },
+                    canGoBack = canGoBack,
+                    canGoForward = canGoForward,
+                    onBack = onBack,
+                    onForward = onForward,
+                    onReload = onReload,
+                    onAddBookmark = {
+                        if (!isCurrentUrlBookmarked) {
+                            onAddBookmark(currentUrl, currentPageTitle)
                         }
-                    }
+                    },
+                    isCurrentUrlBookmarked = isCurrentUrlBookmarked,
+                    onShowBookmarks = onShowBookmarks,
+                    onShowHistory = onShowHistory,
+                    onShowDownloads = onShowDownloads,
+                    onShowSettings = onShowSettings,
+                    focusRequester = focusRequester
+                )
 
-                    // Overflow menu.
-                    Box {
-                        IconButton(onClick = { showOverflowMenu = true }) {
-                            Icon(
-                                imageVector = Icons.Default.MoreVert,
-                                contentDescription = "More options",
-                                tint = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-
-                        DropdownMenu(
-                            expanded = showOverflowMenu,
-                            onDismissRequest = { showOverflowMenu = false }
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp)
-                            ) {
-                                IconButton(
-                                    onClick = {
-                                        showOverflowMenu = false
-                                        onBack()
-                                    },
-                                    enabled = canGoBack
-                                ) {
-                                    Icon(
-                                        Icons.AutoMirrored.Filled.ArrowBack,
-                                        contentDescription = "Back",
-                                        tint = if (canGoBack) LocalContentColor.current else LocalContentColor.current.copy(alpha = 0.38f)
-                                    )
-                                }
-
-                                IconButton(
-                                    onClick = {
-                                        showOverflowMenu = false
-                                        onForward()
-                                    },
-                                    enabled = canGoForward
-                                ) {
-                                    Icon(
-                                        Icons.AutoMirrored.Filled.ArrowForward,
-                                        contentDescription = "Forward",
-                                        tint = if (canGoForward) LocalContentColor.current else LocalContentColor.current.copy(alpha = 0.38f)
-                                    )
-                                }
-                                if (currentUrl.isNotBlank()) {
-                                    IconButton(
-                                        onClick = {
-                                            if (!isCurrentUrlBookmarked) {
-                                                onAddBookmark(currentUrl, currentPageTitle)
-                                            }
-                                        }
-                                    ) {
-                                        Icon(
-                                            if (isCurrentUrlBookmarked) Icons.Default.Star else Icons.Default.StarBorder,
-                                            contentDescription = if (isCurrentUrlBookmarked) "Bookmarked" else "Add bookmark",
-                                            tint = if (isCurrentUrlBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                                        )
-                                    }
-                                }
-
-                                IconButton(
-                                    onClick = {
-                                        showOverflowMenu = false
-                                        onReload()
-                                    }
-                                ) {
-                                    Icon(Icons.Default.Refresh, contentDescription = "Refresh")
-                                }
-                            }
-
-                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-                            DropdownMenuItem(
-                                text = { Text("Bookmarks") },
-                                onClick = {
-                                    showOverflowMenu = false
-                                    onShowBookmarks()
-                                },
-                                leadingIcon = { Icon(Icons.Default.Star, contentDescription = null) }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Downloads") },
-                                onClick = {
-                                    showOverflowMenu = false
-                                    onShowDownloads()
-                                },
-                                leadingIcon = { Icon(Icons.Default.Download, contentDescription = null) }
-                            )
-
-                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-                            DropdownMenuItem(
-                                text = { Text("History") },
-                                onClick = {
-                                    showOverflowMenu = false
-                                    onShowHistory()
-                                },
-                                leadingIcon = { Icon(Icons.Default.History, contentDescription = null) }
-                            )
-
-                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-                            DropdownMenuItem(
-                                text = { Text("Settings") },
-                                onClick = {
-                                    showOverflowMenu = false
-                                    onShowSettings()
-                                },
-                                leadingIcon = { Icon(Icons.Default.Settings, contentDescription = "Settings") }
-                            )
-                        }
-                    }
-                }
+                HorizontalDivider(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    thickness = 2.dp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                )
             }
-
-            HorizontalDivider(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                thickness = 2.dp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
-            )
 
             // Add a clickable overlay only when editing URL (to dismiss keyboard when tapped elsewhere)
             if (isEditing) {
@@ -376,9 +246,8 @@ fun BrowserContent(
                             focusManager.clearFocus()
                         }
                 ) {}
-            }
-            else {
-                // Keep layout structure by always adding a Box with weight
+            } else {
+                // Web content area always in the middle
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -434,10 +303,64 @@ fun BrowserContent(
                     // No else branch needed - HomeScreen already rendered in background
                 }
             }
-        }
-        // Add after the Column definition in BrowserContent:
-        Log.d("BrowserContent", "Rendering with isHomepageActive=$isHomepageActive, activeTab=$activeTab")
 
+            // If address bar should be at the bottom, show it last
+            if (!isAddressBarAtTop) {
+                HorizontalDivider(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    thickness = 2.dp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                )
+
+                AddressBarSection(
+                    urlText = urlText,
+                    currentUrl = currentUrl,
+                    isEditing = isEditing,
+                    onUrlTextChange = { isEditing = true; urlText = it },
+                    onSearch = { query, engine ->
+                        isEditing = false
+                        val searchUrl = engine.searchUrl + query
+                        onNavigate(searchUrl)
+                        softwareKeyboardController?.hide()
+                        focusManager.clearFocus()
+                    },
+                    onNavigate = { url ->
+                        isEditing = false
+                        onNavigate(url)
+                        softwareKeyboardController?.hide()
+                        focusManager.clearFocus()
+                    },
+                    currentSearchEngine = currentEngine,
+                    onStartEditing = { isEditing = true },
+                    onEndEditing = { isEditing = false; urlText = currentUrl },
+                    tabCount = tabCount,
+                    onShowTabs = onShowTabs,
+                    showOverflowMenu = showOverflowMenu,
+                    onShowOverflowMenu = { showOverflowMenu = true },
+                    onDismissOverflowMenu = { showOverflowMenu = false },
+                    canGoBack = canGoBack,
+                    canGoForward = canGoForward,
+                    onBack = onBack,
+                    onForward = onForward,
+                    onReload = onReload,
+                    onAddBookmark = {
+                        if (!isCurrentUrlBookmarked) {
+                            onAddBookmark(currentUrl, currentPageTitle)
+                        }
+                    },
+                    isCurrentUrlBookmarked = isCurrentUrlBookmarked,
+                    onShowBookmarks = onShowBookmarks,
+                    onShowHistory = onShowHistory,
+                    onShowDownloads = onShowDownloads,
+                    onShowSettings = onShowSettings,
+                    focusRequester = focusRequester
+                )
+            }
+        }
+
+        // Dialogs and overlays remain unchanged
         selectedShortcut?.let { shortcut ->
             val shortcutEntity = ShortcutEntity(
                 label = shortcut.label,

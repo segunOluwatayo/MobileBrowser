@@ -22,8 +22,9 @@ fun SettingsScreen(
     onSelectTabManagement: () -> Unit,
     onSelectTheme: () -> Unit,
     onNavigateToHomepageSelection: () -> Unit,
+
     viewModel: SettingsViewModel = hiltViewModel()
-) {
+){
     val searchEngines = listOf(
         SearchEngine(
             name = "Google",

@@ -50,6 +50,11 @@ class DataStoreManager(private val context: Context) {
 
         val HISTORY_ENABLED_KEY = booleanPreferencesKey("history_enabled")
         const val DEFAULT_HISTORY_ENABLED = true
+
+        // New key for address bar location
+        val ADDRESS_BAR_LOCATION_KEY = stringPreferencesKey("address_bar_location")
+        // Default location is "TOP" (other option is "BOTTOM")
+        const val DEFAULT_ADDRESS_BAR_LOCATION = "TOP"
     }
 
     /**
@@ -128,6 +133,18 @@ class DataStoreManager(private val context: Context) {
             preferences[HISTORY_ENABLED_KEY] ?: DEFAULT_HISTORY_ENABLED
         }
 
+    /**
+     * Exposes the address bar location setting as a Flow.
+     * If not set, returns the default location (TOP).
+     */
+    val addressBarLocationFlow: Flow<String> = context.dataStore.data
+        .catch { exception ->
+            if (exception is IOException) emit(emptyPreferences()) else throw exception
+        }
+        .map { preferences ->
+            preferences[ADDRESS_BAR_LOCATION_KEY] ?: DEFAULT_ADDRESS_BAR_LOCATION
+        }
+
     suspend fun updateRecentTabEnabled(isEnabled: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[RECENT_TAB_ENABLED_KEY] = isEnabled
@@ -187,6 +204,17 @@ class DataStoreManager(private val context: Context) {
     suspend fun updateHomepageEnabled(isEnabled: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[HOMEPAGE_ENABLED_KEY] = isEnabled
+        }
+    }
+
+    /**
+     * Updates the address bar location setting.
+     *
+     * @param location The new location as a string (e.g., "TOP", "BOTTOM").
+     */
+    suspend fun updateAddressBarLocation(location: String) {
+        context.dataStore.edit { preferences ->
+            preferences[ADDRESS_BAR_LOCATION_KEY] = location
         }
     }
 }

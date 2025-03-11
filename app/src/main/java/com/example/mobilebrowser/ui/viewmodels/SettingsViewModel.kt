@@ -65,7 +65,15 @@ class SettingsViewModel @Inject constructor(
         initialValue = DataStoreManager.DEFAULT_HOMEPAGE_ENABLED
     )
 
-
+    /**
+     * Exposes the address bar location setting as a StateFlow.
+     * This determines whether the address bar is positioned at the top or bottom.
+     */
+    val addressBarLocation: StateFlow<String> = dataStoreManager.addressBarLocationFlow.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = DataStoreManager.DEFAULT_ADDRESS_BAR_LOCATION
+    )
 
     /**
      * Updates the search engine setting.
@@ -108,6 +116,17 @@ class SettingsViewModel @Inject constructor(
     fun updateHomepageEnabled(isEnabled: Boolean) {
         viewModelScope.launch {
             dataStoreManager.updateHomepageEnabled(isEnabled)
+        }
+    }
+
+    /**
+     * Updates the address bar location setting.
+     *
+     * @param location The new address bar location (e.g., "TOP", "BOTTOM").
+     */
+    fun updateAddressBarLocation(location: String) {
+        viewModelScope.launch {
+            dataStoreManager.updateAddressBarLocation(location)
         }
     }
 
