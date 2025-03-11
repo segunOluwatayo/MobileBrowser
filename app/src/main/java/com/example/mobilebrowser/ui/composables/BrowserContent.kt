@@ -3,7 +3,7 @@ package com.example.mobilebrowser.ui.composables
 import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -11,35 +11,25 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.mobilebrowser.R
-import com.example.mobilebrowser.browser.GeckoDownloadDelegate
 import com.example.mobilebrowser.browser.GeckoDownloadDelegate.DownloadRequest
 import com.example.mobilebrowser.data.entity.ShortcutEntity
 import com.example.mobilebrowser.data.entity.TabEntity
 import com.example.mobilebrowser.ui.homepage.ShortcutEditDialog
 import com.example.mobilebrowser.ui.homepage.ShortcutOptionsDialog
 import com.example.mobilebrowser.ui.screens.HomeScreen
-import com.example.mobilebrowser.ui.viewmodels.DownloadViewModel
-import com.example.mobilebrowser.ui.viewmodels.HistoryViewModel
-import com.example.mobilebrowser.ui.viewmodels.SettingsViewModel
-import com.example.mobilebrowser.ui.viewmodels.ShortcutViewModel
-import com.example.mobilebrowser.ui.viewmodels.TabViewModel
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import com.example.mobilebrowser.ui.viewmodels.*
+import kotlinx.coroutines.*
 import org.mozilla.geckoview.GeckoSession
 
 @Composable
@@ -82,6 +72,7 @@ fun BrowserContent(
     var urlText by remember { mutableStateOf(currentUrl) }
     var isEditing by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
+
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
 
@@ -97,20 +88,23 @@ fun BrowserContent(
 
     // Retrieve custom search engines from SettingsViewModel.
     val customEngines by settingsViewModel.customSearchEngines.collectAsState()
+
     // Merge default and custom search engines; for custom engines we use a generic icon.
     val mergedSearchEngines = (defaultSearchEngines + customEngines.map { custom ->
         SearchEngine(custom.name, custom.searchUrl, R.drawable.generic_searchengine)
     }).sortedBy { it.name }
 
-    // Retrieve the current search engine URL from SettingsViewModel.
+    // Retrieve the current search engine URL.
     val currentEngineUrl by settingsViewModel.searchEngine.collectAsState()
     // Determine current search engine.
-    val currentEngine = mergedSearchEngines.find { it.searchUrl == currentEngineUrl } ?: mergedSearchEngines[0]
+    val currentEngine = mergedSearchEngines.find { it.searchUrl == currentEngineUrl }
+        ?: mergedSearchEngines[0]
 
     var selectedShortcut: ShortcutEntity? by remember { mutableStateOf(null) }
     var showEditDialog by remember { mutableStateOf(false) }
     var shortcutToEdit: ShortcutEntity? by remember { mutableStateOf<ShortcutEntity?>(null) }
     val shortcuts by shortcutViewModel.shortcuts.collectAsState()
+
     val homepageEnabled by settingsViewModel.homepageEnabled.collectAsState()
     val recentTabEnabled by settingsViewModel.recentTabEnabled.collectAsState()
     val bookmarksEnabled by settingsViewModel.bookmarksEnabled.collectAsState()
@@ -122,19 +116,23 @@ fun BrowserContent(
     val focusRequester = remember { FocusRequester() }
     var geckoViewReference by remember { mutableStateOf<android.view.View?>(null) }
     val addressBarLocation by settingsViewModel.addressBarLocation.collectAsState(initial = "TOP")
-    val isAddressBarAtTop = addressBarLocation == "TOP"
+    val isAddressBarAtTop = (addressBarLocation == "TOP")
 
+    // If user presses back while editing, end editing mode.
     BackHandler(isEditing) {
         isEditing = false
         urlText = currentUrl
         focusManager.clearFocus()
     }
 
+    // Whenever URL changes or homepage is toggled, update displayed text if not editing.
     LaunchedEffect(currentUrl, isHomepageActive) {
         if (!isEditing) {
             urlText = if (isHomepageActive) "" else currentUrl
         }
     }
+
+    // On first load, if homepage is active, show empty URL (unless user is already editing).
     LaunchedEffect(Unit) {
         if (isHomepageActive && !isEditing) {
             urlText = ""
@@ -142,6 +140,7 @@ fun BrowserContent(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
+        // If homepage is active, show the home screen in the background.
         if (isHomepageActive) {
             Box(
                 modifier = Modifier
@@ -170,13 +169,18 @@ fun BrowserContent(
             }
         }
 
+        // The main Column that includes the address bar(s) and GeckoView
         Column(modifier = Modifier.fillMaxSize()) {
             if (isAddressBarAtTop) {
+                // Top address bar
                 AddressBarSection(
                     urlText = urlText,
                     currentUrl = currentUrl,
                     isEditing = isEditing,
-                    onUrlTextChange = { isEditing = true; urlText = it },
+                    onUrlTextChange = {
+                        isEditing = true
+                        urlText = it
+                    },
                     onSearch = { query, engine ->
                         isEditing = false
                         val searchUrl = engine.searchUrl + query
@@ -191,9 +195,12 @@ fun BrowserContent(
                         focusManager.clearFocus()
                     },
                     currentSearchEngine = currentEngine,
-                    availableSearchEngines = mergedSearchEngines, // Pass merged list
+                    availableSearchEngines = mergedSearchEngines,
                     onStartEditing = { isEditing = true },
-                    onEndEditing = { isEditing = false; urlText = currentUrl },
+                    onEndEditing = {
+                        isEditing = false
+                        urlText = currentUrl
+                    },
                     tabCount = tabCount,
                     onShowTabs = onShowTabs,
                     showOverflowMenu = showOverflowMenu,
@@ -217,6 +224,7 @@ fun BrowserContent(
                     focusRequester = focusRequester
                 )
 
+                // Divider after top bar
                 HorizontalDivider(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -226,59 +234,67 @@ fun BrowserContent(
                 )
             }
 
-            if (isEditing) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clickable {
-                            isEditing = false
-                            urlText = currentUrl
-                            focusManager.clearFocus()
-                        }
-                ) {}
-            } else {
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                ) {
-                    if (!isHomepageActive) {
-                        key(geckoSession, currentUrl) {
-                            GeckoViewComponent(
-                                geckoSession = geckoSession,
-                                url = currentUrl,
-                                onUrlChange = { newUrl ->
-                                    val normalizedUrl = if (newUrl == "about:blank") "" else newUrl
-                                    if (!isEditing && normalizedUrl != currentUrl) {
-                                        onNavigate(normalizedUrl)
-                                    }
-                                },
-                                onCanGoBackChange = onCanGoBackChange,
-                                onCanGoForwardChange = onCanGoForwardChange,
-                                onViewCreated = { view ->
-                                    Log.d("BrowserContent", "GeckoView created, passing reference up")
-                                    geckoViewReference = view
-                                    onGeckoViewCreated(view)
-                                },
-                                onScrollStopped = { view ->
-                                    activeTab?.id?.let { tabId ->
-                                        tabViewModel.viewModelScope.launch {
-                                            delay(300)
-                                            if (activeTab?.id == tabId) {
-                                                tabViewModel.updateTabThumbnail(tabId, view)
-                                            }
+            // Main browsing area
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
+                if (!isHomepageActive) {
+                    key(geckoSession, currentUrl) {
+                        GeckoViewComponent(
+                            geckoSession = geckoSession,
+                            url = currentUrl,
+                            onUrlChange = { newUrl ->
+                                val normalizedUrl = if (newUrl == "about:blank") "" else newUrl
+                                // Only update if not editing
+                                if (!isEditing && normalizedUrl != currentUrl) {
+                                    onNavigate(normalizedUrl)
+                                }
+                            },
+                            onCanGoBackChange = onCanGoBackChange,
+                            onCanGoForwardChange = onCanGoForwardChange,
+                            onViewCreated = { view ->
+                                Log.d("BrowserContent", "GeckoView created, passing reference up")
+                                geckoViewReference = view
+                                onGeckoViewCreated(view)
+                            },
+                            onScrollStopped = { view ->
+                                activeTab?.id?.let { tabId ->
+                                    tabViewModel.viewModelScope.launch {
+                                        delay(300)
+                                        if (activeTab?.id == tabId) {
+                                            tabViewModel.updateTabThumbnail(tabId, view)
                                         }
                                     }
-                                },
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .then(if (isOverlayActive) Modifier.alpha(0f) else Modifier.alpha(1f))
-                            )
-                        }
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxSize()
+                                // Show or hide the WebView based on overlay
+                                .then(if (isOverlayActive) Modifier.alpha(0f) else Modifier.alpha(1f))
+                        )
                     }
+                }
+
+                // <-- Here's the transparent overlay when editing -->
+                if (isEditing) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .pointerInput(Unit) {
+                                detectTapGestures {
+                                    // When the user taps outside, end editing
+                                    focusManager.clearFocus()
+                                    isEditing = false
+                                    urlText = currentUrl
+                                }
+                            }
+                    )
                 }
             }
 
+            // If the address bar is at the bottom, show it after the main content
             if (!isAddressBarAtTop) {
                 HorizontalDivider(
                     modifier = Modifier
@@ -291,7 +307,10 @@ fun BrowserContent(
                     urlText = urlText,
                     currentUrl = currentUrl,
                     isEditing = isEditing,
-                    onUrlTextChange = { isEditing = true; urlText = it },
+                    onUrlTextChange = {
+                        isEditing = true
+                        urlText = it
+                    },
                     onSearch = { query, engine ->
                         isEditing = false
                         val searchUrl = engine.searchUrl + query
@@ -308,7 +327,10 @@ fun BrowserContent(
                     currentSearchEngine = currentEngine,
                     availableSearchEngines = mergedSearchEngines,
                     onStartEditing = { isEditing = true },
-                    onEndEditing = { isEditing = false; urlText = currentUrl },
+                    onEndEditing = {
+                        isEditing = false
+                        urlText = currentUrl
+                    },
                     tabCount = tabCount,
                     onShowTabs = onShowTabs,
                     showOverflowMenu = showOverflowMenu,
@@ -334,14 +356,8 @@ fun BrowserContent(
             }
         }
 
-        // Shortcuts, dialogs, and overlays remain unchanged.
+        // Handle shortcut dialogs
         selectedShortcut?.let { shortcut ->
-            val shortcutEntity = ShortcutEntity(
-                label = shortcut.label,
-                url = shortcut.url,
-                iconRes = shortcut.iconRes,
-                isPinned = shortcut.isPinned
-            )
             ShortcutOptionsDialog(
                 shortcut = shortcut,
                 onDismiss = { selectedShortcut = null },
@@ -381,12 +397,13 @@ fun BrowserContent(
         }
     }
 
-    if (showDownloadCompletionDialog && currentDownloadRequest != null) {
+    // Handle download confirmation
+    if (showDownloadConfirmationDialog && currentDownloadRequest != null) {
         DownloadConfirmationDialog(
             fileName = currentDownloadRequest.fileName,
             fileSize = currentDownloadRequest.contentLength.toString(),
             onDownloadClicked = {
-                Log.d("BrowserContent", "Download Confirmation: Download button clicked for ${currentDownloadRequest.fileName}")
+                Log.d("BrowserContent", "Download Confirmation: Download button clicked")
                 onDismissDownloadConfirmationDialog()
                 CoroutineScope(Dispatchers.IO).launch {
                     try {
@@ -413,6 +430,8 @@ fun BrowserContent(
             onDismissRequest = onDismissDownloadConfirmationDialog
         )
     }
+
+    // Handle post-download completion dialog
     if (showDownloadCompletionDialog && currentDownloadId != null) {
         DownloadCompletionDialog(
             downloadId = currentDownloadId!!,
