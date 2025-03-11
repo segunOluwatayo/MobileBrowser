@@ -3,9 +3,11 @@ package com.example.mobilebrowser.ui.viewmodels
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.mobilebrowser.data.entity.CustomSearchEngine
 import com.example.mobilebrowser.data.util.DataStoreManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -26,15 +28,28 @@ class SettingsViewModel @Inject constructor(
     // Create an instance of DataStoreManager using the injected application context.
     private val dataStoreManager = DataStoreManager(context)
 
-    /**
-     * Exposes the current search engine selection as a StateFlow.
-     * The default value is provided by DataStoreManager.DEFAULT_SEARCH_ENGINE.
-     */
     val searchEngine: StateFlow<String> = dataStoreManager.searchEngineFlow.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = DataStoreManager.DEFAULT_SEARCH_ENGINE
     )
+
+    /**
+     * Exposes the list of custom search engines stored in DataStore.
+     */
+    val customSearchEngines: StateFlow<List<CustomSearchEngine>> = dataStoreManager.customSearchEnginesFlow.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+
+
+    /**
+     * Holds an error message if the custom search engine URL is invalid.
+     */
+    private val _customEngineErrorMessage = MutableStateFlow<String?>(null)
+    val customEngineErrorMessage: StateFlow<String?> = _customEngineErrorMessage
 
     /**
      * Exposes the current tab management policy as a StateFlow.
@@ -187,6 +202,55 @@ class SettingsViewModel @Inject constructor(
     fun updateHistoryEnabled(isEnabled: Boolean) {
         viewModelScope.launch {
             dataStoreManager.updateHistoryEnabled(isEnabled)
+        }
+    }
+
+    /**
+     * Validates and transforms the provided URL.
+     *
+     * - If the URL already contains a "%s" placeholder, it is returned as is.
+     * - If it contains a common query parameter (e.g., "?q="), it attempts to
+     *   replace the query string with "%s".
+     * - Otherwise, returns null to indicate an invalid URL format.
+     */
+    private fun transformSearchUrl(url: String): String? {
+        return if (url.contains("%s")) {
+            url
+        } else if (url.contains("?q=")) {
+            // Use a regex to replace the query parameter's value with "%s"
+            val regex = Regex("""(\?q=)[^&]*""")
+            if (regex.containsMatchIn(url)) {
+                url.replace(regex, "$1%s")
+            } else {
+                null
+            }
+        } else {
+            null
+        }
+    }
+
+    /**
+     * Adds a new custom search engine after validating the URL format.
+     *
+     * If the URL doesn't contain (or can't be converted to contain) the required
+     * "%s" placeholder, an error message is set.
+     *
+     * @param name The name of the custom search engine.
+     * @param rawUrl The user-provided URL string.
+     */
+    fun addCustomSearchEngine(name: String, rawUrl: String) {
+        viewModelScope.launch {
+            val validatedUrl = transformSearchUrl(rawUrl)
+            if (validatedUrl == null) {
+                _customEngineErrorMessage.value = "Invalid URL format. URL must contain a '%s' placeholder."
+                return@launch
+            }
+            // Clear any previous error.
+            _customEngineErrorMessage.value = null
+            // Create a new custom search engine entity.
+            val newEngine = CustomSearchEngine(name = name, searchUrl = validatedUrl)
+            // Add the new engine to the stored list.
+            dataStoreManager.addCustomSearchEngine(newEngine)
         }
     }
 }

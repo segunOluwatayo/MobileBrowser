@@ -5,9 +5,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -23,8 +23,20 @@ fun SearchEngineSelectionScreen(
     onNavigateBack: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
-    // Define the list of available search engines.
-    val searchEngines = listOf(
+    // Default search engines
+    val defaultSearchEngines = listOf(
+        SearchEngine(
+            name = "DuckDuckGo",
+            domain = "duckduckgo.com",
+            searchUrl = "https://duckduckgo.com/?q=",
+            iconRes = R.drawable.duckduckgo_icon
+        ),
+        SearchEngine(
+            name = "eBay",
+            domain = "ebay.com",
+            searchUrl = "https://www.ebay.com/sch/i.html?_nkw=",
+            iconRes = R.drawable.ebay_icon
+        ),
         SearchEngine(
             name = "Google",
             domain = "google.com",
@@ -38,12 +50,6 @@ fun SearchEngineSelectionScreen(
             iconRes = R.drawable.bing_icon
         ),
         SearchEngine(
-            name = "DuckDuckGo",
-            domain = "duckduckgo.com",
-            searchUrl = "https://duckduckgo.com/?q=",
-            iconRes = R.drawable.duckduckgo_icon
-        ),
-        SearchEngine(
             name = "Qwant",
             domain = "qwant.com",
             searchUrl = "https://www.qwant.com/?q=",
@@ -54,16 +60,26 @@ fun SearchEngineSelectionScreen(
             domain = "wikipedia.org",
             searchUrl = "https://wikipedia.org/wiki/Special:Search?search=",
             iconRes = R.drawable.wikipedia_icon
-        ),
-        SearchEngine(
-            name = "eBay",
-            domain = "ebay.com",
-            searchUrl = "https://www.ebay.com/sch/i.html?_nkw=",
-            iconRes = R.drawable.ebay_icon
         )
     )
 
+    // Retrieve custom engines from the ViewModel.
+    val customEngines by viewModel.customSearchEngines.collectAsState()
+    // Currently selected search engine URL.
     val currentEngineUrl by viewModel.searchEngine.collectAsState()
+
+    // State to show/hide the add custom engine dialog.
+    var showAddDialog by remember { mutableStateOf(false) }
+
+    // Merge default and custom engines; for custom ones, use a generic icon.
+    val mergedSearchEngines = (defaultSearchEngines + customEngines.map { custom ->
+        SearchEngine(
+            name = custom.name,
+            domain = "", // custom engines may not have a domain value
+            searchUrl = custom.searchUrl,
+            iconRes = R.drawable.generic_searchengine
+        )
+    }).sortedBy { it.name }
 
     Scaffold(
         topBar = {
@@ -71,9 +87,7 @@ fun SearchEngineSelectionScreen(
                 title = {
                     Text(
                         "Search engine",
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Normal
-                        )
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Normal)
                     )
                 },
                 navigationIcon = {
@@ -93,17 +107,14 @@ fun SearchEngineSelectionScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            items(searchEngines) { engine ->
+            items(mergedSearchEngines) { engine ->
                 ListItem(
                     headlineContent = {
-                        Text(
-                            engine.name,
-                            style = MaterialTheme.typography.bodyLarge
-                        )
+                        Text(engine.name, style = MaterialTheme.typography.bodyLarge)
                     },
                     supportingContent = {
                         Text(
-                            engine.domain,
+                            if (engine.domain.isNotEmpty()) engine.domain else engine.searchUrl,
                             style = MaterialTheme.typography.bodyMedium.copy(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -112,16 +123,14 @@ fun SearchEngineSelectionScreen(
                     leadingContent = {
                         Image(
                             painter = painterResource(id = engine.iconRes),
-                            contentDescription = null,
+                            contentDescription = engine.name,
                             modifier = Modifier.size(24.dp)
                         )
                     },
                     trailingContent = {
                         RadioButton(
                             selected = engine.searchUrl == currentEngineUrl,
-                            onClick = {
-                                viewModel.updateSearchEngine(engine.searchUrl)
-                            },
+                            onClick = { viewModel.updateSearchEngine(engine.searchUrl) },
                             colors = RadioButtonDefaults.colors(
                                 selectedColor = MaterialTheme.colorScheme.primary
                             )
@@ -131,18 +140,38 @@ fun SearchEngineSelectionScreen(
                         viewModel.updateSearchEngine(engine.searchUrl)
                     }
                 )
-                if (searchEngines.last() != engine) {
-                    HorizontalDivider(
-                        thickness = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant
-                    )
+                Divider()
+            }
+            // "Add Custom" button at the end of the list.
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = { showAddDialog = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                ) {
+                    Text("Add Custom")
                 }
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }
+
+    // Show the add custom engine dialog when requested.
+    if (showAddDialog) {
+        AddSearchEngineDialog(
+            onDismiss = { showAddDialog = false },
+            onAddEngine = { name, url ->
+                viewModel.addCustomSearchEngine(name, url)
+                showAddDialog = false
+            },
+            errorMessage = viewModel.customEngineErrorMessage.collectAsState().value
+        )
+    }
 }
 
-// Update SearchEngine data class to include domain
+// Data class representing a search engine in the UI.
 data class SearchEngine(
     val name: String,
     val domain: String,

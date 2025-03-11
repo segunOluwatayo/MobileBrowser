@@ -39,13 +39,14 @@ fun SearchUrlBar(
     currentSearchEngine: SearchEngine,
     onStartEditing: () -> Unit,
     onEndEditing: () -> Unit,
+    availableSearchEngines: List<SearchEngine>, // New parameter for merged engines
     modifier: Modifier = Modifier
 ) {
     var showDropdown by remember { mutableStateOf(false) }
     var tempSelectedEngine by remember(currentSearchEngine) { mutableStateOf(currentSearchEngine) }
     val focusManager = LocalFocusManager.current
 
-    // Determine what text to display in the search bar
+    // Determine which text to display.
     val displayValue = when {
         isEditing -> value
         currentUrl.isNotBlank() -> currentUrl
@@ -165,23 +166,11 @@ fun SearchUrlBar(
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
-
-            val searchEngines = listOf(
-                SearchEngine("Google", "https://www.google.com/search?q=", R.drawable.google_icon),
-                SearchEngine("Bing", "https://www.bing.com/search?q=", R.drawable.bing_icon),
-                SearchEngine("DuckDuckGo", "https://duckduckgo.com/?q=", R.drawable.duckduckgo_icon),
-                SearchEngine("Qwant", "https://www.qwant.com/?q=", R.drawable.qwant_icon),
-                SearchEngine("Wikipedia", "https://wikipedia.org/wiki/Special:Search?search=", R.drawable.wikipedia_icon),
-                SearchEngine("eBay", "https://www.ebay.com/sch/i.html?_nkw=", R.drawable.ebay_icon)
-            )
-
-            searchEngines.forEach { engine ->
+            // Use the provided list instead of a hard-coded one.
+            availableSearchEngines.forEach { engine ->
                 DropdownMenuItem(
                     text = {
-                        Text(
-                            engine.name,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
+                        Text(engine.name, color = MaterialTheme.colorScheme.onSurface)
                     },
                     leadingIcon = {
                         Icon(
@@ -197,19 +186,12 @@ fun SearchUrlBar(
                     }
                 )
             }
-
             Divider(
                 modifier = Modifier.padding(vertical = 8.dp),
                 color = MaterialTheme.colorScheme.outlineVariant
             )
-
             DropdownMenuItem(
-                text = {
-                    Text(
-                        "Bookmarks",
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                },
+                text = { Text("Bookmarks", color = MaterialTheme.colorScheme.onSurface) },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Bookmark,
@@ -219,14 +201,8 @@ fun SearchUrlBar(
                 },
                 onClick = { showDropdown = false }
             )
-
             DropdownMenuItem(
-                text = {
-                    Text(
-                        "History",
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                },
+                text = { Text("History", color = MaterialTheme.colorScheme.onSurface) },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.History,
@@ -236,14 +212,8 @@ fun SearchUrlBar(
                 },
                 onClick = { showDropdown = false }
             )
-
             DropdownMenuItem(
-                text = {
-                    Text(
-                        "Search settings",
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                },
+                text = { Text("Search settings", color = MaterialTheme.colorScheme.onSurface) },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Settings,

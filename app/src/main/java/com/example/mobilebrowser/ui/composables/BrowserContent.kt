@@ -68,7 +68,7 @@ fun BrowserContent(
     onShowDownloads: () -> Unit,
     onShowSettings: () -> Unit,
     showDownloadConfirmationDialog: Boolean,
-    currentDownloadRequest: GeckoDownloadDelegate.DownloadRequest?,
+    currentDownloadRequest: DownloadRequest?,
     onDismissDownloadConfirmationDialog: () -> Unit,
     isHomepageActive: Boolean,
     isOverlayActive: Boolean,
@@ -83,9 +83,10 @@ fun BrowserContent(
     var isEditing by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
-    val currentSearchEngineUrl by settingsViewModel.searchEngine.collectAsState()
-    val addressBarLocation by settingsViewModel.addressBarLocation.collectAsState()
-    val searchEngines = listOf(
+    val focusManager = LocalFocusManager.current
+
+    // Define default search engines.
+    val defaultSearchEngines = listOf(
         SearchEngine("Google", "https://www.google.com/search?q=", R.drawable.google_icon),
         SearchEngine("Bing", "https://www.bing.com/search?q=", R.drawable.bing_icon),
         SearchEngine("DuckDuckGo", "https://duckduckgo.com/?q=", R.drawable.duckduckgo_icon),
@@ -93,8 +94,18 @@ fun BrowserContent(
         SearchEngine("Wikipedia", "https://wikipedia.org/wiki/Special:Search?search=", R.drawable.wikipedia_icon),
         SearchEngine("eBay", "https://www.ebay.com/sch/i.html?_nkw=", R.drawable.ebay_icon)
     )
-    val currentEngine =
-        searchEngines.find { it.searchUrl == currentSearchEngineUrl } ?: searchEngines[0]
+
+    // Retrieve custom search engines from SettingsViewModel.
+    val customEngines by settingsViewModel.customSearchEngines.collectAsState()
+    // Merge default and custom search engines; for custom engines we use a generic icon.
+    val mergedSearchEngines = (defaultSearchEngines + customEngines.map { custom ->
+        SearchEngine(custom.name, custom.searchUrl, R.drawable.generic_searchengine)
+    }).sortedBy { it.name }
+
+    // Retrieve the current search engine URL from SettingsViewModel.
+    val currentEngineUrl by settingsViewModel.searchEngine.collectAsState()
+    // Determine current search engine.
+    val currentEngine = mergedSearchEngines.find { it.searchUrl == currentEngineUrl } ?: mergedSearchEngines[0]
 
     var selectedShortcut: ShortcutEntity? by remember { mutableStateOf(null) }
     var showEditDialog by remember { mutableStateOf(false) }
@@ -104,21 +115,15 @@ fun BrowserContent(
     val recentTabEnabled by settingsViewModel.recentTabEnabled.collectAsState()
     val bookmarksEnabled by settingsViewModel.bookmarksEnabled.collectAsState()
     val historyEnabled by settingsViewModel.historyEnabled.collectAsState()
-
     val recentHistory by historyViewModel.recentHistory.collectAsState(initial = emptyList())
 
-    // State for Download Completion Dialog and tracking current download.
     var showDownloadCompletionDialog by remember { mutableStateOf(false) }
     var currentDownloadId by remember { mutableStateOf<Long?>(null) }
-
     val focusRequester = remember { FocusRequester() }
-    val focusManager = LocalFocusManager.current
     var geckoViewReference by remember { mutableStateOf<android.view.View?>(null) }
-
-    // Check if address bar should be at the top
+    val addressBarLocation by settingsViewModel.addressBarLocation.collectAsState(initial = "TOP")
     val isAddressBarAtTop = addressBarLocation == "TOP"
 
-    // Back handler: Clear focus if editing.
     BackHandler(isEditing) {
         isEditing = false
         urlText = currentUrl
@@ -130,7 +135,6 @@ fun BrowserContent(
             urlText = if (isHomepageActive) "" else currentUrl
         }
     }
-
     LaunchedEffect(Unit) {
         if (isHomepageActive && !isEditing) {
             urlText = ""
@@ -138,7 +142,6 @@ fun BrowserContent(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        // Render the HomeScreen as a background layer with a theme-based background.
         if (isHomepageActive) {
             Box(
                 modifier = Modifier
@@ -147,25 +150,15 @@ fun BrowserContent(
             ) {
                 HomeScreen(
                     shortcuts = shortcuts,
-                    onShortcutClick = { shortcut ->
-                        onNavigate(shortcut.url)
-                    },
-                    onShortcutLongPressed = { shortcut ->
-                        selectedShortcut = shortcut
-                    },
+                    onShortcutClick = { shortcut -> onNavigate(shortcut.url) },
+                    onShortcutLongPressed = { shortcut -> selectedShortcut = shortcut },
                     onShowAllTabs = { onShowTabs() },
-                    onRecentTabClick = { activeTab ->
-                        onNavigate(activeTab.url)
-                    },
-                    onRestoreDefaultShortcuts = {
-                        shortcutViewModel.restoreDefaultShortcuts()
-                    },
+                    onRecentTabClick = { activeTab -> onNavigate(activeTab.url) },
+                    onRestoreDefaultShortcuts = { shortcutViewModel.restoreDefaultShortcuts() },
                     recentTab = activeTab,
                     onShowBookmarks = { onShowBookmarks() },
                     recentHistory = recentHistory,
-                    onRecentHistoryClick = { historyEntry ->
-                        onNavigate(historyEntry.url)
-                    },
+                    onRecentHistoryClick = { historyEntry -> onNavigate(historyEntry.url) },
                     onShowAllHistory = { onShowHistory() },
                     showShortcuts = homepageEnabled,
                     showRecentTab = recentTabEnabled,
@@ -177,11 +170,7 @@ fun BrowserContent(
             }
         }
 
-        // Main content (navigation bar and web view or spacer) drawn on top.
-        Column(
-            modifier = Modifier.fillMaxSize()
-        ) {
-            // If address bar should be at the top, show it first
+        Column(modifier = Modifier.fillMaxSize()) {
             if (isAddressBarAtTop) {
                 AddressBarSection(
                     urlText = urlText,
@@ -202,6 +191,7 @@ fun BrowserContent(
                         focusManager.clearFocus()
                     },
                     currentSearchEngine = currentEngine,
+                    availableSearchEngines = mergedSearchEngines, // Pass merged list
                     onStartEditing = { isEditing = true },
                     onEndEditing = { isEditing = false; urlText = currentUrl },
                     tabCount = tabCount,
@@ -236,7 +226,6 @@ fun BrowserContent(
                 )
             }
 
-            // Add a clickable overlay only when editing URL (to dismiss keyboard when tapped elsewhere)
             if (isEditing) {
                 Box(
                     modifier = Modifier
@@ -248,16 +237,13 @@ fun BrowserContent(
                         }
                 ) {}
             } else {
-                // Web content area always in the middle
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
                 ) {
-                    // The key fix: Only add GeckoView to the composition when needed
                     if (!isHomepageActive) {
                         key(geckoSession, currentUrl) {
-                            // Only add GeckoView when not on homepage
                             GeckoViewComponent(
                                 geckoSession = geckoSession,
                                 url = currentUrl,
@@ -272,40 +258,27 @@ fun BrowserContent(
                                 onViewCreated = { view ->
                                     Log.d("BrowserContent", "GeckoView created, passing reference up")
                                     geckoViewReference = view
-                                    // Pass the view up to the caller (MainActivity)
                                     onGeckoViewCreated(view)
                                 },
                                 onScrollStopped = { view ->
-                                    // Use the active tab ID (if available) to update its thumbnail.
                                     activeTab?.id?.let { tabId ->
-                                        // Add a small delay to let rendering complete after scroll
                                         tabViewModel.viewModelScope.launch {
                                             delay(300)
-                                            // Double-check the active tab hasn't changed
                                             if (activeTab?.id == tabId) {
                                                 tabViewModel.updateTabThumbnail(tabId, view)
                                             }
                                         }
                                     }
                                 },
-                                // When overlays are active, make GeckoView invisible
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .then(
-                                        if (isOverlayActive) {
-                                            Modifier.alpha(0f) // Invisible when overlay active
-                                        } else {
-                                            Modifier.alpha(1f) // Fully visible
-                                        }
-                                    )
+                                    .then(if (isOverlayActive) Modifier.alpha(0f) else Modifier.alpha(1f))
                             )
                         }
                     }
-                    // No else branch needed - HomeScreen already rendered in background
                 }
             }
 
-            // If address bar should be at the bottom, show it last
             if (!isAddressBarAtTop) {
                 HorizontalDivider(
                     modifier = Modifier
@@ -314,7 +287,6 @@ fun BrowserContent(
                     thickness = 2.dp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
                 )
-
                 AddressBarSection(
                     urlText = urlText,
                     currentUrl = currentUrl,
@@ -334,6 +306,7 @@ fun BrowserContent(
                         focusManager.clearFocus()
                     },
                     currentSearchEngine = currentEngine,
+                    availableSearchEngines = mergedSearchEngines,
                     onStartEditing = { isEditing = true },
                     onEndEditing = { isEditing = false; urlText = currentUrl },
                     tabCount = tabCount,
@@ -361,7 +334,7 @@ fun BrowserContent(
             }
         }
 
-        // Dialogs and overlays remain unchanged
+        // Shortcuts, dialogs, and overlays remain unchanged.
         selectedShortcut?.let { shortcut ->
             val shortcutEntity = ShortcutEntity(
                 label = shortcut.label,
@@ -369,7 +342,6 @@ fun BrowserContent(
                 iconRes = shortcut.iconRes,
                 isPinned = shortcut.isPinned
             )
-
             ShortcutOptionsDialog(
                 shortcut = shortcut,
                 onDismiss = { selectedShortcut = null },
@@ -393,7 +365,6 @@ fun BrowserContent(
                 }
             )
         }
-
         if (showEditDialog && shortcutToEdit != null) {
             ShortcutEditDialog(
                 shortcut = shortcutToEdit!!,
@@ -402,11 +373,7 @@ fun BrowserContent(
                     shortcutToEdit = null
                 },
                 onSave = { label, url ->
-                    shortcutViewModel.updateShortcut(
-                        shortcutToEdit!!,
-                        newLabel = label,
-                        newUrl = url
-                    )
+                    shortcutViewModel.updateShortcut(shortcutToEdit!!, newLabel = label, newUrl = url)
                     showEditDialog = false
                     shortcutToEdit = null
                 }
@@ -414,15 +381,13 @@ fun BrowserContent(
         }
     }
 
-    // Download Confirmation Dialog.
-    if (showDownloadConfirmationDialog && currentDownloadRequest != null) {
+    if (showDownloadCompletionDialog && currentDownloadRequest != null) {
         DownloadConfirmationDialog(
             fileName = currentDownloadRequest.fileName,
             fileSize = currentDownloadRequest.contentLength.toString(),
             onDownloadClicked = {
                 Log.d("BrowserContent", "Download Confirmation: Download button clicked for ${currentDownloadRequest.fileName}")
                 onDismissDownloadConfirmationDialog()
-
                 CoroutineScope(Dispatchers.IO).launch {
                     try {
                         val id = downloadViewModel.startDownload(
@@ -432,11 +397,9 @@ fun BrowserContent(
                             currentDownloadRequest.contentLength
                         )
                         Log.d("BrowserContent", "Download ID received: $id")
-
                         withContext(Dispatchers.Main) {
                             currentDownloadId = id
                             showDownloadCompletionDialog = true
-                            Log.d("BrowserContent", "Set currentDownloadId=$currentDownloadId, showDownloadCompletionDialog=$showDownloadCompletionDialog")
                         }
                     } catch (e: Exception) {
                         Log.e("BrowserContent", "Error starting download", e)
@@ -451,18 +414,15 @@ fun BrowserContent(
         )
     }
     if (showDownloadCompletionDialog && currentDownloadId != null) {
-        Log.d("BrowserContent", "Showing completion dialog for download ID: $currentDownloadId")
         DownloadCompletionDialog(
             downloadId = currentDownloadId!!,
             fileName = currentDownloadRequest?.fileName ?: "unknown",
             viewModel = downloadViewModel,
             onOpenClicked = {
-                Log.d("BrowserContent", "Download Completion: Open button clicked")
                 showDownloadCompletionDialog = false
                 currentDownloadId = null
             },
             onDismissClicked = {
-                Log.d("BrowserContent", "Download Completion: OK button clicked")
                 showDownloadCompletionDialog = false
                 currentDownloadId = null
             },

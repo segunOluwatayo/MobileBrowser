@@ -6,9 +6,13 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.example.mobilebrowser.data.entity.CustomSearchEngine
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import org.json.JSONArray
+import org.json.JSONObject
 import java.io.IOException
 
 // Create an extension property for DataStore
@@ -55,6 +59,9 @@ class DataStoreManager(private val context: Context) {
         val ADDRESS_BAR_LOCATION_KEY = stringPreferencesKey("address_bar_location")
         // Default location is "TOP" (other option is "BOTTOM")
         const val DEFAULT_ADDRESS_BAR_LOCATION = "TOP"
+
+        // New key for storing custom search engines as a JSON string.
+        val CUSTOM_SEARCH_ENGINES_KEY = stringPreferencesKey("custom_search_engines")
     }
 
     /**
@@ -216,5 +223,66 @@ class DataStoreManager(private val context: Context) {
         context.dataStore.edit { preferences ->
             preferences[ADDRESS_BAR_LOCATION_KEY] = location
         }
+    }
+
+    /**
+     * Flow to observe the list of custom search engines.
+     */
+    val customSearchEnginesFlow: Flow<List<CustomSearchEngine>> = context.dataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                emit(emptyPreferences())
+            } else {
+                throw exception
+            }
+        }
+        .map { preferences ->
+            // Retrieve the JSON string from DataStore (defaulting to an empty array)
+            val jsonString = preferences[CUSTOM_SEARCH_ENGINES_KEY] ?: "[]"
+            val jsonArray = JSONArray(jsonString)
+            val engines = mutableListOf<CustomSearchEngine>()
+            for (i in 0 until jsonArray.length()) {
+                val obj: JSONObject = jsonArray.getJSONObject(i)
+                engines.add(
+                    CustomSearchEngine(
+                        name = obj.getString("name"),
+                        searchUrl = obj.getString("searchUrl")
+                    )
+                )
+            }
+            engines
+        }
+
+    /**
+     * Updates the list of custom search engines in DataStore.
+     * The list is sorted alphabetically by name.
+     */
+    suspend fun updateCustomSearchEngines(customEngines: List<CustomSearchEngine>) {
+        // Sort the list alphabetically by name
+        val sortedEngines = customEngines.sortedBy { it.name }
+        val jsonArray = JSONArray()
+        sortedEngines.forEach { engine ->
+            val obj = JSONObject().apply {
+                put("name", engine.name)
+                put("searchUrl", engine.searchUrl)
+            }
+            jsonArray.put(obj)
+        }
+        context.dataStore.edit { preferences ->
+            preferences[CUSTOM_SEARCH_ENGINES_KEY] = jsonArray.toString()
+        }
+    }
+
+    /**
+     * Adds a new custom search engine to the stored list.
+     */
+    suspend fun addCustomSearchEngine(newEngine: CustomSearchEngine) {
+        // Retrieve the current list from the flow
+        val currentEngines = customSearchEnginesFlow.first()
+        // Add the new engine and update the stored list
+        val updatedList = currentEngines.toMutableList().apply {
+            add(newEngine)
+        }
+        updateCustomSearchEngines(updatedList)
     }
 }

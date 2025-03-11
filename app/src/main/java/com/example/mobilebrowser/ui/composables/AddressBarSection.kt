@@ -27,6 +27,7 @@ fun AddressBarSection(
     onSearch: (String, SearchEngine) -> Unit,
     onNavigate: (String) -> Unit,
     currentSearchEngine: SearchEngine,
+    availableSearchEngines: List<SearchEngine>, // Pass merged list here
     onStartEditing: () -> Unit,
     onEndEditing: () -> Unit,
     tabCount: Int,
@@ -51,8 +52,6 @@ fun AddressBarSection(
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
 
-    // Give the entire address bar row a background color that automatically adjusts
-    // (MaterialTheme.colorScheme.surface is typical for a top/bottom bar).
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -78,13 +77,13 @@ fun AddressBarSection(
             currentSearchEngine = currentSearchEngine,
             onStartEditing = onStartEditing,
             onEndEditing = onEndEditing,
+            availableSearchEngines = availableSearchEngines, // pass merged list
             modifier = Modifier
                 .weight(1f, fill = !isEditing)
                 .focusRequester(focusRequester)
         )
 
         if (!isEditing) {
-            // Tab button with a small colored box
             IconButton(onClick = onShowTabs) {
                 Box(
                     modifier = Modifier
@@ -104,8 +103,6 @@ fun AddressBarSection(
                     )
                 }
             }
-
-            // Overflow menu
             Box {
                 IconButton(onClick = onShowOverflowMenu) {
                     Icon(
@@ -114,7 +111,6 @@ fun AddressBarSection(
                         tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
-
                 DropdownMenu(
                     expanded = showOverflowMenu,
                     onDismissRequest = onDismissOverflowMenu
@@ -136,7 +132,6 @@ fun AddressBarSection(
                                 tint = if (canGoBack) LocalContentColor.current else LocalContentColor.current.copy(alpha = 0.38f)
                             )
                         }
-
                         IconButton(
                             onClick = {
                                 onDismissOverflowMenu()
@@ -159,7 +154,6 @@ fun AddressBarSection(
                                 )
                             }
                         }
-
                         IconButton(
                             onClick = {
                                 onDismissOverflowMenu()
@@ -169,9 +163,7 @@ fun AddressBarSection(
                             Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                         }
                     }
-
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
                     DropdownMenuItem(
                         text = { Text("Bookmarks") },
                         onClick = {
@@ -180,7 +172,6 @@ fun AddressBarSection(
                         },
                         leadingIcon = { Icon(Icons.Default.Star, contentDescription = null) }
                     )
-
                     DropdownMenuItem(
                         text = { Text("Downloads") },
                         onClick = {
@@ -189,9 +180,7 @@ fun AddressBarSection(
                         },
                         leadingIcon = { Icon(Icons.Default.Download, contentDescription = null) }
                     )
-
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
                     DropdownMenuItem(
                         text = { Text("History") },
                         onClick = {
@@ -200,9 +189,7 @@ fun AddressBarSection(
                         },
                         leadingIcon = { Icon(Icons.Default.History, contentDescription = null) }
                     )
-
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
                     DropdownMenuItem(
                         text = { Text("Settings") },
                         onClick = {
