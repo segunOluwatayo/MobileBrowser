@@ -96,7 +96,12 @@ fun BrowserContent(
     )
     val customEngines by settingsViewModel.customSearchEngines.collectAsState()
     val mergedSearchEngines = (defaultSearchEngines + customEngines.map { custom ->
-        SearchEngine(custom.name, custom.searchUrl, R.drawable.generic_searchengine)
+        SearchEngine(
+            name = custom.name,
+            searchUrl = custom.searchUrl,
+            iconRes = R.drawable.generic_searchengine,
+            faviconUrl = custom.faviconUrl
+        )
     }).sortedBy { it.name }
 
     // Find the user's "current" engine in preferences, default to the first if missing

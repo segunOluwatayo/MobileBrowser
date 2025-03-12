@@ -108,14 +108,30 @@ fun SearchUrlBar(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Start
                 ) {
-                    Icon(
-                        painter = painterResource(id = tempSelectedEngine.iconRes),
-                        contentDescription = tempSelectedEngine.name,
-                        modifier = Modifier
-                            .size(24.dp)
-                            .padding(end = 4.dp),
-                        tint = Color.Unspecified
-                    )
+                    if (tempSelectedEngine.faviconUrl == null) {
+                        Icon(
+                            painter = painterResource(id = tempSelectedEngine.iconRes),
+                            contentDescription = tempSelectedEngine.name,
+                            modifier = Modifier
+                                .size(24.dp)
+                                .padding(end = 4.dp),
+                            tint = Color.Unspecified
+                        )
+                    } else {
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(tempSelectedEngine.faviconUrl)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = tempSelectedEngine.name,
+                            modifier = Modifier
+                                .size(24.dp)
+                                .padding(end = 4.dp),
+                            error = painterResource(id = tempSelectedEngine.iconRes),
+                            fallback = painterResource(id = tempSelectedEngine.iconRes)
+                        )
+                    }
+
                     Icon(
                         imageVector = Icons.Filled.ArrowDropDown,
                         contentDescription = "Select search engine",
