@@ -188,7 +188,6 @@ fun BrowserContent(
             if (isAddressBarAtTop) {
                 AddressBarSection(
                     urlText = urlText,
-                    // CHANGED: We show "displayUrl" if NOT editing inside AddressBarSection
                     currentUrl = displayUrl,
                     isEditing = isEditing,
                     onUrlTextChange = {
@@ -239,7 +238,9 @@ fun BrowserContent(
                     onShowHistory = onShowHistory,
                     onShowDownloads = onShowDownloads,
                     onShowSettings = onShowSettings,
-                    focusRequester = focusRequester
+                    focusRequester = focusRequester,
+                    isHomepageActive = isHomepageActive,
+                    onHomeClick = { onNavigate("") }
                 )
 
                 HorizontalDivider(
@@ -392,7 +393,9 @@ fun BrowserContent(
                     onShowHistory = onShowHistory,
                     onShowDownloads = onShowDownloads,
                     onShowSettings = onShowSettings,
-                    focusRequester = focusRequester
+                    focusRequester = focusRequester,
+                    isHomepageActive = isHomepageActive,
+                    onHomeClick = { onNavigate("") }
                 )
             }
         }

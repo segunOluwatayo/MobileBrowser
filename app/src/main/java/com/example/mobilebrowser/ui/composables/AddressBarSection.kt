@@ -27,7 +27,7 @@ fun AddressBarSection(
     onSearch: (String, SearchEngine) -> Unit,
     onNavigate: (String) -> Unit,
     currentSearchEngine: SearchEngine,
-    availableSearchEngines: List<SearchEngine>, // Pass merged list here
+    availableSearchEngines: List<SearchEngine>,
     onStartEditing: () -> Unit,
     onEndEditing: () -> Unit,
     tabCount: Int,
@@ -47,6 +47,8 @@ fun AddressBarSection(
     onShowDownloads: () -> Unit,
     onShowSettings: () -> Unit,
     focusRequester: FocusRequester,
+    isHomepageActive: Boolean,
+    onHomeClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
@@ -59,6 +61,21 @@ fun AddressBarSection(
             .padding(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Add home button to the left of the search bar when not on homepage
+        if (!isHomepageActive) {
+            IconButton(
+                onClick = onHomeClick,
+                modifier = Modifier.padding(end = 4.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Home,
+                    contentDescription = "Go to Homepage",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+
         SearchUrlBar(
             value = urlText,
             currentUrl = currentUrl,
@@ -77,7 +94,8 @@ fun AddressBarSection(
             currentSearchEngine = currentSearchEngine,
             onStartEditing = onStartEditing,
             onEndEditing = onEndEditing,
-            availableSearchEngines = availableSearchEngines, // pass merged list
+            availableSearchEngines = availableSearchEngines,
+            isHomepageActive = isHomepageActive,
             modifier = Modifier
                 .weight(1f, fill = !isEditing)
                 .focusRequester(focusRequester)

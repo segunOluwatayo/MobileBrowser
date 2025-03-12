@@ -43,7 +43,8 @@ fun SearchUrlBar(
     currentSearchEngine: SearchEngine,
     onStartEditing: () -> Unit,
     onEndEditing: () -> Unit,
-    availableSearchEngines: List<SearchEngine>, // New parameter for merged engines
+    availableSearchEngines: List<SearchEngine>, // Parameter for merged engines
+    isHomepageActive: Boolean, // Keep parameter for conditional logic
     modifier: Modifier = Modifier
 ) {
     var showDropdown by remember { mutableStateOf(false) }
@@ -101,43 +102,46 @@ fun SearchUrlBar(
                 )
             ),
             leadingIcon = {
-                Row(
-                    modifier = Modifier
-                        .clickable { showDropdown = true }
-                        .padding(start = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Start
-                ) {
-                    if (tempSelectedEngine.faviconUrl == null) {
+                // Only show search engine selector
+                if (isHomepageActive) {
+                    Row(
+                        modifier = Modifier
+                            .clickable { showDropdown = true }
+                            .padding(start = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Start
+                    ) {
+                        if (tempSelectedEngine.faviconUrl == null) {
+                            Icon(
+                                painter = painterResource(id = tempSelectedEngine.iconRes),
+                                contentDescription = tempSelectedEngine.name,
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .padding(end = 4.dp),
+                                tint = Color.Unspecified
+                            )
+                        } else {
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(tempSelectedEngine.faviconUrl)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = tempSelectedEngine.name,
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .padding(end = 4.dp),
+                                error = painterResource(id = tempSelectedEngine.iconRes),
+                                fallback = painterResource(id = tempSelectedEngine.iconRes)
+                            )
+                        }
+
                         Icon(
-                            painter = painterResource(id = tempSelectedEngine.iconRes),
-                            contentDescription = tempSelectedEngine.name,
-                            modifier = Modifier
-                                .size(24.dp)
-                                .padding(end = 4.dp),
-                            tint = Color.Unspecified
-                        )
-                    } else {
-                        AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(tempSelectedEngine.faviconUrl)
-                                .crossfade(true)
-                                .build(),
-                            contentDescription = tempSelectedEngine.name,
-                            modifier = Modifier
-                                .size(24.dp)
-                                .padding(end = 4.dp),
-                            error = painterResource(id = tempSelectedEngine.iconRes),
-                            fallback = painterResource(id = tempSelectedEngine.iconRes)
+                            imageVector = Icons.Filled.ArrowDropDown,
+                            contentDescription = "Select search engine",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(24.dp)
                         )
                     }
-
-                    Icon(
-                        imageVector = Icons.Filled.ArrowDropDown,
-                        contentDescription = "Select search engine",
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(24.dp)
-                    )
                 }
             },
             placeholder = {
