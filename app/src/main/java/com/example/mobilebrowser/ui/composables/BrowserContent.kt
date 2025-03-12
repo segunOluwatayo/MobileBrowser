@@ -272,7 +272,7 @@ fun BrowserContent(
                 if (!isHomepageActive) {
                     // pass "currentUrl" to GeckoView (the real URL),
                     // but we do our display logic in onUrlChange
-                    key(geckoSession, currentUrl) {
+//                    key(geckoSession, currentUrl) {
                         GeckoViewComponent(
                             geckoSession = geckoSession,
                             url = currentUrl,
@@ -324,7 +324,7 @@ fun BrowserContent(
                                 .then(if (isOverlayActive) Modifier.alpha(0f) else Modifier.alpha(1f))
                         )
                     }
-                }
+//                }
 
                 // Transparent overlay when user is editing:
                 if (isEditing) {

@@ -97,9 +97,9 @@ fun GeckoViewComponent(
             }
         },
         modifier = modifier,
-        update = { view ->
+        update = { /*view ->
             Log.d("GeckoViewComponent", "Update: Loading URL: $url")
-            geckoSession.loadUri(url)
-        }
+//            geckoSession.loadUri(url)
+        */}
     )
 }
