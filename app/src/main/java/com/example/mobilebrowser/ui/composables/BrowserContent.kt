@@ -127,6 +127,9 @@ fun BrowserContent(
     val addressBarLocation by settingsViewModel.addressBarLocation.collectAsState(initial = "TOP")
     val isAddressBarAtTop = (addressBarLocation == "TOP")
 
+    // Add a state variable to track the UI-selected engine
+    var uiSelectedEngine by remember { mutableStateOf(currentEngine) }
+
     // If user presses back while editing, end editing mode
     BackHandler(isEditing) {
         isEditing = false
@@ -148,6 +151,13 @@ fun BrowserContent(
         if (isHomepageActive && !isEditing) {
             displayUrl = ""
             urlText = ""
+        }
+    }
+
+    // Add LaunchedEffect to reset engine when returning to homepage
+    LaunchedEffect(isHomepageActive, currentEngine) {
+        if (isHomepageActive) {
+            uiSelectedEngine = currentEngine
         }
     }
 
@@ -211,13 +221,14 @@ fun BrowserContent(
                         softwareKeyboardController?.hide()
                         focusManager.clearFocus()
                     },
-                    currentSearchEngine = currentEngine,
+                    currentSearchEngine = uiSelectedEngine,
                     availableSearchEngines = mergedSearchEngines,
                     onStartEditing = { isEditing = true },
                     onEndEditing = {
                         isEditing = false
                         urlText = currentUrl
                     },
+                    onSearchEngineChange = { engine -> uiSelectedEngine = engine },
                     tabCount = tabCount,
                     onShowTabs = onShowTabs,
                     showOverflowMenu = showOverflowMenu,
@@ -366,13 +377,14 @@ fun BrowserContent(
                         softwareKeyboardController?.hide()
                         focusManager.clearFocus()
                     },
-                    currentSearchEngine = currentEngine,
+                    currentSearchEngine = uiSelectedEngine,
                     availableSearchEngines = mergedSearchEngines,
                     onStartEditing = { isEditing = true },
                     onEndEditing = {
                         isEditing = false
                         urlText = currentUrl
                     },
+                    onSearchEngineChange = { engine -> uiSelectedEngine = engine },
                     tabCount = tabCount,
                     onShowTabs = onShowTabs,
                     showOverflowMenu = showOverflowMenu,

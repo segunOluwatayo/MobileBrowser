@@ -27,6 +27,7 @@ fun AddressBarSection(
     onSearch: (String, SearchEngine) -> Unit,
     onNavigate: (String) -> Unit,
     currentSearchEngine: SearchEngine,
+    onSearchEngineChange: (SearchEngine) -> Unit = {},
     availableSearchEngines: List<SearchEngine>,
     onStartEditing: () -> Unit,
     onEndEditing: () -> Unit,
@@ -96,6 +97,7 @@ fun AddressBarSection(
             onEndEditing = onEndEditing,
             availableSearchEngines = availableSearchEngines,
             isHomepageActive = isHomepageActive,
+            onSearchEngineChange = onSearchEngineChange,
             modifier = Modifier
                 .weight(1f, fill = !isEditing)
                 .focusRequester(focusRequester)

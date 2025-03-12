@@ -43,8 +43,9 @@ fun SearchUrlBar(
     currentSearchEngine: SearchEngine,
     onStartEditing: () -> Unit,
     onEndEditing: () -> Unit,
-    availableSearchEngines: List<SearchEngine>, // Parameter for merged engines
-    isHomepageActive: Boolean, // Keep parameter for conditional logic
+    availableSearchEngines: List<SearchEngine>,
+    isHomepageActive: Boolean,
+    onSearchEngineChange: (SearchEngine) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showDropdown by remember { mutableStateOf(false) }
@@ -219,6 +220,7 @@ fun SearchUrlBar(
                     },
                     onClick = {
                         tempSelectedEngine = engine
+                        onSearchEngineChange(engine)
                         showDropdown = false
                     }
                 )
