@@ -15,16 +15,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.mobilebrowser.R
 
 data class SearchEngine(
     val name: String,
     val searchUrl: String,
-    val iconRes: Int
+    val iconRes: Int,
+    val faviconUrl: String? = null
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -173,12 +177,25 @@ fun SearchUrlBar(
                         Text(engine.name, color = MaterialTheme.colorScheme.onSurface)
                     },
                     leadingIcon = {
-                        Icon(
-                            painter = painterResource(id = engine.iconRes),
-                            contentDescription = engine.name,
-                            modifier = Modifier.size(24.dp),
-                            tint = Color.Unspecified
-                        )
+                        if (engine.faviconUrl == null) {
+                            Icon(
+                                painter = painterResource(id = engine.iconRes),
+                                contentDescription = engine.name,
+                                modifier = Modifier.size(24.dp),
+                                tint = Color.Unspecified
+                            )
+                        } else {
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(engine.faviconUrl)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = engine.name,
+                                modifier = Modifier.size(24.dp),
+                                error = painterResource(id = engine.iconRes),
+                                fallback = painterResource(id = engine.iconRes)
+                            )
+                        }
                     },
                     onClick = {
                         tempSelectedEngine = engine

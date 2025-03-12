@@ -270,14 +270,35 @@ class SettingsViewModel @Inject constructor(
                 _customEngineErrorMessage.value = "Invalid URL format. URL must contain a '%s' placeholder."
                 return@launch
             }
-            // Clear any previous error.
+
+            // Extract domain for favicon
+            val domain = try {
+                val urlWithPlaceholder = validatedUrl.replace("%s", "query")
+                val uri = java.net.URI(urlWithPlaceholder)
+                uri.host
+            } catch (e: Exception) {
+                null
+            }
+
+            // Create favicon URL using Google's favicon service
+            // This is a reliable way to get favicons for most websites
+            val faviconUrl = domain?.let { "https://www.google.com/s2/favicons?domain=$it&sz=64" }
+
+            // Clear any previous error
             _customEngineErrorMessage.value = null
-            // Create a new custom search engine entity.
-            val newEngine = CustomSearchEngine(name = name, searchUrl = validatedUrl)
-            // Add the new engine to the stored list.
+
+            // Create a new custom search engine entity with the favicon URL
+            val newEngine = CustomSearchEngine(
+                name = name,
+                searchUrl = validatedUrl,
+                faviconUrl = faviconUrl
+            )
+
+            // Add the new engine to the stored list
             dataStoreManager.addCustomSearchEngine(newEngine)
         }
     }
+
 
     /**
      * Updates an existing custom search engine.
@@ -294,6 +315,21 @@ class SettingsViewModel @Inject constructor(
                 return@launch
             }
 
+            // Extract domain for favicon (only if URL changed)
+            val faviconUrl = if (existingEngine.searchUrl != validatedUrl) {
+                val domain = try {
+                    val urlWithPlaceholder = validatedUrl.replace("%s", "query")
+                    val uri = java.net.URI(urlWithPlaceholder)
+                    uri.host
+                } catch (e: Exception) {
+                    null
+                }
+
+                domain?.let { "https://www.google.com/s2/favicons?domain=$it&sz=64" }
+            } else {
+                existingEngine.faviconUrl
+            }
+
             // Clear any previous error
             _customEngineErrorMessage.value = null
 
@@ -306,8 +342,12 @@ class SettingsViewModel @Inject constructor(
             }
 
             if (index != -1) {
-                // Replace the engine at found index
-                currentEngines[index] = CustomSearchEngine(name = newName, searchUrl = validatedUrl)
+                // Replace the engine at found index with updated favicon
+                currentEngines[index] = CustomSearchEngine(
+                    name = newName,
+                    searchUrl = validatedUrl,
+                    faviconUrl = faviconUrl
+                )
 
                 // Update the stored list
                 dataStoreManager.updateCustomSearchEngines(currentEngines)

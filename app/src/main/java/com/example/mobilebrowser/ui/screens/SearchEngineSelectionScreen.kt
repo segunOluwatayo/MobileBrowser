@@ -14,10 +14,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.mobilebrowser.data.entity.CustomSearchEngine
 import com.example.mobilebrowser.ui.viewmodels.SettingsViewModel
 import com.example.mobilebrowser.R
@@ -93,8 +96,9 @@ fun SearchEngineSelectionScreen(
             name = custom.name,
             domain = "", // custom engines may not have a domain value
             searchUrl = custom.searchUrl,
-            iconRes = R.drawable.generic_searchengine,
-            isDefault = false
+            iconRes = R.drawable.generic_searchengine, // fallback
+            isDefault = false,
+            faviconUrl = custom.faviconUrl
         )
     }).sortedBy { it.name }
 
@@ -138,11 +142,26 @@ fun SearchEngineSelectionScreen(
                         )
                     },
                     leadingContent = {
-                        Image(
-                            painter = painterResource(id = engine.iconRes),
-                            contentDescription = engine.name,
-                            modifier = Modifier.size(24.dp)
-                        )
+                        if (engine.isDefault || engine.faviconUrl == null) {
+                            // Use the built-in resource for default engines
+                            Image(
+                                painter = painterResource(id = engine.iconRes),
+                                contentDescription = engine.name,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        } else {
+                            // Load the favicon dynamically for custom engines
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(engine.faviconUrl)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = engine.name,
+                                modifier = Modifier.size(24.dp),
+                                error = painterResource(id = R.drawable.generic_searchengine),
+                                fallback = painterResource(id = R.drawable.generic_searchengine)
+                            )
+                        }
                     },
                     trailingContent = {
                         Row(
@@ -214,7 +233,7 @@ fun SearchEngineSelectionScreen(
                         viewModel.updateSearchEngine(engine.searchUrl)
                     }
                 )
-                Divider()
+                HorizontalDivider()
             }
             // "Add Custom" button at the end of the list.
             item {
@@ -301,5 +320,6 @@ data class SearchEngine(
     val domain: String,
     val searchUrl: String,
     val iconRes: Int,
-    val isDefault: Boolean = true
+    val isDefault: Boolean = true,
+    val faviconUrl: String? = null
 )

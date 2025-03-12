@@ -230,11 +230,7 @@ class DataStoreManager(private val context: Context) {
      */
     val customSearchEnginesFlow: Flow<List<CustomSearchEngine>> = context.dataStore.data
         .catch { exception ->
-            if (exception is IOException) {
-                emit(emptyPreferences())
-            } else {
-                throw exception
-            }
+            if (exception is IOException) emit(emptyPreferences()) else throw exception
         }
         .map { preferences ->
             // Retrieve the JSON string from DataStore (defaulting to an empty array)
@@ -246,7 +242,9 @@ class DataStoreManager(private val context: Context) {
                 engines.add(
                     CustomSearchEngine(
                         name = obj.getString("name"),
-                        searchUrl = obj.getString("searchUrl")
+                        searchUrl = obj.getString("searchUrl"),
+                        // Get the faviconUrl if it exists, or null if it doesn't
+                        faviconUrl = if (obj.has("faviconUrl")) obj.getString("faviconUrl") else null
                     )
                 )
             }
@@ -265,6 +263,8 @@ class DataStoreManager(private val context: Context) {
             val obj = JSONObject().apply {
                 put("name", engine.name)
                 put("searchUrl", engine.searchUrl)
+                // Include the faviconUrl in the JSON if it exists
+                engine.faviconUrl?.let { put("faviconUrl", it) }
             }
             jsonArray.put(obj)
         }
