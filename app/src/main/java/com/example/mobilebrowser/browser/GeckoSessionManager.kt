@@ -1,97 +1,16 @@
 package com.example.mobilebrowser.browser
 
 import android.content.Context
-import android.content.res.Configuration
 import android.util.Log
-import androidx.compose.runtime.collectAsState
-import com.example.mobilebrowser.data.util.DataStoreManager
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import org.mozilla.geckoview.GeckoRuntime
-import org.mozilla.geckoview.GeckoRuntimeSettings
 import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.WebResponse
 import java.util.concurrent.ConcurrentHashMap
 
 class GeckoSessionManager(private val context: Context) {
-    private val dataStoreManager = DataStoreManager(context)
+    private val geckoRuntime: GeckoRuntime by lazy { GeckoRuntime.getDefault(context) }
     private val sessions = ConcurrentHashMap<Long, GeckoSession>()
     private var currentSession: GeckoSession? = null
-    private val scope = CoroutineScope(Dispatchers.Main)
-
-    // Initialize GeckoRuntime with dark mode support
-    private val geckoRuntime: GeckoRuntime by lazy {
-        // Determine the current theme mode
-        val themeMode = runBlocking { dataStoreManager.themeModeFlow.first() }
-
-        // Set dark mode based on theme setting
-        val isDarkMode = when(themeMode) {
-            "DARK" -> true
-            "LIGHT" -> false
-            else -> { // "SYSTEM" mode
-                val uiMode = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
-                uiMode == Configuration.UI_MODE_NIGHT_YES
-            }
-        }
-
-        Log.d("GeckoSessionManager", "Initializing with dark mode: $isDarkMode")
-
-        // Create runtime with appropriate settings
-        val settings = GeckoRuntimeSettings.Builder()
-            .preferredColorScheme(if (isDarkMode)
-                GeckoRuntimeSettings.COLOR_SCHEME_DARK
-            else
-                GeckoRuntimeSettings.COLOR_SCHEME_LIGHT)
-            .build()
-
-        GeckoRuntime.create(context, settings)
-    }
-
-    init {
-        // Monitor theme changes and update all sessions
-        scope.launch {
-            dataStoreManager.themeModeFlow.collect { themeMode ->
-                updateRuntimeColorScheme(themeMode)
-            }
-        }
-    }
-
-    private fun updateRuntimeColorScheme(themeMode: String) {
-        val isDarkMode = when(themeMode) {
-            "DARK" -> true
-            "LIGHT" -> false
-            else -> { // "SYSTEM" mode
-                val uiMode = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
-                uiMode == Configuration.UI_MODE_NIGHT_YES
-            }
-        }
-
-        Log.d("GeckoSessionManager", "Updating color scheme to: ${if (isDarkMode) "dark" else "light"}")
-
-        // Update color scheme
-        val colorScheme = if (isDarkMode) {
-            GeckoRuntimeSettings.COLOR_SCHEME_DARK
-        } else {
-            GeckoRuntimeSettings.COLOR_SCHEME_LIGHT
-        }
-
-        geckoRuntime.settings.preferredColorScheme = colorScheme
-
-        // Force reload of all sessions to apply the new theme
-        sessions.forEach { (_, session) ->
-            try {
-                // Only reload active sessions with content
-                if (session.isOpen) {
-                    session.reload()
-                }
-            } catch (e: Exception) {
-                Log.e("GeckoSessionManager", "Error reloading session", e)
-            }
-        }
-    }
 
     fun getOrCreateSession(
         tabId: Long,
@@ -174,5 +93,6 @@ class GeckoSessionManager(private val context: Context) {
         override fun onExternalResponse(session: GeckoSession, response: WebResponse) {
             downloadDelegate?.onExternalResponse(session, response)
         }
+
     }
 }
