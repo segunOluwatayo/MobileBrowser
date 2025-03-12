@@ -197,7 +197,11 @@ fun BrowserContent(
                     },
                     onSearch = { query, engine ->
                         isEditing = false
-                        val searchUrl = engine.searchUrl + query
+                        val searchUrl = if (engine.searchUrl.contains("%s")) {
+                            engine.searchUrl.replace("%s", query)
+                        } else {
+                            engine.searchUrl + query
+                        }
                         onNavigate(searchUrl)
                         softwareKeyboardController?.hide()
                         focusManager.clearFocus()
@@ -346,7 +350,11 @@ fun BrowserContent(
                     },
                     onSearch = { query, engine ->
                         isEditing = false
-                        val searchUrl = engine.searchUrl + query
+                        val searchUrl = if (engine.searchUrl.contains("%s")) {
+                            engine.searchUrl.replace("%s", query)
+                        } else {
+                            engine.searchUrl + query
+                        }
                         onNavigate(searchUrl)
                         softwareKeyboardController?.hide()
                         focusManager.clearFocus()
