@@ -1,5 +1,6 @@
 package com.example.mobilebrowser.ui.screens
 
+import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -7,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
@@ -31,7 +33,7 @@ fun SearchEngineSelectionScreen(
     onNavigateBack: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
-    // Default search engines remain the same
+    // Default search engines
     val defaultSearchEngines = listOf(
         SearchEngine(
             name = "DuckDuckGo",
@@ -77,14 +79,15 @@ fun SearchEngineSelectionScreen(
         )
     )
 
+    // State variables
     val customEngines by viewModel.customSearchEngines.collectAsState()
     val currentEngineUrl by viewModel.searchEngine.collectAsState()
-
     var showAddDialog by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
     var selectedEngine by remember { mutableStateOf<CustomSearchEngine?>(null) }
 
+    // Merge default and custom engines, sorted by name
     val mergedSearchEngines = (defaultSearchEngines + customEngines.map { custom ->
         SearchEngine(
             name = custom.name,
@@ -96,6 +99,7 @@ fun SearchEngineSelectionScreen(
         )
     }).sortedBy { it.name }
 
+    // UI Scaffold
     Scaffold(
         topBar = {
             TopAppBar(
@@ -127,31 +131,22 @@ fun SearchEngineSelectionScreen(
                     headlineContent = {
                         Text(
                             engine.name,
-                            style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier.padding(vertical = 8.dp)
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    },
+                    supportingContent = {
+                        val displayDomain = if (engine.isDefault) {
+                            engine.domain
+                        } else {
+                            Uri.parse(engine.searchUrl).host ?: "Custom"
+                        }
+                        Text(
+                            displayDomain,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     },
                     leadingContent = {
-                        if (engine.isDefault || engine.faviconUrl == null) {
-                            Image(
-                                painter = painterResource(id = engine.iconRes),
-                                contentDescription = engine.name,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        } else {
-                            AsyncImage(
-                                model = ImageRequest.Builder(LocalContext.current)
-                                    .data(engine.faviconUrl)
-                                    .crossfade(true)
-                                    .build(),
-                                contentDescription = engine.name,
-                                modifier = Modifier.size(24.dp),
-                                error = painterResource(id = R.drawable.generic_searchengine),
-                                fallback = painterResource(id = R.drawable.generic_searchengine)
-                            )
-                        }
-                    },
-                    trailingContent = {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -163,54 +158,71 @@ fun SearchEngineSelectionScreen(
                                     selectedColor = MaterialTheme.colorScheme.primary
                                 )
                             )
-
-                            if (!engine.isDefault) {
-                                val customEngine = customEngines.find { it.searchUrl == engine.searchUrl }
-                                if (customEngine != null) {
-                                    Box {
-                                        var showMenu by remember { mutableStateOf(false) }
-
-                                        IconButton(onClick = { showMenu = true }) {
-                                            Icon(
-                                                imageVector = Icons.Default.MoreVert,
-                                                contentDescription = "More options",
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-
-                                        DropdownMenu(
-                                            expanded = showMenu,
-                                            onDismissRequest = { showMenu = false }
-                                        ) {
-                                            DropdownMenuItem(
-                                                text = { Text("Edit") },
-                                                onClick = {
-                                                    selectedEngine = customEngine
-                                                    showEditDialog = true
-                                                    showMenu = false
-                                                },
-                                                leadingIcon = {
-                                                    Icon(
-                                                        Icons.Default.Edit,
-                                                        contentDescription = "Edit"
-                                                    )
-                                                }
-                                            )
-                                            DropdownMenuItem(
-                                                text = { Text("Delete") },
-                                                onClick = {
-                                                    selectedEngine = customEngine
-                                                    showDeleteConfirmation = true
-                                                    showMenu = false
-                                                },
-                                                leadingIcon = {
-                                                    Icon(
-                                                        Icons.Default.Delete,
-                                                        contentDescription = "Delete"
-                                                    )
-                                                }
-                                            )
-                                        }
+                            if (engine.isDefault || engine.faviconUrl == null) {
+                                Image(
+                                    painter = painterResource(id = engine.iconRes),
+                                    contentDescription = engine.name,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            } else {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(LocalContext.current)
+                                        .data(engine.faviconUrl)
+                                        .crossfade(true)
+                                        .build(),
+                                    contentDescription = engine.name,
+                                    modifier = Modifier.size(24.dp),
+                                    error = painterResource(id = R.drawable.generic_searchengine),
+                                    fallback = painterResource(id = R.drawable.generic_searchengine)
+                                )
+                            }
+                        }
+                    },
+                    trailingContent = {
+                        if (!engine.isDefault) {
+                            val customEngine = customEngines.find { it.searchUrl == engine.searchUrl }
+                            if (customEngine != null) {
+                                Box {
+                                    var showMenu by remember { mutableStateOf(false) }
+                                    IconButton(onClick = { showMenu = true }) {
+                                        Icon(
+                                            imageVector = Icons.Default.MoreVert,
+                                            contentDescription = "More options",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    DropdownMenu(
+                                        expanded = showMenu,
+                                        onDismissRequest = { showMenu = false }
+                                    ) {
+                                        DropdownMenuItem(
+                                            text = { Text("Edit") },
+                                            onClick = {
+                                                selectedEngine = customEngine
+                                                showEditDialog = true
+                                                showMenu = false
+                                            },
+                                            leadingIcon = {
+                                                Icon(
+                                                    Icons.Default.Edit,
+                                                    contentDescription = "Edit"
+                                                )
+                                            }
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text("Delete") },
+                                            onClick = {
+                                                selectedEngine = customEngine
+                                                showDeleteConfirmation = true
+                                                showMenu = false
+                                            },
+                                            leadingIcon = {
+                                                Icon(
+                                                    Icons.Default.Delete,
+                                                    contentDescription = "Delete"
+                                                )
+                                            }
+                                        )
                                     }
                                 }
                             }
@@ -231,6 +243,8 @@ fun SearchEngineSelectionScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
                 ) {
+                    Icon(Icons.Filled.Add, contentDescription = "Add")
+                    Spacer(Modifier.width(8.dp))
                     Text("Add Custom")
                 }
                 Spacer(modifier = Modifier.height(16.dp))
@@ -238,7 +252,7 @@ fun SearchEngineSelectionScreen(
         }
     }
 
-    // Dialogs remain the same
+    // Dialogs for adding, editing, and deleting custom engines
     if (showAddDialog) {
         AddSearchEngineDialog(
             onDismiss = { showAddDialog = false },
@@ -299,6 +313,7 @@ fun SearchEngineSelectionScreen(
     }
 }
 
+// Data class for search engines
 data class SearchEngine(
     val name: String,
     val domain: String,
