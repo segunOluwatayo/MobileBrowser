@@ -31,7 +31,7 @@ fun SearchEngineSelectionScreen(
     onNavigateBack: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
-    // Default search engines
+    // Default search engines remain the same
     val defaultSearchEngines = listOf(
         SearchEngine(
             name = "DuckDuckGo",
@@ -77,26 +77,20 @@ fun SearchEngineSelectionScreen(
         )
     )
 
-    // Retrieve custom engines from the ViewModel.
     val customEngines by viewModel.customSearchEngines.collectAsState()
-    // Currently selected search engine URL.
     val currentEngineUrl by viewModel.searchEngine.collectAsState()
 
-    // State to show/hide dialogs
     var showAddDialog by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
-
-    // Engine being edited or deleted
     var selectedEngine by remember { mutableStateOf<CustomSearchEngine?>(null) }
 
-    // Merge default and custom engines; for custom ones, use a generic icon.
     val mergedSearchEngines = (defaultSearchEngines + customEngines.map { custom ->
         SearchEngine(
             name = custom.name,
-            domain = "", // custom engines may not have a domain value
+            domain = "",
             searchUrl = custom.searchUrl,
-            iconRes = R.drawable.generic_searchengine, // fallback
+            iconRes = R.drawable.generic_searchengine,
             isDefault = false,
             faviconUrl = custom.faviconUrl
         )
@@ -107,7 +101,7 @@ fun SearchEngineSelectionScreen(
             TopAppBar(
                 title = {
                     Text(
-                        "Search engine",
+                        "Search Engine",
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Normal)
                     )
                 },
@@ -131,26 +125,20 @@ fun SearchEngineSelectionScreen(
             items(mergedSearchEngines) { engine ->
                 ListItem(
                     headlineContent = {
-                        Text(engine.name, style = MaterialTheme.typography.bodyLarge)
-                    },
-                    supportingContent = {
                         Text(
-                            if (engine.domain.isNotEmpty()) engine.domain else engine.searchUrl,
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            engine.name,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.padding(vertical = 8.dp)
                         )
                     },
                     leadingContent = {
                         if (engine.isDefault || engine.faviconUrl == null) {
-                            // Use the built-in resource for default engines
                             Image(
                                 painter = painterResource(id = engine.iconRes),
                                 contentDescription = engine.name,
                                 modifier = Modifier.size(24.dp)
                             )
                         } else {
-                            // Load the favicon dynamically for custom engines
                             AsyncImage(
                                 model = ImageRequest.Builder(LocalContext.current)
                                     .data(engine.faviconUrl)
@@ -165,7 +153,8 @@ fun SearchEngineSelectionScreen(
                     },
                     trailingContent = {
                         Row(
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             RadioButton(
                                 selected = engine.searchUrl == currentEngineUrl,
@@ -175,9 +164,7 @@ fun SearchEngineSelectionScreen(
                                 )
                             )
 
-                            // Only show more options for custom engines
                             if (!engine.isDefault) {
-                                // Find the custom engine this row represents
                                 val customEngine = customEngines.find { it.searchUrl == engine.searchUrl }
                                 if (customEngine != null) {
                                     Box {
@@ -235,7 +222,7 @@ fun SearchEngineSelectionScreen(
                 )
                 HorizontalDivider()
             }
-            // "Add Custom" button at the end of the list.
+
             item {
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(
@@ -251,7 +238,7 @@ fun SearchEngineSelectionScreen(
         }
     }
 
-    // Show the add custom engine dialog when requested.
+    // Dialogs remain the same
     if (showAddDialog) {
         AddSearchEngineDialog(
             onDismiss = { showAddDialog = false },
@@ -263,7 +250,6 @@ fun SearchEngineSelectionScreen(
         )
     }
 
-    // Show the edit custom engine dialog when requested
     if (showEditDialog && selectedEngine != null) {
         EditSearchEngineDialog(
             engine = selectedEngine!!,
@@ -280,7 +266,6 @@ fun SearchEngineSelectionScreen(
         )
     }
 
-    // Show delete confirmation dialog
     if (showDeleteConfirmation && selectedEngine != null) {
         AlertDialog(
             onDismissRequest = {
@@ -314,7 +299,6 @@ fun SearchEngineSelectionScreen(
     }
 }
 
-// Data class representing a search engine in the UI.
 data class SearchEngine(
     val name: String,
     val domain: String,
