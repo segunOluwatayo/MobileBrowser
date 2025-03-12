@@ -313,7 +313,7 @@ class TabViewModel @Inject constructor(
                     }
 
                     // Delay to ensure content is fully rendered.
-                    delay(1000)
+                    delay(3000)
 
                     val result: GeckoResult<Bitmap> = view.capturePixels()
                     result.accept { bitmap: Bitmap? ->
