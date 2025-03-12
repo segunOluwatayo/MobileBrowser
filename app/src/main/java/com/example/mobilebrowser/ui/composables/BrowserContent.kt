@@ -5,16 +5,12 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -31,6 +27,13 @@ import com.example.mobilebrowser.ui.screens.HomeScreen
 import com.example.mobilebrowser.ui.viewmodels.*
 import kotlinx.coroutines.*
 import org.mozilla.geckoview.GeckoSession
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
+
+fun extractSearchQuery(fullUrl: String, searchBaseUrl: String): String {
+    val rawQueryPart = fullUrl.removePrefix(searchBaseUrl)
+    return URLDecoder.decode(rawQueryPart, StandardCharsets.UTF_8.name())
+}
 
 @Composable
 fun BrowserContent(
@@ -69,6 +72,8 @@ fun BrowserContent(
     historyViewModel: HistoryViewModel = hiltViewModel(),
     settingsViewModel: SettingsViewModel = hiltViewModel()
 ) {
+    // We still keep urlText for the user's typed input,
+    // but now we also track a separate "displayUrl" for the address bar
     var urlText by remember { mutableStateOf(currentUrl) }
     var isEditing by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
@@ -76,7 +81,11 @@ fun BrowserContent(
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
 
-    // Define default search engines.
+    // A separate state that holds what we actually display
+    // when NOT editing in the address bar. We initialize it to currentUrl.
+    var displayUrl by remember { mutableStateOf(currentUrl) }
+
+    // The default + custom search engines
     val defaultSearchEngines = listOf(
         SearchEngine("Google", "https://www.google.com/search?q=", R.drawable.google_icon),
         SearchEngine("Bing", "https://www.bing.com/search?q=", R.drawable.bing_icon),
@@ -85,20 +94,15 @@ fun BrowserContent(
         SearchEngine("Wikipedia", "https://wikipedia.org/wiki/Special:Search?search=", R.drawable.wikipedia_icon),
         SearchEngine("eBay", "https://www.ebay.com/sch/i.html?_nkw=", R.drawable.ebay_icon)
     )
-
-    // Retrieve custom search engines from SettingsViewModel.
     val customEngines by settingsViewModel.customSearchEngines.collectAsState()
-
-    // Merge default and custom search engines; for custom engines we use a generic icon.
     val mergedSearchEngines = (defaultSearchEngines + customEngines.map { custom ->
         SearchEngine(custom.name, custom.searchUrl, R.drawable.generic_searchengine)
     }).sortedBy { it.name }
 
-    // Retrieve the current search engine URL.
+    // Find the user's "current" engine in preferences, default to the first if missing
     val currentEngineUrl by settingsViewModel.searchEngine.collectAsState()
-    // Determine current search engine.
     val currentEngine = mergedSearchEngines.find { it.searchUrl == currentEngineUrl }
-        ?: mergedSearchEngines[0]
+        ?: mergedSearchEngines.first()
 
     var selectedShortcut: ShortcutEntity? by remember { mutableStateOf(null) }
     var showEditDialog by remember { mutableStateOf(false) }
@@ -118,7 +122,7 @@ fun BrowserContent(
     val addressBarLocation by settingsViewModel.addressBarLocation.collectAsState(initial = "TOP")
     val isAddressBarAtTop = (addressBarLocation == "TOP")
 
-    // If user presses back while editing, end editing mode.
+    // If user presses back while editing, end editing mode
     BackHandler(isEditing) {
         isEditing = false
         urlText = currentUrl
@@ -128,19 +132,22 @@ fun BrowserContent(
     // Whenever URL changes or homepage is toggled, update displayed text if not editing.
     LaunchedEffect(currentUrl, isHomepageActive) {
         if (!isEditing) {
-            urlText = if (isHomepageActive) "" else currentUrl
+            // Use the "displayUrl" if homepage is inactive; otherwise blank on homepage
+            displayUrl = if (isHomepageActive) "" else currentUrl
+            urlText = displayUrl
         }
     }
 
-    // On first load, if homepage is active, show empty URL (unless user is already editing).
+    // On first load, if homepage is active, show empty URL (unless user is editing).
     LaunchedEffect(Unit) {
         if (isHomepageActive && !isEditing) {
+            displayUrl = ""
             urlText = ""
         }
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        // If homepage is active, show the home screen in the background.
+        // HOMEPAGE if active
         if (isHomepageActive) {
             Box(
                 modifier = Modifier
@@ -169,13 +176,15 @@ fun BrowserContent(
             }
         }
 
-        // The main Column that includes the address bar(s) and GeckoView
+        // Main column with address bar(s) + GeckoView
         Column(modifier = Modifier.fillMaxSize()) {
+
+            // TOP bar if selected
             if (isAddressBarAtTop) {
-                // Top address bar
                 AddressBarSection(
                     urlText = urlText,
-                    currentUrl = currentUrl,
+                    // CHANGED: We show "displayUrl" if NOT editing inside AddressBarSection
+                    currentUrl = displayUrl,
                     isEditing = isEditing,
                     onUrlTextChange = {
                         isEditing = true
@@ -224,7 +233,6 @@ fun BrowserContent(
                     focusRequester = focusRequester
                 )
 
-                // Divider after top bar
                 HorizontalDivider(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -234,20 +242,41 @@ fun BrowserContent(
                 )
             }
 
-            // Main browsing area
+            // The main browsing area / GeckoView
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
             ) {
                 if (!isHomepageActive) {
+                    // pass "currentUrl" to GeckoView (the real URL),
+                    // but we do our display logic in onUrlChange
                     key(geckoSession, currentUrl) {
                         GeckoViewComponent(
                             geckoSession = geckoSession,
                             url = currentUrl,
                             onUrlChange = { newUrl ->
                                 val normalizedUrl = if (newUrl == "about:blank") "" else newUrl
-                                // Only update if not editing
+
+                                // If the new page is a search result from our current engine:
+                                if (normalizedUrl.startsWith(currentEngine.searchUrl)) {
+                                    // Extract just the portion after the engine's base
+                                    val extractedQuery = extractSearchQuery(
+                                        fullUrl = normalizedUrl,
+                                        searchBaseUrl = currentEngine.searchUrl
+                                    )
+                                    // If we successfully got some text, use it as display text
+                                    displayUrl = if (extractedQuery.isNotEmpty()) {
+                                        extractedQuery
+                                    } else {
+                                        normalizedUrl // fallback
+                                    }
+                                } else {
+                                    // Otherwise, show the actual domain (or actual link)
+                                    displayUrl = normalizedUrl
+                                }
+
+                                // Update the official "currentUrl" in the parent if we’re not editing
                                 if (!isEditing && normalizedUrl != currentUrl) {
                                     onNavigate(normalizedUrl)
                                 }
@@ -271,20 +300,18 @@ fun BrowserContent(
                             },
                             modifier = Modifier
                                 .fillMaxSize()
-                                // Show or hide the WebView based on overlay
                                 .then(if (isOverlayActive) Modifier.alpha(0f) else Modifier.alpha(1f))
                         )
                     }
                 }
 
-                // <-- Here's the transparent overlay when editing -->
+                // Transparent overlay when user is editing:
                 if (isEditing) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .pointerInput(Unit) {
                                 detectTapGestures {
-                                    // When the user taps outside, end editing
                                     focusManager.clearFocus()
                                     isEditing = false
                                     urlText = currentUrl
@@ -294,7 +321,7 @@ fun BrowserContent(
                 }
             }
 
-            // If the address bar is at the bottom, show it after the main content
+            // BOTTOM bar if selected
             if (!isAddressBarAtTop) {
                 HorizontalDivider(
                     modifier = Modifier
@@ -303,9 +330,10 @@ fun BrowserContent(
                     thickness = 2.dp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
                 )
+
                 AddressBarSection(
                     urlText = urlText,
-                    currentUrl = currentUrl,
+                    currentUrl = displayUrl,
                     isEditing = isEditing,
                     onUrlTextChange = {
                         isEditing = true
@@ -313,7 +341,7 @@ fun BrowserContent(
                     },
                     onSearch = { query, engine ->
                         isEditing = false
-                        val searchUrl = engine.searchUrl.replace("%s", query)
+                        val searchUrl = engine.searchUrl + query
                         onNavigate(searchUrl)
                         softwareKeyboardController?.hide()
                         focusManager.clearFocus()
@@ -356,7 +384,7 @@ fun BrowserContent(
             }
         }
 
-        // Handle shortcut dialogs
+        // Handle Shortcut dialogs
         selectedShortcut?.let { shortcut ->
             ShortcutOptionsDialog(
                 shortcut = shortcut,
