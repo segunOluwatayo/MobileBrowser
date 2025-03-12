@@ -313,7 +313,7 @@ fun BrowserContent(
                     },
                     onSearch = { query, engine ->
                         isEditing = false
-                        val searchUrl = engine.searchUrl + query
+                        val searchUrl = engine.searchUrl.replace("%s", query)
                         onNavigate(searchUrl)
                         softwareKeyboardController?.hide()
                         focusManager.clearFocus()

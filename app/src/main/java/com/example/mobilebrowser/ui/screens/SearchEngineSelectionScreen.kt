@@ -5,15 +5,20 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.mobilebrowser.data.entity.CustomSearchEngine
 import com.example.mobilebrowser.ui.viewmodels.SettingsViewModel
 import com.example.mobilebrowser.R
 
@@ -29,37 +34,43 @@ fun SearchEngineSelectionScreen(
             name = "DuckDuckGo",
             domain = "duckduckgo.com",
             searchUrl = "https://duckduckgo.com/?q=",
-            iconRes = R.drawable.duckduckgo_icon
+            iconRes = R.drawable.duckduckgo_icon,
+            isDefault = true
         ),
         SearchEngine(
             name = "eBay",
             domain = "ebay.com",
             searchUrl = "https://www.ebay.com/sch/i.html?_nkw=",
-            iconRes = R.drawable.ebay_icon
+            iconRes = R.drawable.ebay_icon,
+            isDefault = true
         ),
         SearchEngine(
             name = "Google",
             domain = "google.com",
             searchUrl = "https://www.google.com/search?q=",
-            iconRes = R.drawable.google_icon
+            iconRes = R.drawable.google_icon,
+            isDefault = true
         ),
         SearchEngine(
             name = "Microsoft Bing",
             domain = "bing.com",
             searchUrl = "https://www.bing.com/search?q=",
-            iconRes = R.drawable.bing_icon
+            iconRes = R.drawable.bing_icon,
+            isDefault = true
         ),
         SearchEngine(
             name = "Qwant",
             domain = "qwant.com",
             searchUrl = "https://www.qwant.com/?q=",
-            iconRes = R.drawable.qwant_icon
+            iconRes = R.drawable.qwant_icon,
+            isDefault = true
         ),
         SearchEngine(
             name = "Wikipedia",
             domain = "wikipedia.org",
             searchUrl = "https://wikipedia.org/wiki/Special:Search?search=",
-            iconRes = R.drawable.wikipedia_icon
+            iconRes = R.drawable.wikipedia_icon,
+            isDefault = true
         )
     )
 
@@ -68,8 +79,13 @@ fun SearchEngineSelectionScreen(
     // Currently selected search engine URL.
     val currentEngineUrl by viewModel.searchEngine.collectAsState()
 
-    // State to show/hide the add custom engine dialog.
+    // State to show/hide dialogs
     var showAddDialog by remember { mutableStateOf(false) }
+    var showEditDialog by remember { mutableStateOf(false) }
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
+
+    // Engine being edited or deleted
+    var selectedEngine by remember { mutableStateOf<CustomSearchEngine?>(null) }
 
     // Merge default and custom engines; for custom ones, use a generic icon.
     val mergedSearchEngines = (defaultSearchEngines + customEngines.map { custom ->
@@ -77,7 +93,8 @@ fun SearchEngineSelectionScreen(
             name = custom.name,
             domain = "", // custom engines may not have a domain value
             searchUrl = custom.searchUrl,
-            iconRes = R.drawable.generic_searchengine
+            iconRes = R.drawable.generic_searchengine,
+            isDefault = false
         )
     }).sortedBy { it.name }
 
@@ -128,13 +145,70 @@ fun SearchEngineSelectionScreen(
                         )
                     },
                     trailingContent = {
-                        RadioButton(
-                            selected = engine.searchUrl == currentEngineUrl,
-                            onClick = { viewModel.updateSearchEngine(engine.searchUrl) },
-                            colors = RadioButtonDefaults.colors(
-                                selectedColor = MaterialTheme.colorScheme.primary
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = engine.searchUrl == currentEngineUrl,
+                                onClick = { viewModel.updateSearchEngine(engine.searchUrl) },
+                                colors = RadioButtonDefaults.colors(
+                                    selectedColor = MaterialTheme.colorScheme.primary
+                                )
                             )
-                        )
+
+                            // Only show more options for custom engines
+                            if (!engine.isDefault) {
+                                // Find the custom engine this row represents
+                                val customEngine = customEngines.find { it.searchUrl == engine.searchUrl }
+                                if (customEngine != null) {
+                                    Box {
+                                        var showMenu by remember { mutableStateOf(false) }
+
+                                        IconButton(onClick = { showMenu = true }) {
+                                            Icon(
+                                                imageVector = Icons.Default.MoreVert,
+                                                contentDescription = "More options",
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+
+                                        DropdownMenu(
+                                            expanded = showMenu,
+                                            onDismissRequest = { showMenu = false }
+                                        ) {
+                                            DropdownMenuItem(
+                                                text = { Text("Edit") },
+                                                onClick = {
+                                                    selectedEngine = customEngine
+                                                    showEditDialog = true
+                                                    showMenu = false
+                                                },
+                                                leadingIcon = {
+                                                    Icon(
+                                                        Icons.Default.Edit,
+                                                        contentDescription = "Edit"
+                                                    )
+                                                }
+                                            )
+                                            DropdownMenuItem(
+                                                text = { Text("Delete") },
+                                                onClick = {
+                                                    selectedEngine = customEngine
+                                                    showDeleteConfirmation = true
+                                                    showMenu = false
+                                                },
+                                                leadingIcon = {
+                                                    Icon(
+                                                        Icons.Default.Delete,
+                                                        contentDescription = "Delete"
+                                                    )
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     },
                     modifier = Modifier.clickable {
                         viewModel.updateSearchEngine(engine.searchUrl)
@@ -169,6 +243,56 @@ fun SearchEngineSelectionScreen(
             errorMessage = viewModel.customEngineErrorMessage.collectAsState().value
         )
     }
+
+    // Show the edit custom engine dialog when requested
+    if (showEditDialog && selectedEngine != null) {
+        EditSearchEngineDialog(
+            engine = selectedEngine!!,
+            onDismiss = {
+                showEditDialog = false
+                selectedEngine = null
+            },
+            onUpdateEngine = { name, url ->
+                viewModel.updateCustomSearchEngine(selectedEngine!!, name, url)
+                showEditDialog = false
+                selectedEngine = null
+            },
+            errorMessage = viewModel.customEngineErrorMessage.collectAsState().value
+        )
+    }
+
+    // Show delete confirmation dialog
+    if (showDeleteConfirmation && selectedEngine != null) {
+        AlertDialog(
+            onDismissRequest = {
+                showDeleteConfirmation = false
+                selectedEngine = null
+            },
+            title = { Text("Delete Search Engine") },
+            text = { Text("Are you sure you want to delete ${selectedEngine!!.name}?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteCustomSearchEngine(selectedEngine!!)
+                        showDeleteConfirmation = false
+                        selectedEngine = null
+                    }
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteConfirmation = false
+                        selectedEngine = null
+                    }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 }
 
 // Data class representing a search engine in the UI.
@@ -176,5 +300,6 @@ data class SearchEngine(
     val name: String,
     val domain: String,
     val searchUrl: String,
-    val iconRes: Int
+    val iconRes: Int,
+    val isDefault: Boolean = true
 )

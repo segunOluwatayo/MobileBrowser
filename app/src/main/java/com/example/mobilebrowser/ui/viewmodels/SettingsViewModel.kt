@@ -229,6 +229,31 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+//    /**
+//     * Adds a new custom search engine after validating the URL format.
+//     *
+//     * If the URL doesn't contain (or can't be converted to contain) the required
+//     * "%s" placeholder, an error message is set.
+//     *
+//     * @param name The name of the custom search engine.
+//     * @param rawUrl The user-provided URL string.
+//     */
+//    fun addCustomSearchEngine(name: String, rawUrl: String) {
+//        viewModelScope.launch {
+//            val validatedUrl = transformSearchUrl(rawUrl)
+//            if (validatedUrl == null) {
+//                _customEngineErrorMessage.value = "Invalid URL format. URL must contain a '%s' placeholder."
+//                return@launch
+//            }
+//            // Clear any previous error.
+//            _customEngineErrorMessage.value = null
+//            // Create a new custom search engine entity.
+//            val newEngine = CustomSearchEngine(name = name, searchUrl = validatedUrl)
+//            // Add the new engine to the stored list.
+//            dataStoreManager.addCustomSearchEngine(newEngine)
+//        }
+//    }
+
     /**
      * Adds a new custom search engine after validating the URL format.
      *
@@ -251,6 +276,72 @@ class SettingsViewModel @Inject constructor(
             val newEngine = CustomSearchEngine(name = name, searchUrl = validatedUrl)
             // Add the new engine to the stored list.
             dataStoreManager.addCustomSearchEngine(newEngine)
+        }
+    }
+
+    /**
+     * Updates an existing custom search engine.
+     *
+     * @param existingEngine The engine to update
+     * @param newName The new name for the engine
+     * @param newUrl The new URL for the engine
+     */
+    fun updateCustomSearchEngine(existingEngine: CustomSearchEngine, newName: String, newUrl: String) {
+        viewModelScope.launch {
+            val validatedUrl = transformSearchUrl(newUrl)
+            if (validatedUrl == null) {
+                _customEngineErrorMessage.value = "Invalid URL format. URL must contain a '%s' placeholder."
+                return@launch
+            }
+
+            // Clear any previous error
+            _customEngineErrorMessage.value = null
+
+            // Get current list of engines
+            val currentEngines = customSearchEngines.value.toMutableList()
+
+            // Find and replace the existing engine
+            val index = currentEngines.indexOfFirst {
+                it.name == existingEngine.name && it.searchUrl == existingEngine.searchUrl
+            }
+
+            if (index != -1) {
+                // Replace the engine at found index
+                currentEngines[index] = CustomSearchEngine(name = newName, searchUrl = validatedUrl)
+
+                // Update the stored list
+                dataStoreManager.updateCustomSearchEngines(currentEngines)
+
+                // If this was the selected search engine, update the selection too
+                if (existingEngine.searchUrl == searchEngine.value) {
+                    updateSearchEngine(validatedUrl)
+                }
+            }
+        }
+    }
+
+    /**
+     * Deletes a custom search engine.
+     *
+     * @param engine The engine to delete
+     */
+    fun deleteCustomSearchEngine(engine: CustomSearchEngine) {
+        viewModelScope.launch {
+            // Get current list of engines
+            val currentEngines = customSearchEngines.value.toMutableList()
+
+            // Remove the engine
+            currentEngines.removeIf {
+                it.name == engine.name && it.searchUrl == engine.searchUrl
+            }
+
+            // Update the stored list
+            dataStoreManager.updateCustomSearchEngines(currentEngines)
+
+            // If this was the selected search engine, revert to default
+            if (engine.searchUrl == searchEngine.value) {
+                updateSearchEngine(DataStoreManager.DEFAULT_SEARCH_ENGINE)
+            }
         }
     }
 }
