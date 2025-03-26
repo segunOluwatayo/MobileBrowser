@@ -487,6 +487,15 @@ class MainActivity : ComponentActivity() {
                                 onSelectTabManagement = { currentOverlay = OverlayScreen.TabManagement },
                                 onSelectTheme = { currentOverlay = OverlayScreen.ThemeSelection },
                                 onNavigateToHomepageSelection = { currentOverlay = OverlayScreen.HomepageSelection },
+                                onNavigateToUrl = { url ->
+                                    // Close settings screen
+                                    currentOverlay = OverlayScreen.None
+                                    scope.launch {
+                                        tabViewModel.updateActiveTabContent(url, "Sync")
+                                        currentSession?.loadUri(url)
+                                        isHomepageActive = false
+                                    }
+                                },
                             )
 
                         }
