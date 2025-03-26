@@ -27,6 +27,13 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <!-- Deep link scheme for your browser app -->
+                <data android:scheme="mobilebrowser" android:host="auth" />
+            </intent-filter>
         </activity>
         <provider
             android:name="androidx.core.content.FileProvider"

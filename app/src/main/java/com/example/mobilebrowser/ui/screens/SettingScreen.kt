@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.mobilebrowser.ui.composables.SearchEngine
 import com.example.mobilebrowser.ui.viewmodels.SettingsViewModel
+import com.example.mobilebrowser.ui.viewmodels.AuthViewModel
 import com.example.mobilebrowser.R
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -29,9 +30,11 @@ fun SettingsScreen(
     onSelectTabManagement: () -> Unit,
     onSelectTheme: () -> Unit,
     onNavigateToHomepageSelection: () -> Unit,
-    onNavigateToUrl: (String) -> Unit, // New parameter for URL navigation
-    viewModel: SettingsViewModel = hiltViewModel()
-){
+    onNavigateToUrl: (String) -> Unit,
+    onNavigateToAccount: () -> Unit, // New navigation callback for Account
+    viewModel: SettingsViewModel = hiltViewModel(),
+    authViewModel: AuthViewModel = hiltViewModel() // Inject AuthViewModel for account state
+) {
     val searchEngines = listOf(
         SearchEngine(
             name = "Google",
@@ -191,113 +194,147 @@ fun SettingsScreen(
                             )
                         }
                     }
-                    // Tab Management Policy section
-                    Surface(
+                }
+            }
+
+            // Tab Management Policy section
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onSelectTabManagement() }
+            ) {
+                Column {
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onSelectTabManagement() }
+                            .padding(vertical = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 16.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column {
-                                    Text(
-                                        text = "Tab Management Policy",
-                                        style = MaterialTheme.typography.bodyLarge
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    // Map the policy value to a friendly display string.
-                                    val displayPolicy = when (currentTabPolicy) {
-                                        "MANUAL" -> "Manually"
-                                        "ONE_DAY" -> "After One Day"
-                                        "ONE_WEEK" -> "After One Week"
-                                        "ONE_MONTH" -> "After One Month"
-                                        else -> "Manually"
-                                    }
-                                    Text(
-                                        text = displayPolicy,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
+                            Text(
+                                text = "Tab Management Policy",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            // Map the policy value to a friendly display string.
+                            val displayPolicy = when (currentTabPolicy) {
+                                "MANUAL" -> "Manually"
+                                "ONE_DAY" -> "After One Day"
+                                "ONE_WEEK" -> "After One Week"
+                                "ONE_MONTH" -> "After One Month"
+                                else -> "Manually"
                             }
-                        }
-                    }
-
-                    // Theme Selection section
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onSelectTheme() }
-                    ) {
-                        Column(modifier = Modifier.padding(vertical = 16.dp)) {
                             Text(
-                                text = "Theme",
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = themeDisplayName,
+                                text = displayPolicy,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
+                }
+            }
 
-                    // Homepage setting section (Shortcuts)
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onNavigateToHomepageSelection() }
-                    ) {
-                        Column(modifier = Modifier.padding(vertical = 16.dp)) {
-                            Text(
-                                text = "Homepage",
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-
-                            // Replace "TBD" with descriptive text
-                            val homepageEnabled by viewModel.homepageEnabled.collectAsState()
-                            val recentTabEnabled by viewModel.recentTabEnabled.collectAsState()
-                            val bookmarksEnabled by viewModel.bookmarksEnabled.collectAsState()
-                            val historyEnabled by viewModel.historyEnabled.collectAsState()
-
-                            // Count how many sections are enabled
-                            val enabledSectionCount = listOf(
-                                homepageEnabled,
-                                recentTabEnabled,
-                                bookmarksEnabled,
-                                historyEnabled
-                            ).count { it }
-
-                            Text(
-                                text = if (enabledSectionCount == 0) {
-                                    "All homepage sections are hidden"
-                                } else if (enabledSectionCount == 4) {
-                                    "All homepage sections are visible"
-                                } else {
-                                    "$enabledSectionCount of 4 homepage sections visible"
-                                },
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    // Divider line
-                    Divider(
-                        modifier = Modifier.fillMaxWidth(),
-                        color = MaterialTheme.colorScheme.outlineVariant,
-                        thickness = 1.dp
+            // Theme Selection section
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onSelectTheme() }
+            ) {
+                Column(modifier = Modifier.padding(vertical = 16.dp)) {
+                    Text(
+                        text = "Theme",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = themeDisplayName,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
+
+            // Homepage setting section (Shortcuts)
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onNavigateToHomepageSelection() }
+            ) {
+                Column(modifier = Modifier.padding(vertical = 16.dp)) {
+                    Text(
+                        text = "Homepage",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // Replace "TBD" with descriptive text
+                    val homepageEnabled by viewModel.homepageEnabled.collectAsState()
+                    val recentTabEnabled by viewModel.recentTabEnabled.collectAsState()
+                    val bookmarksEnabled by viewModel.bookmarksEnabled.collectAsState()
+                    val historyEnabled by viewModel.historyEnabled.collectAsState()
+
+                    // Count how many sections are enabled
+                    val enabledSectionCount = listOf(
+                        homepageEnabled,
+                        recentTabEnabled,
+                        bookmarksEnabled,
+                        historyEnabled
+                    ).count { it }
+
+                    Text(
+                        text = if (enabledSectionCount == 0) {
+                            "All homepage sections are hidden"
+                        } else if (enabledSectionCount == 4) {
+                            "All homepage sections are visible"
+                        } else {
+                            "$enabledSectionCount of 4 homepage sections visible"
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            // New Account setting section
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onNavigateToAccount() }
+            ) {
+                Column(modifier = Modifier.padding(vertical = 16.dp)) {
+                    Text(
+                        text = "Account",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // Show user name if signed in, otherwise show "Sign in to sync"
+                    val isSignedIn by authViewModel.isSignedIn.collectAsState()
+                    val userName by authViewModel.userName.collectAsState()
+
+                    if (isSignedIn) {
+                        Text(
+                            text = "Signed in as $userName",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        Text(
+                            text = "Sign in to sync browser data across devices",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            // Divider line at the end of the settings list
+            Divider(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.outlineVariant,
+                thickness = 1.dp
+            )
         }
     }
 }

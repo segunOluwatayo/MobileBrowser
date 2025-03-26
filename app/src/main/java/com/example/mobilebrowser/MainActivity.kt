@@ -1,5 +1,6 @@
 package com.example.mobilebrowser
 
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -23,15 +24,20 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.mozilla.geckoview.GeckoSession
 import android.view.View
+import androidx.lifecycle.lifecycleScope
+import com.example.mobilebrowser.data.service.AuthService
+import javax.inject.Inject
 
 // Enum to track which overlay screen is active
 enum class OverlayScreen {
     None, Tabs, Settings, Bookmarks, Downloads, History, SearchEngine,
-    TabManagement, ThemeSelection, HomepageSelection, BookmarkEdit
+    TabManagement, ThemeSelection, HomepageSelection, BookmarkEdit, Account
 }
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    @Inject
+    lateinit var authService: AuthService
     private lateinit var sessionManager: GeckoSessionManager
     private var geckoViewReference: View? = null
 
@@ -55,6 +61,47 @@ class MainActivity : ComponentActivity() {
             }
             MobileBrowserTheme(darkTheme = darkTheme) {
                 BrowserApp()
+            }
+        }
+
+        // Handle intent if activity was launched from a deep link
+        intent?.let { handleIntent(it) }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent) {
+        when (intent.action) {
+            Intent.ACTION_VIEW -> {
+                // Process deep link
+                val uri = intent.data ?: return
+
+                if (uri.toString().startsWith("mobilebrowser://auth")) {
+                    Log.d("MainActivity", "Received auth deep link: $uri")
+
+                    // Check for error
+                    if (uri.getQueryParameter("error") != null) {
+                        Log.e("MainActivity", "Auth error: ${uri.getQueryParameter("error")}")
+                        // Show error message to user
+                        return
+                    }
+
+                    // Process auth data
+                    lifecycleScope.launch {
+                        val success = authService.processAuthDeepLink(uri)
+                        if (success) {
+                            Log.d("MainActivity", "Authentication successful")
+                            // Trigger UI update or notification
+                            // This could be done via a StateFlow in a ViewModel
+                        } else {
+                            Log.e("MainActivity", "Failed to process auth data")
+                            // Show error message to user
+                        }
+                    }
+                }
             }
         }
     }
@@ -496,6 +543,10 @@ class MainActivity : ComponentActivity() {
                                         isHomepageActive = false
                                     }
                                 },
+                                onNavigateToAccount = {
+                                    // Add logic to navigate to the Account screen
+                                    currentOverlay = OverlayScreen.Account
+                                },
                             )
 
                         }
@@ -637,6 +688,11 @@ class MainActivity : ComponentActivity() {
                                         }
                                     }
                                 }
+                            )
+                        }
+                        OverlayScreen.Account -> {
+                            AuthSettingsScreen(
+                                onNavigateBack = { currentOverlay = OverlayScreen.None }
                             )
                         }
                         else -> { /* Not showing any overlay */ }
