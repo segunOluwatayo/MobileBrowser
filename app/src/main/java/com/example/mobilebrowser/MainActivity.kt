@@ -1,5 +1,6 @@
 package com.example.mobilebrowser
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
@@ -24,6 +25,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.mozilla.geckoview.GeckoSession
 import android.view.View
+import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 import com.example.mobilebrowser.data.service.AuthService
 import javax.inject.Inject
@@ -46,6 +48,9 @@ class MainActivity : ComponentActivity() {
         sessionManager = GeckoSessionManager(this)
         // Schedule the dynamic shortcut worker
         DynamicShortcutWorker.schedule(this)
+
+        // Handle deep link if the activity was launched from one
+        handleIncomingIntent(intent)
         setContent {
             // Obtain the SettingsViewModel via Hilt.
             val settingsViewModel: SettingsViewModel = hiltViewModel()
@@ -63,48 +68,54 @@ class MainActivity : ComponentActivity() {
                 BrowserApp()
             }
         }
-
-        // Handle intent if activity was launched from a deep link
-        intent?.let { handleIntent(it) }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        handleIntent(intent)
+        handleIncomingIntent(intent)
     }
 
-    private fun handleIntent(intent: Intent) {
-        when (intent.action) {
-            Intent.ACTION_VIEW -> {
-                // Process deep link
-                val uri = intent.data ?: return
+    private fun handleIncomingIntent(intent: Intent) {
+        // Check if we have a deep link
+        if (intent.action == Intent.ACTION_VIEW && intent.data != null) {
+            val uri = intent.data
 
-                if (uri.toString().startsWith("mobilebrowser://auth")) {
-                    Log.d("MainActivity", "Received auth deep link: $uri")
+            if (uri?.scheme == "mobilebrowser" && uri.host == "auth") {
+                Log.d("MainActivity", "Received authentication deep link: $uri")
 
-                    // Check for error
-                    if (uri.getQueryParameter("error") != null) {
-                        Log.e("MainActivity", "Auth error: ${uri.getQueryParameter("error")}")
-                        // Show error message to user
-                        return
-                    }
+                // Extract tokens from the URI
+                val accessToken = uri.getQueryParameter("accessToken")
+                val refreshToken = uri.getQueryParameter("refreshToken")
+                val userId = uri.getQueryParameter("userId")
+                val displayName = uri.getQueryParameter("displayName")
+                val email = uri.getQueryParameter("email")
 
-                    // Process auth data
-                    lifecycleScope.launch {
-                        val success = authService.processAuthDeepLink(uri)
-                        if (success) {
-                            Log.d("MainActivity", "Authentication successful")
-                            // Trigger UI update or notification
-                            // This could be done via a StateFlow in a ViewModel
-                        } else {
-                            Log.e("MainActivity", "Failed to process auth data")
-                            // Show error message to user
-                        }
-                    }
+                // Handle the authentication
+                if (accessToken != null && refreshToken != null) {
+                    Log.d("MainActivity", "Authentication successful, tokens received")
+
+                    // Store tokens in SharedPreferences
+                    val sharedPrefs = getSharedPreferences("browser_prefs", Context.MODE_PRIVATE)
+                    sharedPrefs.edit()
+                        .putString("access_token", accessToken)
+                        .putString("refresh_token", refreshToken)
+                        .putString("user_id", userId)
+                        .putString("display_name", displayName)
+                        .putString("email", email)
+                        .putBoolean("is_authenticated", true)
+                        .apply()
+
+                    // Optional: Show a toast message
+                    Toast.makeText(this, "Signed in successfully", Toast.LENGTH_SHORT).show()
+                } else if (uri.getQueryParameter("error") != null) {
+                    // Handle authentication error
+                    Log.e("MainActivity", "Authentication error: ${uri.getQueryParameter("error")}")
+                    Toast.makeText(this, "Sign in failed", Toast.LENGTH_SHORT).show()
                 }
             }
         }
     }
+
 
     @Composable
     fun BrowserApp() {

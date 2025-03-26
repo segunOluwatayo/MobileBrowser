@@ -106,7 +106,7 @@ fun SettingsScreen(
                     .padding(vertical = 16.dp)
                     .clickable {
                         // Navigate to the URL within your own browser
-                        onNavigateToUrl("https://nimbus-browser-backend-production.up.railway.app/")
+                        onNavigateToUrl("https://nimbus-browser-backend-production.up.railway.app/?mobile=true")
                     },
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(
