@@ -76,45 +76,48 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIncomingIntent(intent: Intent) {
-        // Check if we have a deep link
+        Log.d("MainActivity", "handleIncomingIntent called with action: ${intent.action}, data: ${intent.data}")
         if (intent.action == Intent.ACTION_VIEW && intent.data != null) {
             val uri = intent.data
+            Log.d("MainActivity", "Deep link received: $uri")
 
-            if (uri?.scheme == "mobilebrowser" && uri.host == "auth") {
-                Log.d("MainActivity", "Received authentication deep link: $uri")
+            // Log the scheme and host to confirm the correct deep link
+            val scheme = uri?.scheme
+            val host = uri?.host
+            Log.d("MainActivity", "Scheme: $scheme, Host: $host")
 
-                // Extract tokens from the URI
-                val accessToken = uri.getQueryParameter("accessToken")
-                val refreshToken = uri.getQueryParameter("refreshToken")
-                val userId = uri.getQueryParameter("userId")
-                val displayName = uri.getQueryParameter("displayName")
-                val email = uri.getQueryParameter("email")
+            // Extract and log query parameters
+            val accessToken = uri?.getQueryParameter("accessToken")
+            val refreshToken = uri?.getQueryParameter("refreshToken")
+            val userId = uri?.getQueryParameter("userId")
+            val displayName = uri?.getQueryParameter("displayName")
+            val email = uri?.getQueryParameter("email")
 
-                // Handle the authentication
-                if (accessToken != null && refreshToken != null) {
-                    Log.d("MainActivity", "Authentication successful, tokens received")
+            Log.d(
+                "MainActivity",
+                "accessToken: $accessToken, refreshToken: $refreshToken, userId: $userId, displayName: $displayName, email: $email"
+            )
 
-                    // Store tokens in SharedPreferences
-                    val sharedPrefs = getSharedPreferences("browser_prefs", Context.MODE_PRIVATE)
-                    sharedPrefs.edit()
-                        .putString("access_token", accessToken)
-                        .putString("refresh_token", refreshToken)
-                        .putString("user_id", userId)
-                        .putString("display_name", displayName)
-                        .putString("email", email)
-                        .putBoolean("is_authenticated", true)
-                        .apply()
+            if (accessToken != null && refreshToken != null) {
+                // Handle successful authentication here
+                val sharedPrefs = getSharedPreferences("browser_prefs", Context.MODE_PRIVATE)
+                sharedPrefs.edit()
+                    .putString("access_token", accessToken)
+                    .putString("refresh_token", refreshToken)
+                    .putString("user_id", userId)
+                    .putString("display_name", displayName)
+                    .putString("email", email)
+                    .putBoolean("is_authenticated", true)
+                    .apply()
 
-                    // Optional: Show a toast message
-                    Toast.makeText(this, "Signed in successfully", Toast.LENGTH_SHORT).show()
-                } else if (uri.getQueryParameter("error") != null) {
-                    // Handle authentication error
-                    Log.e("MainActivity", "Authentication error: ${uri.getQueryParameter("error")}")
-                    Toast.makeText(this, "Sign in failed", Toast.LENGTH_SHORT).show()
-                }
+                Toast.makeText(this, "Signed in successfully", Toast.LENGTH_SHORT).show()
+            } else if (uri?.getQueryParameter("error") != null) {
+                Log.e("MainActivity", "Authentication error: ${uri.getQueryParameter("error")}")
+                Toast.makeText(this, "Sign in failed", Toast.LENGTH_SHORT).show()
             }
         }
     }
+
 
 
     @Composable

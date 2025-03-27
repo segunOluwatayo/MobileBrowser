@@ -74,6 +74,10 @@ fun SettingsScreen(
     val currentThemeMode by viewModel.themeMode.collectAsState()
     val homepageEnabled by viewModel.homepageEnabled.collectAsState()
 
+    val isSignedIn by authViewModel.isSignedIn.collectAsState()
+    val userName by authViewModel.userName.collectAsState()
+    val userEmail by authViewModel.userEmail.collectAsState()
+
     // Convert the theme mode value to a user-friendly string.
     val themeDisplayName = when (currentThemeMode) {
         "LIGHT" -> "Light Mode"
@@ -105,8 +109,13 @@ fun SettingsScreen(
                     .fillMaxWidth()
                     .padding(vertical = 16.dp)
                     .clickable {
-                        // Navigate to the URL within your own browser
-                        onNavigateToUrl("https://nimbus-browser-backend-production.up.railway.app/?mobile=true")
+                        if (isSignedIn) {
+                            // Navigate to account settings
+                            onNavigateToAccount()
+                        } else {
+                            // Navigate to login
+                            onNavigateToUrl("https://nimbus-browser-backend-production.up.railway.app/?mobile=true")
+                        }
                     },
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(
@@ -146,13 +155,15 @@ fun SettingsScreen(
 
                     Column {
                         Text(
-                            text = "Synchronise and save your data",
+                            text = if (isSignedIn) "Account" else "Synchronise and save your data",
                             style = MaterialTheme.typography.titleLarge,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Sign in to synchronise tabs, bookmarks, passwords, and more.",
+                            text = if (isSignedIn)
+                                "${userName ?: "User"} (${userEmail ?: ""})"
+                            else "Sign in to synchronise tabs, bookmarks, passwords, and more.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

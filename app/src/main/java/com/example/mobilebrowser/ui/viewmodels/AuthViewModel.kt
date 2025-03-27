@@ -65,9 +65,44 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
             try {
+                userDataStore.clearUserAuthData()
                 authService.signOut()
             } catch (e: Exception) {
                 _errorMessage.value = "Failed to sign out: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Process authentication data received from the web authentication flow
+     */
+    fun processAuthResult(
+        accessToken: String?,
+        refreshToken: String?,
+        userId: String?,
+        displayName: String?,
+        email: String?,
+        deviceId: String?
+    ) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                if (accessToken != null && refreshToken != null && (userId != null || email != null)) {
+                    userDataStore.saveUserAuthData(
+                        accessToken = accessToken,
+                        refreshToken = refreshToken,
+                        userId = userId ?: "",
+                        displayName = displayName ?: email ?: "User",
+                        email = email ?: "",
+                        deviceId = deviceId
+                    )
+                } else {
+                    _errorMessage.value = "Incomplete authentication data received"
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to process authentication: ${e.message}"
             } finally {
                 _isLoading.value = false
             }

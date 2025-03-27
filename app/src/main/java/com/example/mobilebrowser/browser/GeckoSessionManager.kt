@@ -2,6 +2,7 @@ package com.example.mobilebrowser.browser
 
 import android.content.Context
 import android.util.Log
+import com.example.mobilebrowser.BrowserApplication
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.WebResponse
@@ -66,6 +67,54 @@ class GeckoSessionManager(private val context: Context) {
             url: String?,
             perms: MutableList<GeckoSession.PermissionDelegate.ContentPermission>
         ) {
+            // First, check if this is an OAuth callback URL
+            if (url?.contains("oauth-callback") == true &&
+                url.contains("accessToken") &&
+                url.contains("refreshToken")) {
+
+                Log.d("GeckoSessionManager", "Detected OAuth callback URL: $url")
+                try {
+                    // Parse URL parameters
+                    val uri = android.net.Uri.parse(url)
+                    val accessToken = uri.getQueryParameter("accessToken")
+                    val refreshToken = uri.getQueryParameter("refreshToken")
+                    val userId = uri.getQueryParameter("userId")
+                    val displayName = uri.getQueryParameter("displayName")
+                    val email = uri.getQueryParameter("email")
+
+                    if (accessToken != null && refreshToken != null) {
+                        // Save tokens
+                        val sharedPrefs = context.getSharedPreferences("browser_prefs", Context.MODE_PRIVATE)
+                        sharedPrefs.edit()
+                            .putString("access_token", accessToken)
+                            .putString("refresh_token", refreshToken)
+                            .putString("user_id", userId)
+                            .putString("display_name", displayName)
+                            .putString("email", email)
+                            .putBoolean("is_authenticated", true)
+                            .apply()
+
+                        // Show success message
+                        android.widget.Toast.makeText(context, "Signed in successfully",
+                            android.widget.Toast.LENGTH_SHORT).show()
+
+                        val authService = (context.applicationContext as? BrowserApplication)?.getAuthService()
+                        authService?.checkAuthState()
+
+                        // Navigate to homepage - using about:blank or your custom home page
+                        session.loadUri("about:blank")
+
+                        // Still call the onUrlChange callback so UI is updated
+                        onUrlChange("about:blank")
+
+                        return
+                    }
+                } catch (e: Exception) {
+                    Log.e("GeckoSessionManager", "Error processing OAuth callback", e)
+                }
+            }
+
+            // Original behavior for normal URL changes
             url?.let { onUrlChange(it) }
         }
 
