@@ -736,6 +736,9 @@ class MainActivity : ComponentActivity() {
                                                     onCanGoForward = { canGoForward = it },
                                                     downloadDelegate = geckoDownloadDelegate
                                                 )
+
+                                                isHomepageActive = false
+                                                currentUrl = url
                                             } else {
                                                 // Use current tab if we're already browsing
                                                 currentUrl = url
