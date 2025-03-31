@@ -1,8 +1,13 @@
 package com.example.mobilebrowser.browser
 
 import android.content.Context
+import android.net.Uri
 import android.util.Log
+import android.widget.Toast
 import com.example.mobilebrowser.BrowserApplication
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.WebResponse
@@ -32,7 +37,7 @@ class GeckoSessionManager(private val context: Context) {
             }
         }.apply {
             navigationDelegate = createNavigationDelegate(onUrlChange, onCanGoBack, onCanGoForward)
-            // Always update, in case callbacks change.  Crucial!
+            // Always update, in case callbacks change. Crucial!
             contentDelegate = createCombinedContentDelegate(onTitleChange, downloadDelegate)
         }
     }
@@ -75,7 +80,7 @@ class GeckoSessionManager(private val context: Context) {
                 Log.d("GeckoSessionManager", "Detected OAuth callback URL: $url")
                 try {
                     // Parse URL parameters
-                    val uri = android.net.Uri.parse(url)
+                    val uri = Uri.parse(url)
 
                     // Log the complete query string for debugging
                     Log.d("GeckoSessionManager", "Query string: ${uri.query}")
@@ -102,10 +107,10 @@ class GeckoSessionManager(private val context: Context) {
                         authService?.processAuthCallback(accessToken, refreshToken, userId, displayName, email)
 
                         // Show success message
-                        android.widget.Toast.makeText(
+                        Toast.makeText(
                             context,
                             "Signed in successfully",
-                            android.widget.Toast.LENGTH_SHORT
+                            Toast.LENGTH_SHORT
                         ).show()
 
                         // Navigate to homepage - using about:blank or your custom home page
@@ -117,19 +122,50 @@ class GeckoSessionManager(private val context: Context) {
                         return
                     } else {
                         Log.e("GeckoSessionManager", "Missing required tokens in OAuth callback")
-                        android.widget.Toast.makeText(
+                        Toast.makeText(
                             context,
                             "Sign in failed: Missing authentication data",
-                            android.widget.Toast.LENGTH_SHORT
+                            Toast.LENGTH_SHORT
                         ).show()
                     }
                 } catch (e: Exception) {
                     Log.e("GeckoSessionManager", "Error processing OAuth callback", e)
-                    android.widget.Toast.makeText(
+                    Toast.makeText(
                         context,
                         "Sign in error: ${e.message}",
-                        android.widget.Toast.LENGTH_SHORT
+                        Toast.LENGTH_SHORT
                     ).show()
+                }
+            }
+
+            // Check for the nimbusbrowser://logout scheme or regular logout URL
+            else if ((url?.startsWith("nimbusbrowser://logout") == true) ||
+                (url?.contains("/oauth-callback") == true && url.contains("action=logout"))) {
+                Log.d("GeckoSessionManager", "Detected logout URL: $url")
+                try {
+                    // Get AuthService from application context
+                    val authService = (context.applicationContext as? BrowserApplication)?.getAuthService()
+
+                    // Launch a coroutine to call the suspend function signOut
+                    CoroutineScope(Dispatchers.Main).launch {
+                        authService?.signOut()
+
+                        // Show toast indicating logout
+                        Toast.makeText(
+                            context,
+                            "Signed out successfully",
+                            Toast.LENGTH_SHORT
+                        ).show()
+
+                        // Navigate to homepage
+                        session.loadUri("about:blank")
+
+                        // Update UI
+                        onUrlChange("about:blank")
+                    }
+                    return
+                } catch (e: Exception) {
+                    Log.e("GeckoSessionManager", "Error handling logout URL", e)
                 }
             }
 

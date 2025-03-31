@@ -125,9 +125,9 @@ fun AuthSettingsScreen(
                         .fillMaxWidth()
                         .padding(bottom = 16.dp)
                         .clickable {
-                            // Get token and construct authenticated dashboard URL
+                            // Get token and construct authenticated dashboard URL with mobile flag
                             viewModel.getAccessToken { token ->
-                                val dashboardUrl = "https://nimbus-browser-backend-production.up.railway.app/dashboard?token=$token"
+                                val dashboardUrl = "https://nimbus-browser-backend-production.up.railway.app/dashboard?token=$token&mobile=true"
                                 onNavigateToUrl(dashboardUrl)
                             }
                         }
