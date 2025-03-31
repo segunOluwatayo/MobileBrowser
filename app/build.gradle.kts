@@ -70,6 +70,7 @@ dependencies {
     implementation(libs.androidx.hilt.navigation.compose)
     implementation (libs.androidx.datastore.preferences)
     implementation(libs.coil.compose)
+    implementation ("androidx.security:security-crypto:1.1.0-alpha06")
     // Room
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)

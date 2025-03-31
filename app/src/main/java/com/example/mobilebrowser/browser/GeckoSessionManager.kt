@@ -76,6 +76,8 @@ class GeckoSessionManager(private val context: Context) {
                 try {
                     // Parse URL parameters
                     val uri = android.net.Uri.parse(url)
+                    Log.d("GeckoSessionManager", "displayName param = ${uri.getQueryParameter("displayName")}")
+
                     val accessToken = uri.getQueryParameter("accessToken")
                     val refreshToken = uri.getQueryParameter("refreshToken")
                     val userId = uri.getQueryParameter("userId")
@@ -83,23 +85,23 @@ class GeckoSessionManager(private val context: Context) {
                     val email = uri.getQueryParameter("email")
 
                     if (accessToken != null && refreshToken != null) {
+                        val authService = (context.applicationContext as? BrowserApplication)?.getAuthService()
+                        authService?.processAuthCallback(accessToken, refreshToken, userId, displayName, email)
                         // Save tokens
-                        val sharedPrefs = context.getSharedPreferences("browser_prefs", Context.MODE_PRIVATE)
-                        sharedPrefs.edit()
-                            .putString("access_token", accessToken)
-                            .putString("refresh_token", refreshToken)
-                            .putString("user_id", userId)
-                            .putString("display_name", displayName)
-                            .putString("email", email)
-                            .putBoolean("is_authenticated", true)
-                            .apply()
+//                        val sharedPrefs = context.getSharedPreferences("browser_prefs", Context.MODE_PRIVATE)
+//                        sharedPrefs.edit()
+//                            .putString("access_token", accessToken)
+//                            .putString("refresh_token", refreshToken)
+//                            .putString("user_id", userId)
+//                            .putString("display_name", displayName)
+//                            .putString("email", email)
+//                            .putBoolean("is_authenticated", true)
+//                            .apply()
 
                         // Show success message
                         android.widget.Toast.makeText(context, "Signed in successfully",
                             android.widget.Toast.LENGTH_SHORT).show()
 
-                        val authService = (context.applicationContext as? BrowserApplication)?.getAuthService()
-                        authService?.checkAuthState()
 
                         // Navigate to homepage - using about:blank or your custom home page
                         session.loadUri("about:blank")
