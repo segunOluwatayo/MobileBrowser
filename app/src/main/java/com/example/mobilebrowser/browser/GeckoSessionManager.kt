@@ -19,6 +19,14 @@ class GeckoSessionManager(private val context: Context) {
     private val sessions = ConcurrentHashMap<Long, GeckoSession>()
     private var currentSession: GeckoSession? = null
 
+    // Add an auth callback for tab handling
+    private var onAuthSuccess: (() -> Unit)? = null
+
+    // Method to set the auth success callback
+    fun setAuthSuccessCallback(callback: () -> Unit) {
+        onAuthSuccess = callback
+    }
+
     fun getOrCreateSession(
         tabId: Long,
         url: String = "about:blank",
@@ -117,12 +125,11 @@ class GeckoSessionManager(private val context: Context) {
                             Toast.LENGTH_SHORT
                         ).show()
 
-                        // Navigate to homepage - using about:blank or your custom home page
-                        session.loadUri("about:blank")
+                        // Instead of loading about:blank, trigger the auth success callback
+                        // This will close the current tab and redirect to homepage
+                        onAuthSuccess?.invoke()
 
-                        // Still call the onUrlChange callback so UI is updated
-                        onUrlChange("about:blank")
-
+                        // Don't update the URL or navigate the session since we're going to close it
                         return
                     } else {
                         Log.e(TAG, "Missing required tokens in OAuth callback")
@@ -192,13 +199,11 @@ class GeckoSessionManager(private val context: Context) {
                                 Toast.LENGTH_LONG
                             ).show()
 
-                            // Navigate to homepage
-                            session.loadUri("about:blank")
+                            // Instead of loading about:blank, trigger the auth success callback
+                            // to close the tab and go to homepage
+                            onAuthSuccess?.invoke()
+                            return@launch
 
-                            // Update UI
-                            onUrlChange("about:blank")
-
-                            Log.d(TAG, "🔑 Logout process completed successfully")
                         } catch (e: Exception) {
                             Log.e(TAG, "Error during sign out process", e)
                             Toast.makeText(

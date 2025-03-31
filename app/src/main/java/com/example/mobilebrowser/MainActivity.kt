@@ -43,9 +43,20 @@ class MainActivity : ComponentActivity() {
     private lateinit var sessionManager: GeckoSessionManager
     private var geckoViewReference: View? = null
 
+    private val authSuccessState = mutableStateOf(false)
+    private val needToCloseCurrentTab = mutableStateOf(false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         sessionManager = GeckoSessionManager(this)
+
+        // Set up the auth success callback
+        sessionManager.setAuthSuccessCallback {
+            Log.d("MainActivity", "Authentication success callback triggered")
+            // Signal that we need to close the current tab and go to homepage
+            authSuccessState.value = true
+            needToCloseCurrentTab.value = true
+        }
         // Schedule the dynamic shortcut worker
         DynamicShortcutWorker.schedule(this)
 
@@ -122,6 +133,9 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun BrowserApp() {
+
+        val authSuccess by remember { authSuccessState }
+        val needToClose by remember { needToCloseCurrentTab }
         // Define UI state variables.
         var currentUrl by remember { mutableStateOf("") }
         var currentPageTitle by remember { mutableStateOf("New Tab") }
@@ -152,6 +166,35 @@ class MainActivity : ComponentActivity() {
         val activeTab by tabViewModel.activeTab.collectAsState()
         val scope = rememberCoroutineScope()
         var isHomepageActive by remember { mutableStateOf(true) }
+
+        // Handle authentication success
+        LaunchedEffect(authSuccess, needToClose) {
+            if (authSuccess && needToClose) {
+                Log.d("MainActivity", "LaunchedEffect: Processing auth success")
+
+                // Reset state so we don't handle it again
+                authSuccessState.value = false
+                needToCloseCurrentTab.value = false
+
+                // Get current tab ID
+                val currentTabId = activeTab?.id
+                if (currentTabId != null) {
+                    Log.d("MainActivity", "Closing authentication tab: $currentTabId")
+
+                    // Close the authentication tab
+                    val authTab = tabViewModel.getTabById(currentTabId)
+                    if (authTab != null) {
+                        tabViewModel.closeTab(authTab)
+                        sessionManager.removeSession(currentTabId)
+                    }
+
+                    // Activate the homepage
+                    isHomepageActive = true
+                    currentUrl = ""
+                    currentPageTitle = "New Tab"
+                }
+            }
+        }
 
         // Helper: normalize URL by trimming and removing trailing "/"
         fun normalizeUrl(url: String): String = url.trim().removeSuffix("/")
