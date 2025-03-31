@@ -76,32 +76,37 @@ class GeckoSessionManager(private val context: Context) {
                 try {
                     // Parse URL parameters
                     val uri = android.net.Uri.parse(url)
-                    Log.d("GeckoSessionManager", "displayName param = ${uri.getQueryParameter("displayName")}")
 
+                    // Log the complete query string for debugging
+                    Log.d("GeckoSessionManager", "Query string: ${uri.query}")
+
+                    // Extract auth parameters
                     val accessToken = uri.getQueryParameter("accessToken")
                     val refreshToken = uri.getQueryParameter("refreshToken")
                     val userId = uri.getQueryParameter("userId")
                     val displayName = uri.getQueryParameter("displayName")
                     val email = uri.getQueryParameter("email")
 
+                    // Log each parameter for debugging
+                    Log.d("GeckoSessionManager", "accessToken: ${accessToken?.take(15)}...")
+                    Log.d("GeckoSessionManager", "refreshToken: ${refreshToken?.take(15)}...")
+                    Log.d("GeckoSessionManager", "userId: $userId")
+                    Log.d("GeckoSessionManager", "displayName: $displayName")
+                    Log.d("GeckoSessionManager", "email: $email")
+
                     if (accessToken != null && refreshToken != null) {
+                        // Get AuthService from application context
                         val authService = (context.applicationContext as? BrowserApplication)?.getAuthService()
+
+                        // Process the authentication data
                         authService?.processAuthCallback(accessToken, refreshToken, userId, displayName, email)
-                        // Save tokens
-//                        val sharedPrefs = context.getSharedPreferences("browser_prefs", Context.MODE_PRIVATE)
-//                        sharedPrefs.edit()
-//                            .putString("access_token", accessToken)
-//                            .putString("refresh_token", refreshToken)
-//                            .putString("user_id", userId)
-//                            .putString("display_name", displayName)
-//                            .putString("email", email)
-//                            .putBoolean("is_authenticated", true)
-//                            .apply()
 
                         // Show success message
-                        android.widget.Toast.makeText(context, "Signed in successfully",
-                            android.widget.Toast.LENGTH_SHORT).show()
-
+                        android.widget.Toast.makeText(
+                            context,
+                            "Signed in successfully",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
 
                         // Navigate to homepage - using about:blank or your custom home page
                         session.loadUri("about:blank")
@@ -110,9 +115,21 @@ class GeckoSessionManager(private val context: Context) {
                         onUrlChange("about:blank")
 
                         return
+                    } else {
+                        Log.e("GeckoSessionManager", "Missing required tokens in OAuth callback")
+                        android.widget.Toast.makeText(
+                            context,
+                            "Sign in failed: Missing authentication data",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
                     }
                 } catch (e: Exception) {
                     Log.e("GeckoSessionManager", "Error processing OAuth callback", e)
+                    android.widget.Toast.makeText(
+                        context,
+                        "Sign in error: ${e.message}",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
                 }
             }
 
@@ -144,6 +161,5 @@ class GeckoSessionManager(private val context: Context) {
         override fun onExternalResponse(session: GeckoSession, response: WebResponse) {
             downloadDelegate?.onExternalResponse(session, response)
         }
-
     }
 }

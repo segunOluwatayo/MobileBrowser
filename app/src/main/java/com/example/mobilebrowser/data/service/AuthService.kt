@@ -1,20 +1,17 @@
 package com.example.mobilebrowser.data.service
 
 import android.content.Context
-import android.content.Intent
-import android.net.Uri
+import android.util.Log
 import com.example.mobilebrowser.data.util.UserDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.firstOrNull
-import javax.inject.Inject
-import javax.inject.Singleton
-import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import javax.inject.Inject
+import javax.inject.Singleton
+import org.json.JSONObject
+import java.util.Base64
 
 @Singleton
 class AuthService @Inject constructor(
@@ -79,18 +76,94 @@ class AuthService @Inject constructor(
     ) {
         coroutineScope.launch {
             try {
+                // If we didn't get user info in the URL params, extract it from the JWT token
+                val extractedUserId = userId ?: extractUserIdFromToken(accessToken)
+                val extractedEmail = email ?: ""
+
+                // Extract a name from the JWT if possible, otherwise use a default
+                val extractedName = displayName ?: extractUserNameFromToken(accessToken) ?: "User"
+
+                Log.d(TAG, "Using extracted user data: id=$extractedUserId, name=$extractedName, email=$extractedEmail")
+
                 userDataStore.saveUserAuthData(
                     accessToken = accessToken,
                     refreshToken = refreshToken,
-                    userId = userId ?: "",
-                    displayName = displayName ?: email ?: "User",
-                    email = email ?: "",
+                    userId = extractedUserId,
+                    displayName = extractedName,
+                    email = extractedEmail,
                     deviceId = null
                 )
                 Log.d(TAG, "Authentication data saved to DataStore")
             } catch (e: Exception) {
                 Log.e(TAG, "Error saving auth data to DataStore: ${e.message}")
+
+                // Even if extraction fails, still try to save the tokens
+                try {
+                    userDataStore.saveUserAuthData(
+                        accessToken = accessToken,
+                        refreshToken = refreshToken,
+                        userId = userId ?: "unknown",
+                        displayName = "Nimbus User",
+                        email = email ?: "",
+                        deviceId = null
+                    )
+                    Log.d(TAG, "Saved basic auth data with default values")
+                } catch (e2: Exception) {
+                    Log.e(TAG, "Failed to save even basic auth data: ${e2.message}")
+                }
             }
+        }
+    }
+
+    /**
+     * Extract the user ID from a JWT token
+     */
+    private fun extractUserIdFromToken(token: String): String {
+        try {
+            // JWT tokens have three parts separated by dots
+            val parts = token.split(".")
+            if (parts.size != 3) {
+                Log.e(TAG, "Invalid JWT token format")
+                return "unknown"
+            }
+
+            // Decode the payload (middle part)
+            val payload = String(android.util.Base64.decode(parts[1], android.util.Base64.URL_SAFE))
+            val json = JSONObject(payload)
+
+            // JWT from our server should have an "id" field
+            return if (json.has("id")) json.getString("id") else "unknown"
+        } catch (e: Exception) {
+            Log.e(TAG, "Error extracting user ID from token: ${e.message}")
+            return "unknown"
+        }
+    }
+
+    /**
+     * Try to extract a username from a JWT token
+     */
+    private fun extractUserNameFromToken(token: String): String? {
+        try {
+            // JWT tokens have three parts separated by dots
+            val parts = token.split(".")
+            if (parts.size != 3) {
+                Log.e(TAG, "Invalid JWT token format")
+                return null
+            }
+
+            // Decode the payload (middle part)
+            val payload = String(android.util.Base64.decode(parts[1], android.util.Base64.URL_SAFE))
+            val json = JSONObject(payload)
+
+            // Try common name fields that might be in the JWT
+            return when {
+                json.has("name") -> json.getString("name")
+                json.has("email") -> json.getString("email").split("@")[0]
+                else -> "Nimbus User"
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error extracting user name from token: ${e.message}")
+            return null
         }
     }
 
@@ -102,5 +175,4 @@ class AuthService @Inject constructor(
             // Add additional logic as needed
         }
     }
-
 }
