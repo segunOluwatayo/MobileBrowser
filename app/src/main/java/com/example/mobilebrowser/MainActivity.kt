@@ -706,7 +706,45 @@ class MainActivity : ComponentActivity() {
                         }
                         OverlayScreen.Account -> {
                             AuthSettingsScreen(
-                                onNavigateBack = { currentOverlay = OverlayScreen.None }
+                                onNavigateBack = { currentOverlay = OverlayScreen.None },
+                                onNavigateToUrl = { url ->
+                                    // Close the account screen
+                                    currentOverlay = OverlayScreen.None
+                                    // Load the URL in the current browser session
+                                    scope.launch {
+                                        if (url.isNotBlank()) {
+                                            if (isHomepageActive) {
+                                                // Create a new tab for the URL if we're on homepage
+                                                val newTabId = tabViewModel.createTab(url = url, title = "Account Dashboard")
+                                                tabViewModel.switchToTab(newTabId)
+                                                currentSession = sessionManager.getOrCreateSession(
+                                                    tabId = newTabId,
+                                                    url = url,
+                                                    onUrlChange = { newUrl ->
+                                                        currentUrl = newUrl
+                                                        bookmarkViewModel.updateCurrentUrl(newUrl)
+                                                        tabViewModel.updateActiveTabContent(newUrl, currentPageTitle)
+                                                    },
+                                                    onTitleChange = { newTitle ->
+                                                        if (newTitle.isNotBlank() && newTitle != "Loading...") {
+                                                            currentPageTitle = newTitle
+                                                            tabViewModel.updateActiveTabContent(currentUrl, newTitle)
+                                                            recordHistory(currentUrl, newTitle)
+                                                        }
+                                                    },
+                                                    onCanGoBack = { canGoBack = it },
+                                                    onCanGoForward = { canGoForward = it },
+                                                    downloadDelegate = geckoDownloadDelegate
+                                                )
+                                            } else {
+                                                // Use current tab if we're already browsing
+                                                currentUrl = url
+                                                currentSession?.loadUri(url)
+                                                isHomepageActive = false
+                                            }
+                                        }
+                                    }
+                                }
                             )
                         }
                         else -> { /* Not showing any overlay */ }

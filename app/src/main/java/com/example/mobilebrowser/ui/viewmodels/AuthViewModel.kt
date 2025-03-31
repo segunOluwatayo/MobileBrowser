@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -50,6 +51,24 @@ class AuthViewModel @Inject constructor(
     // Loading state
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    /**
+     * New method to get access token for account dashboard
+     */
+    fun getAccessToken(callback: (String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val token = userDataStore.accessToken.first()
+                if (token.isNotBlank()) {
+                    callback(token)
+                } else {
+                    _errorMessage.value = "Authentication token not available"
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Error retrieving authentication token: ${e.message}"
+            }
+        }
+    }
 
     /**
      * Initiate sign in process by opening the authentication website

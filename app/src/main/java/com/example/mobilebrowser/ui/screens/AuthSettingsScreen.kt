@@ -4,8 +4,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Login
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material3.*
@@ -21,6 +24,7 @@ import com.example.mobilebrowser.ui.viewmodels.AuthViewModel
 @Composable
 fun AuthSettingsScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToUrl: (String) -> Unit = {}, // Add this parameter for navigation
     viewModel: AuthViewModel = hiltViewModel()
 ) {
     val isSignedIn by viewModel.isSignedIn.collectAsState()
@@ -34,7 +38,7 @@ fun AuthSettingsScreen(
                 title = { Text("Account") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowForward, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
@@ -115,6 +119,60 @@ fun AuthSettingsScreen(
                     }
                 }
 
+                // Add Manage Your Account section
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp)
+                        .clickable {
+                            // Get token and construct authenticated dashboard URL
+                            viewModel.getAccessToken { token ->
+                                val dashboardUrl = "https://nimbus-browser-backend-production.up.railway.app/dashboard?token=$token"
+                                onNavigateToUrl(dashboardUrl)
+                            }
+                        }
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Dashboard,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+
+                            Column(
+                                modifier = Modifier
+                                    .padding(start = 16.dp)
+                                    .weight(1f)
+                            ) {
+                                Text(
+                                    text = "Manage Your Account",
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Text(
+                                    text = "Access your account dashboard",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+
                 // Sync settings
                 Card(
                     modifier = Modifier.fillMaxWidth()
@@ -131,7 +189,7 @@ fun AuthSettingsScreen(
 
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        // Sync settings items could go here
+                        // Sync settings items
                         SyncSettingItem(
                             title = "Bookmarks",
                             isEnabled = true
@@ -193,7 +251,7 @@ fun AuthSettingsScreen(
                             }
 
                             Icon(
-                                imageVector = Icons.Default.ArrowForward,
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary
                             )
