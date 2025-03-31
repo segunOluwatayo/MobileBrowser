@@ -19,18 +19,21 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.mobilebrowser.ui.viewmodels.AuthViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AuthSettingsScreen(
     onNavigateBack: () -> Unit,
-    onNavigateToUrl: (String) -> Unit = {}, // Add this parameter for navigation
+    onNavigateToUrl: (String) -> Unit = {}, // For navigation
     viewModel: AuthViewModel = hiltViewModel()
 ) {
     val isSignedIn by viewModel.isSignedIn.collectAsState()
     val userName by viewModel.userName.collectAsState()
     val userEmail by viewModel.userEmail.collectAsState()
     var showSignOutDialog by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    var isLoading by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -103,23 +106,38 @@ fun AuthSettingsScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Sign out button
-                        OutlinedButton(
-                            onClick = { showSignOutDialog = true },
-                            modifier = Modifier.align(Alignment.End)
-                        ) {
-                            Icon(
-                                Icons.Default.Logout,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Sign Out")
+                        // Sign out button (now directly signs out from app)
+                        if (isLoading) {
+                            OutlinedButton(
+                                onClick = { /* do nothing while loading */ },
+                                modifier = Modifier.align(Alignment.End),
+                                enabled = false
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Signing Out...")
+                            }
+                        } else {
+                            OutlinedButton(
+                                onClick = { showSignOutDialog = true },
+                                modifier = Modifier.align(Alignment.End)
+                            ) {
+                                Icon(
+                                    Icons.Default.Logout,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Sign Out")
+                            }
                         }
                     }
                 }
 
-                // Add Manage Your Account section
+                // Add Manage Your Account section (updated with logout=true for sync)
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -127,7 +145,7 @@ fun AuthSettingsScreen(
                         .clickable {
                             // Get token and construct authenticated dashboard URL with mobile flag
                             viewModel.getAccessToken { token ->
-                                val dashboardUrl = "https://nimbus-browser-backend-production.up.railway.app/dashboard?token=$token&mobile=true"
+                                val dashboardUrl = "https://nimbus-browser-backend-production.up.railway.app/dashboard?token=$token&mobile=true&sync_logout=true"
                                 onNavigateToUrl(dashboardUrl)
                             }
                         }
@@ -216,7 +234,10 @@ fun AuthSettingsScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { viewModel.signIn() }
+                        .clickable {
+                            // Navigate to login page
+                            onNavigateToUrl("https://nimbus-browser-backend-production.up.railway.app/?mobile=true")
+                        }
                 ) {
                     Column(
                         modifier = Modifier
@@ -271,8 +292,21 @@ fun AuthSettingsScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.signOut()
                         showSignOutDialog = false
+                        isLoading = true
+
+                        // Handle sign out directly in the app
+                        scope.launch {
+                            try {
+                                viewModel.signOut()
+                                // After sign-out is complete, navigate back
+                                onNavigateBack()
+                            } catch (e: Exception) {
+                                // Handle error
+                            } finally {
+                                isLoading = false
+                            }
+                        }
                     }
                 ) {
                     Text("Sign Out")

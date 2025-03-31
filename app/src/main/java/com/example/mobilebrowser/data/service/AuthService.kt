@@ -8,6 +8,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 import org.json.JSONObject
@@ -39,6 +40,8 @@ class AuthService @Inject constructor(
      */
     suspend fun signOut() {
         try {
+            Log.d(TAG, "🔑 signOut() called, getting current tokens")
+
             // Get the tokens first so we can make an API call to invalidate them
             val accessToken = userDataStore.accessToken.first()
             val refreshToken = userDataStore.refreshToken.first()
@@ -46,19 +49,51 @@ class AuthService @Inject constructor(
             // If we have valid tokens, make an API call to invalidate them on the server
             if (accessToken.isNotBlank() && refreshToken.isNotBlank()) {
                 try {
-                    // TODO: Make API call to logout endpoint to invalidate tokens
-                    // For now, just log the attempt
-                    Log.d(TAG, "Attempting to invalidate tokens on server")
+                    Log.d(TAG, "🔑 Attempting to invalidate tokens on server")
+                    // Make API call to logout endpoint
+                    withContext(Dispatchers.IO) {
+                        try {
+                            val url = "https://nimbus-browser-backend-production.up.railway.app/api/auth/logout"
+                            val connection = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+                            connection.requestMethod = "POST"
+                            connection.setRequestProperty("Content-Type", "application/json")
+                            connection.setRequestProperty("Authorization", "Bearer $accessToken")
+                            connection.doOutput = true
+
+                            val jsonBody = "{\"refreshToken\":\"$refreshToken\"}"
+                            connection.outputStream.use { os ->
+                                val input = jsonBody.toByteArray(charset("utf-8"))
+                                os.write(input, 0, input.size)
+                            }
+
+                            val responseCode = connection.responseCode
+                            Log.d(TAG, "🔑 Server logout response code: $responseCode")
+
+                            connection.disconnect()
+                        } catch (e: Exception) {
+                            Log.e(TAG, "🔑 Error making server logout request", e)
+                        }
+                    }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error invalidating tokens: ${e.message}")
+                    Log.e(TAG, "🔑 Error invalidating tokens: ${e.message}")
                 }
+            } else {
+                Log.d(TAG, "🔑 No valid tokens to invalidate, skipping server call")
             }
 
             // Clear the local token data regardless of server response
+            Log.d(TAG, "🔑 Clearing local user data")
             userDataStore.clearUserAuthData()
-            Log.d(TAG, "User signed out")
+            Log.d(TAG, "🔑 User signed out successfully")
         } catch (e: Exception) {
-            Log.e(TAG, "Error during sign out: ${e.message}")
+            Log.e(TAG, "🔑 Error during sign out: ${e.message}")
+            // Even on error, try to clear the data
+            try {
+                userDataStore.clearUserAuthData()
+                Log.d(TAG, "🔑 User data cleared after error")
+            } catch (e2: Exception) {
+                Log.e(TAG, "🔑 Error clearing user data: ${e2.message}")
+            }
             throw e
         }
     }
@@ -76,6 +111,7 @@ class AuthService @Inject constructor(
     ) {
         coroutineScope.launch {
             try {
+                Log.d(TAG, "🔑 Processing auth callback")
                 // If we didn't get user info in the URL params, extract it from the JWT token
                 val extractedUserId = userId ?: extractUserIdFromToken(accessToken)
                 val extractedEmail = email ?: ""
@@ -83,7 +119,7 @@ class AuthService @Inject constructor(
                 // Extract a name from the JWT if possible, otherwise use a default
                 val extractedName = displayName ?: extractUserNameFromToken(accessToken) ?: "User"
 
-                Log.d(TAG, "Using extracted user data: id=$extractedUserId, name=$extractedName, email=$extractedEmail")
+                Log.d(TAG, "🔑 Using extracted user data: id=$extractedUserId, name=$extractedName, email=$extractedEmail")
 
                 userDataStore.saveUserAuthData(
                     accessToken = accessToken,
@@ -93,9 +129,9 @@ class AuthService @Inject constructor(
                     email = extractedEmail,
                     deviceId = null
                 )
-                Log.d(TAG, "Authentication data saved to DataStore")
+                Log.d(TAG, "🔑 Authentication data saved to DataStore")
             } catch (e: Exception) {
-                Log.e(TAG, "Error saving auth data to DataStore: ${e.message}")
+                Log.e(TAG, "🔑 Error saving auth data to DataStore: ${e.message}")
 
                 // Even if extraction fails, still try to save the tokens
                 try {
@@ -107,9 +143,9 @@ class AuthService @Inject constructor(
                         email = email ?: "",
                         deviceId = null
                     )
-                    Log.d(TAG, "Saved basic auth data with default values")
+                    Log.d(TAG, "🔑 Saved basic auth data with default values")
                 } catch (e2: Exception) {
-                    Log.e(TAG, "Failed to save even basic auth data: ${e2.message}")
+                    Log.e(TAG, "🔑 Failed to save even basic auth data: ${e2.message}")
                 }
             }
         }
@@ -171,7 +207,7 @@ class AuthService @Inject constructor(
         coroutineScope.launch {
             // Assuming your UserDataStore provides a StateFlow<Boolean> for sign-in status
             val isSignedIn = userDataStore.isSignedIn.first()
-            Log.d(TAG, "User authentication state: $isSignedIn")
+            Log.d(TAG, "🔑 User authentication state: $isSignedIn")
             // Add additional logic as needed
         }
     }

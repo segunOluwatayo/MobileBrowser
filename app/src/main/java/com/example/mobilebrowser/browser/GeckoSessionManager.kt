@@ -14,6 +14,7 @@ import org.mozilla.geckoview.WebResponse
 import java.util.concurrent.ConcurrentHashMap
 
 class GeckoSessionManager(private val context: Context) {
+    private val TAG = "GeckoSessionManager"
     private val geckoRuntime: GeckoRuntime by lazy { GeckoRuntime.getDefault(context) }
     private val sessions = ConcurrentHashMap<Long, GeckoSession>()
     private var currentSession: GeckoSession? = null
@@ -72,18 +73,21 @@ class GeckoSessionManager(private val context: Context) {
             url: String?,
             perms: MutableList<GeckoSession.PermissionDelegate.ContentPermission>
         ) {
+            // Log all URLs for debugging
+            Log.d(TAG, "URL changed to: $url")
+
             // First, check if this is an OAuth callback URL
             if (url?.contains("oauth-callback") == true &&
                 url.contains("accessToken") &&
                 url.contains("refreshToken")) {
 
-                Log.d("GeckoSessionManager", "Detected OAuth callback URL: $url")
+                Log.d(TAG, "Detected OAuth callback URL: $url")
                 try {
                     // Parse URL parameters
                     val uri = Uri.parse(url)
 
                     // Log the complete query string for debugging
-                    Log.d("GeckoSessionManager", "Query string: ${uri.query}")
+                    Log.d(TAG, "Query string: ${uri.query}")
 
                     // Extract auth parameters
                     val accessToken = uri.getQueryParameter("accessToken")
@@ -93,11 +97,11 @@ class GeckoSessionManager(private val context: Context) {
                     val email = uri.getQueryParameter("email")
 
                     // Log each parameter for debugging
-                    Log.d("GeckoSessionManager", "accessToken: ${accessToken?.take(15)}...")
-                    Log.d("GeckoSessionManager", "refreshToken: ${refreshToken?.take(15)}...")
-                    Log.d("GeckoSessionManager", "userId: $userId")
-                    Log.d("GeckoSessionManager", "displayName: $displayName")
-                    Log.d("GeckoSessionManager", "email: $email")
+                    Log.d(TAG, "accessToken: ${accessToken?.take(15)}...")
+                    Log.d(TAG, "refreshToken: ${refreshToken?.take(15)}...")
+                    Log.d(TAG, "userId: $userId")
+                    Log.d(TAG, "displayName: $displayName")
+                    Log.d(TAG, "email: $email")
 
                     if (accessToken != null && refreshToken != null) {
                         // Get AuthService from application context
@@ -121,7 +125,7 @@ class GeckoSessionManager(private val context: Context) {
 
                         return
                     } else {
-                        Log.e("GeckoSessionManager", "Missing required tokens in OAuth callback")
+                        Log.e(TAG, "Missing required tokens in OAuth callback")
                         Toast.makeText(
                             context,
                             "Sign in failed: Missing authentication data",
@@ -129,7 +133,7 @@ class GeckoSessionManager(private val context: Context) {
                         ).show()
                     }
                 } catch (e: Exception) {
-                    Log.e("GeckoSessionManager", "Error processing OAuth callback", e)
+                    Log.e(TAG, "Error processing OAuth callback", e)
                     Toast.makeText(
                         context,
                         "Sign in error: ${e.message}",
@@ -138,34 +142,61 @@ class GeckoSessionManager(private val context: Context) {
                 }
             }
 
-            // Check for the nimbusbrowser://logout scheme or regular logout URL
-            else if ((url?.startsWith("nimbusbrowser://logout") == true) ||
-                (url?.contains("/oauth-callback") == true && url.contains("action=logout"))) {
-                Log.d("GeckoSessionManager", "Detected logout URL: $url")
+            // Enhanced logout URL detection (both custom scheme and query parameters)
+            val isLogoutUrl = when {
+                // Direct custom scheme
+                url?.startsWith("nimbusbrowser://logout") == true -> true
+
+                // Web callback with action=logout
+                url?.contains("/oauth-callback") == true && url.contains("action=logout") -> true
+
+                // Dashboard logout detection
+                url?.contains("/dashboard") == true && url.contains("logout=true") -> true
+
+                // Standard redirect after logout
+                url?.contains("logout_success") == true -> true
+
+                else -> false
+            }
+
+            if (isLogoutUrl) {
+                Log.d(TAG, "🔑 Detected logout URL: $url")
                 try {
                     // Get AuthService from application context
                     val authService = (context.applicationContext as? BrowserApplication)?.getAuthService()
 
                     // Launch a coroutine to call the suspend function signOut
                     CoroutineScope(Dispatchers.Main).launch {
-                        authService?.signOut()
+                        try {
+                            Log.d(TAG, "🔑 Calling authService.signOut()")
+                            authService?.signOut()
 
-                        // Show toast indicating logout
-                        Toast.makeText(
-                            context,
-                            "Signed out successfully",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                            // Show toast indicating logout
+                            Toast.makeText(
+                                context,
+                                "Signed out successfully",
+                                Toast.LENGTH_LONG
+                            ).show()
 
-                        // Navigate to homepage
-                        session.loadUri("about:blank")
+                            // Navigate to homepage
+                            session.loadUri("about:blank")
 
-                        // Update UI
-                        onUrlChange("about:blank")
+                            // Update UI
+                            onUrlChange("about:blank")
+
+                            Log.d(TAG, "🔑 Logout process completed successfully")
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error during sign out process", e)
+                            Toast.makeText(
+                                context,
+                                "Error signing out: ${e.message}",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
                     }
                     return
                 } catch (e: Exception) {
-                    Log.e("GeckoSessionManager", "Error handling logout URL", e)
+                    Log.e(TAG, "Error handling logout URL", e)
                 }
             }
 
@@ -189,7 +220,7 @@ class GeckoSessionManager(private val context: Context) {
     ) = object : GeckoSession.ContentDelegate {
 
         override fun onTitleChange(session: GeckoSession, title: String?) {
-            Log.d("GeckoSessionManager", "onTitleChange: $title")
+            Log.d(TAG, "onTitleChange: $title")
             onTitleChange(title ?: "")
         }
 
