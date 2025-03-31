@@ -142,19 +142,33 @@ class GeckoSessionManager(private val context: Context) {
                 }
             }
 
-            // Enhanced logout URL detection (both custom scheme and query parameters)
+            // Enhanced logout URL detection
+            // This ensures we detect intentional logouts from the web dashboard
+            // while avoiding false positives for regular browsing
             val isLogoutUrl = when {
                 // Direct custom scheme
                 url?.startsWith("nimbusbrowser://logout") == true -> true
 
-                // Web callback with action=logout
+                // Web callback with action=logout parameter
                 url?.contains("/oauth-callback") == true && url.contains("action=logout") -> true
 
-                // Dashboard logout detection
+                // Dashboard explicit sync logout (our custom parameter)
+                url?.contains("/dashboard") == true && url.contains("sync_logout=true") -> true
+
+                // Standard post-logout page or redirect
+                url?.contains("logout_success") == true -> true
+
+                // Standard web logout endpoints - detecting common patterns
+                url?.contains("/logout") == true || url?.contains("signout") == true -> true
+
+                // Detect logout response from server
+                url?.contains("logged_out=true") == true -> true
+
+                // Dashboard page that explicitly indicates logout via query parameter
                 url?.contains("/dashboard") == true && url.contains("logout=true") -> true
 
-                // Standard redirect after logout
-                url?.contains("logout_success") == true -> true
+                // Session ended or expired indicators
+                url?.contains("session_expired") == true || url?.contains("session_ended") == true -> true
 
                 else -> false
             }

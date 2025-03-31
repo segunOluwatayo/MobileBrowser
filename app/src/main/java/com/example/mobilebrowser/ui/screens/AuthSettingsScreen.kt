@@ -137,15 +137,16 @@ fun AuthSettingsScreen(
                     }
                 }
 
-                // Add Manage Your Account section (updated with logout=true for sync)
+                // Add Manage Your Account section (FIXED - removed sync_logout parameter)
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 16.dp)
                         .clickable {
                             // Get token and construct authenticated dashboard URL with mobile flag
+                            // REMOVED sync_logout=true parameter to prevent immediate logout
                             viewModel.getAccessToken { token ->
-                                val dashboardUrl = "https://nimbus-browser-backend-production.up.railway.app/dashboard?token=$token&mobile=true&sync_logout=true"
+                                val dashboardUrl = "https://nimbus-browser-backend-production.up.railway.app/dashboard?token=$token&mobile=true"
                                 onNavigateToUrl(dashboardUrl)
                             }
                         }
