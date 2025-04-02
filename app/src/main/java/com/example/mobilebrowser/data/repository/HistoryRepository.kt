@@ -1,5 +1,6 @@
 package com.example.mobilebrowser.data.repository
 
+import com.example.mobilebrowser.api.HistoryApiService
 import com.example.mobilebrowser.data.dao.HistoryDao
 import com.example.mobilebrowser.data.dto.HistoryDto
 import com.example.mobilebrowser.data.entity.HistoryEntity
@@ -12,7 +13,8 @@ import javax.inject.Singleton
 
 @Singleton
 class HistoryRepository @Inject constructor(
-    private val historyDao: HistoryDao
+    private val historyDao: HistoryDao,
+    private val historyApiService: HistoryApiService
 ) {
     // Retrieve all history entries from the local database.
     fun getAllHistory(): Flow<List<HistoryEntity>> = historyDao.getAllHistory()
@@ -82,13 +84,9 @@ class HistoryRepository @Inject constructor(
      * @param favicon Optional favicon URL.
      * @param userId The identifier of the currently logged in user.
      */
-    suspend fun addHistoryEntry(url: String, title: String, favicon: String? = null, userId: String) {
-        // Check if the URL already exists in the local database.
+    suspend fun addHistoryEntry(url: String, title: String, favicon: String? = null, userId: String): HistoryEntity {
         val existingEntry = historyDao.getHistoryByUrl(url)
-
-        if (existingEntry != null) {
-            // Update the existing entry:
-            // Increment visit count, update timestamps, and mark as pending upload.
+        return if (existingEntry != null) {
             val updatedEntry = existingEntry.copy(
                 visitCount = existingEntry.visitCount + 1,
                 lastVisited = Date(),
@@ -96,8 +94,8 @@ class HistoryRepository @Inject constructor(
                 syncStatus = SyncStatus.PENDING_UPLOAD
             )
             historyDao.updateHistory(updatedEntry)
+            updatedEntry  // Return the updated entry
         } else {
-            // Create a new entry with the sync status set to PENDING_UPLOAD.
             val newEntry = HistoryEntity(
                 userId = userId,
                 url = url,
@@ -109,7 +107,11 @@ class HistoryRepository @Inject constructor(
                 lastModified = Date(),
                 syncStatus = SyncStatus.PENDING_UPLOAD
             )
-            historyDao.insertHistory(newEntry)
+            // Capture the generated primary key.
+            val generatedId = historyDao.insertHistory(newEntry)
+            // Create an updated entry with the proper id.
+            val entryWithId = newEntry.copy(id = generatedId)
+            entryWithId
         }
     }
 
@@ -135,6 +137,36 @@ class HistoryRepository @Inject constructor(
         // Delete the entry from local view immediately for both signed-in and anonymous users
         historyDao.deleteHistory(history)
     }
+    suspend fun deleteHistoryEntryImmediate(
+        history: HistoryEntity,
+        isUserSignedIn: Boolean,
+        accessToken: String,
+        deviceId: String
+    ) {
+        if (isUserSignedIn && history.userId.isNotBlank()) {
+            try {
+                // Choose the deletion endpoint based on availability of serverId.
+                if (!history.serverId.isNullOrBlank()) {
+                    historyApiService.deleteHistoryEntry("Bearer $accessToken", history.serverId)
+                } else {
+                    historyApiService.deleteHistoryEntryByUrl("Bearer $accessToken", history.url)
+                }
+                // If the API call succeeds, remove from local DB.
+                historyDao.deleteHistory(history)
+            } catch (e: Exception) {
+                // On failure, mark as pending delete so that the sync manager can retry.
+                val markedEntry = history.copy(
+                    syncStatus = SyncStatus.PENDING_DELETE,
+                    lastModified = Date()
+                )
+                historyDao.updateHistory(markedEntry)
+            }
+        } else {
+            // For anonymous users, just delete locally.
+            historyDao.deleteHistory(history)
+        }
+    }
+
 
     /**
      * Deletes history entries within a specific date range.

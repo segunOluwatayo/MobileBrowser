@@ -167,24 +167,46 @@ class HistoryViewModel @Inject constructor(
      *
      * @param history The history entry to delete
      */
+//    fun deleteHistoryEntry(history: HistoryEntity) {
+//        viewModelScope.launch {
+//            try {
+//                // Check if user is signed in
+//                val isSignedIn = userDataStore.isSignedIn.first()
+//
+//                // Delete with appropriate sync handling
+//                repository.deleteHistoryEntry(history, isSignedIn)
+//
+//                // If user is signed in, trigger sync to update server
+//                if (isSignedIn) {
+//                    triggerManualSync()
+//                }
+//            } catch (e: Exception) {
+//                _error.value = "Failed to delete history entry: ${e.message}"
+//            }
+//        }
+//    }
     fun deleteHistoryEntry(history: HistoryEntity) {
         viewModelScope.launch {
             try {
-                // Check if user is signed in
                 val isSignedIn = userDataStore.isSignedIn.first()
-
-                // Delete with appropriate sync handling
-                repository.deleteHistoryEntry(history, isSignedIn)
-
-                // If user is signed in, trigger sync to update server
                 if (isSignedIn) {
+                    val accessToken = userDataStore.accessToken.first()
+                    val deviceId = userDataStore.deviceId.first().ifEmpty { "android-device" }
+                    // Call the immediate deletion method for signed-in users
+                    repository.deleteHistoryEntryImmediate(history, isSignedIn, accessToken, deviceId)
+                    // Optionally, trigger a manual sync to catch any pending deletions
                     triggerManualSync()
+                } else {
+                    // For anonymous users, just delete locally
+                    repository.deleteHistoryEntry(history, isSignedIn)
                 }
             } catch (e: Exception) {
                 _error.value = "Failed to delete history entry: ${e.message}"
             }
         }
     }
+
+
 
     /**
      * Delete history by a specified time range with proper synchronization.
