@@ -1,5 +1,6 @@
 package com.example.mobilebrowser.sync
 
+import android.util.Log
 import com.example.mobilebrowser.api.HistoryApiService
 import com.example.mobilebrowser.data.dto.HistoryDto
 import com.example.mobilebrowser.data.entity.HistoryEntity
@@ -34,21 +35,22 @@ class UserSyncManager @Inject constructor(
      */
     suspend fun initialSync(authToken: String, deviceId: String, userId: String) {
         try {
-            // Fetch remote history entries for the user.
             val response = historyApiService.getHistory("Bearer $authToken", deviceId, userId)
             if (response.isSuccessful) {
-                val remoteHistoryList = response.body() ?: emptyList()
-                // Merge remote history with the local database.
+                val apiResponse = response.body()
+                // Unwrap the nested data field from the response.
+                val remoteHistoryList = apiResponse?.data ?: emptyList()
                 mergeRemoteHistory(remoteHistoryList)
             } else {
                 // Handle error response (logging, notifying the user, etc.)
-                // e.g., Log.e("UserSyncManager", "Error fetching remote history: ${response.errorBody()}")
+                 Log.e("UserSyncManager", "Error fetching remote history: ${response.errorBody()}")
             }
         } catch (e: Exception) {
             // Handle exceptions such as network errors.
-            // e.g., Log.e("UserSyncManager", "Exception during initial sync: ${e.message}")
+             Log.e("UserSyncManager", "Exception during initial sync: ${e.message}")
         }
     }
+
 
     /**
      * Merges remote history entries with the local database.
@@ -97,8 +99,8 @@ class UserSyncManager @Inject constructor(
                     try {
                         val response = historyApiService.addOrUpdateHistory("Bearer $authToken", deviceId, dto)
                         if (response.isSuccessful) {
-                            // Update the local entry's sync status to SYNCED and store the server ID if provided.
-                            val updatedId = response.body()?.id
+                            // Since the response is wrapped, extract the server id from the nested data field.
+                            val updatedId = response.body()?.data?.id
                             historyRepository.markAsSynced(entry, updatedId)
                             success = true
                         } else {

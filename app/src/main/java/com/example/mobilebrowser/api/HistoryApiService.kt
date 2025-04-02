@@ -1,5 +1,6 @@
 package com.example.mobilebrowser.api
 
+import com.example.mobilebrowser.data.dto.ApiResponse
 import com.example.mobilebrowser.data.dto.HistoryDto
 import retrofit2.Response
 import retrofit2.http.*
@@ -23,7 +24,7 @@ interface HistoryApiService {
         @Header("Authorization") authHeader: String,
         @Header("X-Device-ID") deviceId: String,
         @Query("userId") userId: String
-    ): Response<List<HistoryDto>>
+    ): Response<ApiResponse<List<HistoryDto>>>
 
     /**
      * Add a new history entry or update an existing one.
@@ -39,7 +40,7 @@ interface HistoryApiService {
         @Header("Authorization") authHeader: String,
         @Header("X-Device-ID") deviceId: String,
         @Body history: HistoryDto
-    ): Response<HistoryDto>
+    ): Response<ApiResponse<HistoryDto>>
 
     /**
      * Delete a specific history entry from the backend.

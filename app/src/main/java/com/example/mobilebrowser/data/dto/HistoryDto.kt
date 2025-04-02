@@ -20,3 +20,8 @@ data class HistoryDto(
     val timestamp: Date,
     val device: String
 )
+data class ApiResponse<T>(
+    val message: String,
+    val data: T
+)
+
