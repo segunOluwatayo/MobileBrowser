@@ -60,6 +60,13 @@ class HistoryRepository @Inject constructor(
         historyDao.getHistoryBySyncStatus(SyncStatus.PENDING_UPLOAD)
 
     /**
+     * Returns a Flow of history entries that are marked as PENDING_DELETE,
+     * indicating they need to be deleted from the remote server.
+     */
+    fun getPendingDeletes(): Flow<List<HistoryEntity>> =
+        historyDao.getHistoryBySyncStatus(SyncStatus.PENDING_DELETE)
+
+    /**
      * Retrieves a single history entry by its URL.
      * Returns null if no entry is found.
      */
@@ -107,19 +114,135 @@ class HistoryRepository @Inject constructor(
     }
 
     /**
-     * Instead of immediately deleting an entry, mark it as PENDING_DELETE.
-     * The actual removal will occur once the deletion is confirmed remotely.
+     * Deletes a history entry properly based on user sign-in status.
+     * If user is signed in, the entry is marked for server deletion before local removal.
+     * If not signed in, the entry is just deleted locally.
      *
-     * @param history The history entry to be marked for deletion.
+     * @param history The history entry to be deleted
+     * @param isUserSignedIn Whether the user is currently signed in
      */
-    suspend fun deleteHistoryEntry(history: HistoryEntity) {
-        // Mark the entry as pending deletion and update the lastModified timestamp.
-        val entryToDelete = history.copy(
-            syncStatus = SyncStatus.PENDING_DELETE,
-            lastModified = Date()
-        )
-        historyDao.updateHistory(entryToDelete)
+    suspend fun deleteHistoryEntry(history: HistoryEntity, isUserSignedIn: Boolean) {
+        if (isUserSignedIn && history.userId.isNotBlank()) {
+            // For signed-in users with a valid userId, create a copy marked for deletion
+            // This entry will be synced to the server and then removed locally
+            val entryToDelete = history.copy(
+                syncStatus = SyncStatus.PENDING_DELETE,
+                lastModified = Date()
+            )
+            historyDao.updateHistory(entryToDelete)
+        }
+
+        // Delete the entry from local view immediately for both signed-in and anonymous users
+        historyDao.deleteHistory(history)
     }
+
+    /**
+     * Deletes history entries within a specific date range.
+     * When signed in, entries are first marked for server deletion.
+     *
+     * @param startDate Beginning of the time range
+     * @param endDate End of the time range
+     * @param isUserSignedIn Whether the user is currently signed in
+     */
+    suspend fun deleteHistoryInRange(startDate: Date, endDate: Date, isUserSignedIn: Boolean) {
+        if (isUserSignedIn) {
+            // For signed-in users, first get entries and mark them for server deletion
+            val entriesToDelete = historyDao.getHistoryInRangeAsList(startDate, endDate)
+            for (entry in entriesToDelete) {
+                // Only mark entries with a valid userId
+                if (entry.userId.isNotBlank()) {
+                    val markedEntry = entry.copy(
+                        syncStatus = SyncStatus.PENDING_DELETE,
+                        lastModified = Date()
+                    )
+                    historyDao.updateHistory(markedEntry)
+                }
+            }
+        }
+
+        // Delete from local database regardless of sign-in status
+        historyDao.deleteHistoryInRange(startDate, endDate)
+    }
+
+    /**
+     * Deletes all history entries.
+     * When signed in, entries are first marked for server deletion.
+     *
+     * @param isUserSignedIn Whether the user is currently signed in
+     */
+    suspend fun deleteAllHistory(isUserSignedIn: Boolean) {
+        if (isUserSignedIn) {
+            // For signed-in users, first get all entries and mark them for server deletion
+            val allEntries = historyDao.getAllHistoryAsList()
+            for (entry in allEntries) {
+                // Only mark entries with a valid userId
+                if (entry.userId.isNotBlank()) {
+                    val markedEntry = entry.copy(
+                        syncStatus = SyncStatus.PENDING_DELETE,
+                        lastModified = Date()
+                    )
+                    historyDao.updateHistory(markedEntry)
+                }
+            }
+        }
+
+        // Delete all entries from local database regardless of sign-in status
+        historyDao.deleteAllHistory()
+    }
+
+    /**
+     * Get all history as a List for processing (not as a Flow)
+     */
+    suspend fun getAllHistoryAsList(): List<HistoryEntity> {
+        return historyDao.getAllHistoryAsList()
+    }
+
+    /**
+     * Deletes history entries from the last hour.
+     */
+    suspend fun deleteLastHourHistory(isUserSignedIn: Boolean) {
+        val calendar = Calendar.getInstance()
+        val endDate = calendar.time
+        calendar.add(Calendar.HOUR, -1)
+        val startDate = calendar.time
+        deleteHistoryInRange(startDate, endDate, isUserSignedIn)
+    }
+
+    /**
+     * Deletes history entries for today.
+     */
+    suspend fun deleteTodayHistory(isUserSignedIn: Boolean) {
+        val calendar = Calendar.getInstance()
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        val startDate = calendar.time
+        val endDate = Date()
+        deleteHistoryInRange(startDate, endDate, isUserSignedIn)
+    }
+
+    /**
+     * Deletes history entries for yesterday.
+     */
+    suspend fun deleteYesterdayHistory(isUserSignedIn: Boolean) {
+        val calendar = Calendar.getInstance()
+        calendar.add(Calendar.DAY_OF_YEAR, -1)
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        val startDate = calendar.time
+        calendar.add(Calendar.DAY_OF_YEAR, 1)
+        val endDate = calendar.time
+        deleteHistoryInRange(startDate, endDate, isUserSignedIn)
+    }
+
+    /**
+     * Retrieves the most recent history entries, limited by the provided count.
+     */
+    fun getRecentHistory(limit: Int = 10): Flow<List<HistoryEntity>> =
+        historyDao.getRecentHistory(limit)
 
     /**
      * Once the server confirms deletion, remove the entry from the local database.
@@ -190,62 +313,6 @@ class HistoryRepository @Inject constructor(
         )
         historyDao.updateHistory(updatedEntry)
     }
-
-    // Additional methods to support deletion by time range and recent history.
-
-    /**
-     * Deletes history entries from the last hour.
-     */
-    suspend fun deleteLastHourHistory() {
-        val calendar = Calendar.getInstance()
-        val endDate = calendar.time
-        calendar.add(Calendar.HOUR, -1)
-        val startDate = calendar.time
-        historyDao.deleteHistoryInRange(startDate, endDate)
-    }
-
-    /**
-     * Deletes history entries for today.
-     */
-    suspend fun deleteTodayHistory() {
-        val calendar = Calendar.getInstance()
-        calendar.set(Calendar.HOUR_OF_DAY, 0)
-        calendar.set(Calendar.MINUTE, 0)
-        calendar.set(Calendar.SECOND, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
-        val startDate = calendar.time
-        val endDate = Date()
-        historyDao.deleteHistoryInRange(startDate, endDate)
-    }
-
-    /**
-     * Deletes history entries for yesterday.
-     */
-    suspend fun deleteYesterdayHistory() {
-        val calendar = Calendar.getInstance()
-        calendar.add(Calendar.DAY_OF_YEAR, -1)
-        calendar.set(Calendar.HOUR_OF_DAY, 0)
-        calendar.set(Calendar.MINUTE, 0)
-        calendar.set(Calendar.SECOND, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
-        val startDate = calendar.time
-        calendar.add(Calendar.DAY_OF_YEAR, 1)
-        val endDate = calendar.time
-        historyDao.deleteHistoryInRange(startDate, endDate)
-    }
-
-    /**
-     * Deletes all history entries.
-     */
-    suspend fun deleteAllHistory() {
-        historyDao.deleteAllHistory()
-    }
-
-    /**
-     * Retrieves the most recent history entries, limited by the provided count.
-     */
-    fun getRecentHistory(limit: Int = 10): Flow<List<HistoryEntity>> =
-        historyDao.getRecentHistory(limit)
 }
 
 /**

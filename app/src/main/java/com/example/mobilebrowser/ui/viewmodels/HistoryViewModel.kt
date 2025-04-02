@@ -137,7 +137,7 @@ class HistoryViewModel @Inject constructor(
 
     /**
      * Adds a history entry with proper user association.
-     * FIXED: Now gets the current user ID from UserDataStore
+     * Gets the current user ID from UserDataStore
      *
      * @param url The URL of the visited page
      * @param title The title of the visited page
@@ -157,6 +157,67 @@ class HistoryViewModel @Inject constructor(
                 repository.addHistoryEntry(url, title, favicon, effectiveUserId)
             } catch (e: Exception) {
                 _error.value = "Failed to add history entry: ${e.message}"
+            }
+        }
+    }
+
+    /**
+     * Delete a specific history entry with proper synchronization.
+     * Now properly handles sync for signed-in users.
+     *
+     * @param history The history entry to delete
+     */
+    fun deleteHistoryEntry(history: HistoryEntity) {
+        viewModelScope.launch {
+            try {
+                // Check if user is signed in
+                val isSignedIn = userDataStore.isSignedIn.first()
+
+                // Delete with appropriate sync handling
+                repository.deleteHistoryEntry(history, isSignedIn)
+
+                // If user is signed in, trigger sync to update server
+                if (isSignedIn) {
+                    triggerManualSync()
+                }
+            } catch (e: Exception) {
+                _error.value = "Failed to delete history entry: ${e.message}"
+            }
+        }
+    }
+
+    /**
+     * Delete history by a specified time range with proper synchronization.
+     * Now properly handles sync for signed-in users.
+     *
+     * @param timeRange The time range to delete (LAST_HOUR, TODAY, YESTERDAY, ALL)
+     */
+    fun deleteHistoryByTimeRange(timeRange: HistoryTimeRange) {
+        viewModelScope.launch {
+            try {
+                // Check if user is signed in
+                val isSignedIn = userDataStore.isSignedIn.first()
+
+                when (timeRange) {
+                    HistoryTimeRange.LAST_HOUR ->
+                        repository.deleteLastHourHistory(isSignedIn)
+
+                    HistoryTimeRange.TODAY ->
+                        repository.deleteTodayHistory(isSignedIn)
+
+                    HistoryTimeRange.YESTERDAY ->
+                        repository.deleteYesterdayHistory(isSignedIn)
+
+                    HistoryTimeRange.ALL ->
+                        repository.deleteAllHistory(isSignedIn)
+                }
+
+                // If user is signed in, trigger sync to update server
+                if (isSignedIn) {
+                    triggerManualSync()
+                }
+            } catch (e: Exception) {
+                _error.value = "Failed to delete history: ${e.message}"
             }
         }
     }
@@ -195,34 +256,6 @@ class HistoryViewModel @Inject constructor(
             } catch (e: Exception) {
                 _syncStatus.value = SyncStatusState.Error(e.message ?: "Unknown error during sync")
                 _error.value = "Sync failed: ${e.message}"
-            }
-        }
-    }
-
-    // Delete a specific history entry
-    fun deleteHistoryEntry(history: HistoryEntity) {
-        viewModelScope.launch {
-            try {
-                repository.deleteHistoryEntry(history)
-            } catch (e: Exception) {
-                _error.value = "Failed to delete history entry: ${e.message}"
-            }
-        }
-    }
-
-
-    // Delete history by a specified time range
-    fun deleteHistoryByTimeRange(timeRange: HistoryTimeRange) {
-        viewModelScope.launch {
-            try {
-                when (timeRange) {
-                    HistoryTimeRange.LAST_HOUR -> repository.deleteLastHourHistory()
-                    HistoryTimeRange.TODAY -> repository.deleteTodayHistory()
-                    HistoryTimeRange.YESTERDAY -> repository.deleteYesterdayHistory()
-                    HistoryTimeRange.ALL -> repository.deleteAllHistory()
-                }
-            } catch (e: Exception) {
-                _error.value = "Failed to delete history: ${e.message}"
             }
         }
     }

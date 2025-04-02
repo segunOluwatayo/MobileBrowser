@@ -2,16 +2,17 @@ package com.example.mobilebrowser.sync
 
 import android.util.Log
 import com.example.mobilebrowser.api.HistoryApiService
+import com.example.mobilebrowser.data.dto.ApiResponse
+import com.example.mobilebrowser.data.dto.HistoryDto
 import com.example.mobilebrowser.data.entity.SyncStatus
 import com.example.mobilebrowser.data.repository.HistoryRepository
 import com.example.mobilebrowser.data.repository.toDto
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * State class for tracking sync operation status.
- */
 sealed class SyncStatusState {
     object Idle : SyncStatusState()
     object Syncing : SyncStatusState()
@@ -20,8 +21,8 @@ sealed class SyncStatusState {
 }
 
 /**
- * Manages synchronization operations for user data.
- * Handles pushing local changes to server and pulling remote changes.
+ * Enhanced UserSyncManager to handle both uploads and deletions.
+ * Now properly syncs deleted history entries to the server.
  */
 @Singleton
 class UserSyncManager @Inject constructor(
@@ -31,70 +32,75 @@ class UserSyncManager @Inject constructor(
     private val TAG = "UserSyncManager"
 
     /**
-     * Pushes local pending changes to the server.
-     * This includes:
-     * - New history entries (PENDING_UPLOAD)
-     * - Deleted history entries (PENDING_DELETE)
+     * Pushes local history changes (both additions and deletions) to the server.
      *
-     * @param authToken JWT auth token for API calls
-     * @param deviceId Device identifier for tracking sync origin
-     * @param userId User identifier
+     * @param accessToken The user's authentication token
+     * @param deviceId The device identifier
+     * @param userId The user's ID
      */
-    suspend fun pushLocalChanges(authToken: String, deviceId: String, userId: String) {
-        try {
-            Log.d(TAG, "Starting to push local changes to server")
+    suspend fun pushLocalChanges(accessToken: String, deviceId: String, userId: String) {
+        withContext(Dispatchers.IO) {
+            try {
+                // 1. Process new/updated entries
+                val pendingUploads = historyRepository.getPendingUploads().first()
+                Log.d(TAG, "Found ${pendingUploads.size} history entries pending upload")
 
-            // Process pending history uploads
-            val pendingUploads = historyRepository.getPendingUploads().first()
-            Log.d(TAG, "Found ${pendingUploads.size} pending history uploads")
+                for (entry in pendingUploads) {
+                    try {
+                        // Skip entries not belonging to the current user
+                        if (entry.userId != userId) continue
 
-            for (entry in pendingUploads) {
-                try {
-                    when (entry.syncStatus) {
-                        SyncStatus.PENDING_UPLOAD -> {
-                            // Convert to DTO and send to server
-                            val dto = entry.toDto(deviceId)
+                        val dto = entry.toDto(deviceId)
+                        val response = historyApiService.addHistoryEntry(
+                            "Bearer $accessToken",
+                            dto
+                        )
 
-                            // Debug: Log what we're about to send
-                            Log.d(TAG, "Syncing history entry: URL=${entry.url}, Title=${entry.title}, UserID=${entry.userId}")
-
-                            val response = historyApiService.addHistoryEntry("Bearer $authToken", dto)
-
-                            // Update local entry with server ID and mark as synced
-                            historyRepository.markAsSynced(entry, response.data.id)
-                            Log.d(TAG, "Successfully synced history entry: ${entry.url}")
-                        }
-
-                        SyncStatus.PENDING_DELETE -> {
-                            // Only try to delete from server if we have a server ID
-                            if (entry.serverId != null) {
-                                historyApiService.deleteHistoryEntry("Bearer $authToken", entry.serverId)
-
-                                // After confirmed deletion on server, delete locally
-                                historyRepository.finalizeDeletion(entry)
-                                Log.d(TAG, "Successfully deleted history entry from server: ${entry.url}")
-                            } else {
-                                // If no server ID, just delete locally (was never synced)
-                                historyRepository.finalizeDeletion(entry)
-                                Log.d(TAG, "Deleted local-only history entry: ${entry.url}")
-                            }
-                        }
-
-                        else -> {
-                            // Skip entries already synced or with conflicts
-                            Log.d(TAG, "Skipping history entry with status ${entry.syncStatus}: ${entry.url}")
-                        }
+                        // Mark as synced if successful
+                        val serverId = response.data.id
+                        historyRepository.markAsSynced(entry, serverId)
+                        Log.d(TAG, "Successfully synced history entry: ${entry.url}")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error syncing history entry: ${e.message}", e)
                     }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error syncing history entry ${entry.url}: ${e.message}", e)
-                    // Continue with other entries
                 }
-            }
 
-            Log.d(TAG, "Completed pushing local changes")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error pushing local changes: ${e.message}", e)
-            throw e
+                // 2. Process deleted entries
+                val pendingDeletes = historyRepository.getPendingDeletes().first()
+                Log.d(TAG, "Found ${pendingDeletes.size} history entries pending deletion")
+
+                for (entry in pendingDeletes) {
+                    try {
+                        // Skip entries not belonging to the current user
+                        if (entry.userId != userId) continue
+
+                        // If the entry has a server ID, delete it from the server
+                        if (!entry.serverId.isNullOrBlank()) {
+                            historyApiService.deleteHistoryEntry(
+                                "Bearer $accessToken",
+                                entry.serverId
+                            )
+                            Log.d(TAG, "Successfully deleted history entry from server: ${entry.url}")
+                        } else {
+                            // If no server ID, check if we need to delete by URL
+                            val dto = entry.toDto(deviceId)
+                            historyApiService.deleteHistoryEntryByUrl(
+                                "Bearer $accessToken",
+                                dto.url
+                            )
+                            Log.d(TAG, "Successfully deleted history entry by URL: ${entry.url}")
+                        }
+
+                        // Permanently remove from local database now that server is updated
+                        historyRepository.finalizeDeletion(entry)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error deleting history entry: ${e.message}", e)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error during history sync: ${e.message}", e)
+                throw e
+            }
         }
     }
 }

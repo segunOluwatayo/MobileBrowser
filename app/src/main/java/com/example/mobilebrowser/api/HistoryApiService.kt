@@ -5,58 +5,58 @@ import com.example.mobilebrowser.data.dto.HistoryDto
 import retrofit2.http.*
 
 /**
- * Retrofit interface for history-related API endpoints.
+ * API service for interacting with the history endpoints on the server.
+ * Enhanced with methods for deleting history entries.
  */
 interface HistoryApiService {
     /**
-     * Retrieves all history entries for the authenticated user.
-     *
-     * @param authorization Bearer token for authentication
-     * @return ApiResponse containing a list of history entries
-     */
-    @GET("history")
-    suspend fun getHistory(
-        @Header("Authorization") authorization: String
-    ): ApiResponse<List<HistoryDto>>
-
-    /**
      * Adds a new history entry to the server.
      *
-     * @param authorization Bearer token for authentication
-     * @param historyEntry The history data to upload
-     * @return ApiResponse containing the saved history entry with server-assigned ID
+     * @param authorization The authentication token in format "Bearer {token}"
+     * @param history The history entry to add
+     * @return API response containing the added history entry with server-assigned ID
      */
     @POST("history")
     suspend fun addHistoryEntry(
         @Header("Authorization") authorization: String,
-        @Body historyEntry: HistoryDto
+        @Body history: HistoryDto
     ): ApiResponse<HistoryDto>
 
     /**
-     * Updates an existing history entry on the server.
+     * Deletes a history entry by its server ID.
      *
-     * @param authorization Bearer token for authentication
-     * @param id Server ID of the history entry to update
-     * @param historyEntry Updated history data
-     * @return ApiResponse containing the updated history entry
-     */
-    @PUT("history/{id}")
-    suspend fun updateHistoryEntry(
-        @Header("Authorization") authorization: String,
-        @Path("id") id: String,
-        @Body historyEntry: HistoryDto
-    ): ApiResponse<HistoryDto>
-
-    /**
-     * Deletes a history entry from the server.
-     *
-     * @param authorization Bearer token for authentication
-     * @param id Server ID of the history entry to delete
-     * @return ApiResponse with operation status
+     * @param authorization The authentication token in format "Bearer {token}"
+     * @param id The server-assigned ID of the history entry to delete
+     * @return API response indicating success or failure
      */
     @DELETE("history/{id}")
     suspend fun deleteHistoryEntry(
         @Header("Authorization") authorization: String,
         @Path("id") id: String
     ): ApiResponse<Any>
+
+    /**
+     * Deletes history entries by URL.
+     * This is needed when we don't have a server ID but need to remove entries.
+     *
+     * @param authorization The authentication token in format "Bearer {token}"
+     * @param url The URL of the history entry to delete
+     * @return API response indicating success or failure
+     */
+    @HTTP(method = "DELETE", path = "history", hasBody = true)
+    suspend fun deleteHistoryEntryByUrl(
+        @Header("Authorization") authorization: String,
+        @Query("url") url: String
+    ): ApiResponse<Any>
+
+    /**
+     * Gets all history entries for the authenticated user.
+     *
+     * @param authorization The authentication token in format "Bearer {token}"
+     * @return API response containing list of history entries
+     */
+    @GET("history")
+    suspend fun getHistory(
+        @Header("Authorization") authorization: String
+    ): ApiResponse<List<HistoryDto>>
 }
