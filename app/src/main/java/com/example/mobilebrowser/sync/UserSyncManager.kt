@@ -2,136 +2,99 @@ package com.example.mobilebrowser.sync
 
 import android.util.Log
 import com.example.mobilebrowser.api.HistoryApiService
-import com.example.mobilebrowser.data.dto.HistoryDto
-import com.example.mobilebrowser.data.entity.HistoryEntity
+import com.example.mobilebrowser.data.entity.SyncStatus
 import com.example.mobilebrowser.data.repository.HistoryRepository
-import com.example.mobilebrowser.data.util.UserDataStore
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collect
-import java.util.Date
+import com.example.mobilebrowser.data.repository.toDto
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * The UserSyncManager orchestrates the two-way synchronization between the local database
- * and the remote MongoDB server. It handles:
- * - Initial data fetching after login.
- * - Pushing local changes to the server.
- * - Conflict resolution (last-write-wins based on timestamps).
- * - A retry mechanism for handling network failures.
+ * State class for tracking sync operation status.
+ */
+sealed class SyncStatusState {
+    object Idle : SyncStatusState()
+    object Syncing : SyncStatusState()
+    object Synced : SyncStatusState()
+    data class Error(val message: String) : SyncStatusState()
+}
+
+/**
+ * Manages synchronization operations for user data.
+ * Handles pushing local changes to server and pulling remote changes.
  */
 @Singleton
 class UserSyncManager @Inject constructor(
     private val historyRepository: HistoryRepository,
-    private val historyApiService: HistoryApiService,
-    private val userDataStore: UserDataStore
+    private val historyApiService: HistoryApiService
 ) {
-    /**
-     * Performs the initial sync after the user logs in.
-     *
-     * @param authToken The authentication token for API calls.
-     * @param deviceId The device identification header.
-     * @param userId The current user's identifier.
-     */
-    suspend fun initialSync(authToken: String, deviceId: String, userId: String) {
-        try {
-            val response = historyApiService.getHistory("Bearer $authToken", deviceId, userId)
-            if (response.isSuccessful) {
-                val apiResponse = response.body()
-                // Unwrap the nested data field from the response.
-                val remoteHistoryList = apiResponse?.data ?: emptyList()
-                mergeRemoteHistory(remoteHistoryList)
-            } else {
-                // Handle error response (logging, notifying the user, etc.)
-                 Log.e("UserSyncManager", "Error fetching remote history: ${response.errorBody()}")
-            }
-        } catch (e: Exception) {
-            // Handle exceptions such as network errors.
-             Log.e("UserSyncManager", "Exception during initial sync: ${e.message}")
-        }
-    }
-
+    private val TAG = "UserSyncManager"
 
     /**
-     * Merges remote history entries with the local database.
-     * For each remote entry:
-     * - If a corresponding local entry exists, compare the timestamps.
-     * - If the remote entry is newer, update the local record.
-     * - Otherwise, insert the remote entry as new.
+     * Pushes local pending changes to the server.
+     * This includes:
+     * - New history entries (PENDING_UPLOAD)
+     * - Deleted history entries (PENDING_DELETE)
      *
-     * @param remoteHistory The list of history entries fetched from the server.
-     */
-    private suspend fun mergeRemoteHistory(remoteHistory: List<HistoryDto>) {
-        for (remoteEntry in remoteHistory) {
-            // Retrieve the local entry by URL.
-            val localEntry = historyRepository.getHistoryByUrl(remoteEntry.url)
-            if (localEntry != null) {
-                // Compare timestamps for conflict resolution.
-                if (remoteEntry.timestamp.after(localEntry.lastModified)) {
-                    // Update local entry with remote data.
-                    historyRepository.updateHistoryFromDto(remoteEntry)
-                }
-            } else {
-                // No matching local entry found; insert the remote entry.
-                historyRepository.insertHistoryFromDto(remoteEntry)
-            }
-        }
-    }
-
-    /**
-     * Pushes local changes (pending uploads) to the remote server.
-     * Implements a retry mechanism with exponential backoff for transient errors.
-     *
-     * @param authToken The authentication token for API calls.
-     * @param deviceId The device identification header.
-     * @param userId The current user's identifier.
+     * @param authToken JWT auth token for API calls
+     * @param deviceId Device identifier for tracking sync origin
+     * @param userId User identifier
      */
     suspend fun pushLocalChanges(authToken: String, deviceId: String, userId: String) {
-        // Collect entries that are pending upload from the local database.
-        historyRepository.getPendingUploads().collect { pendingList ->
-            for (entry in pendingList) {
-                // Convert the local HistoryEntity into the HistoryDto expected by the API.
-                val dto = entry.toDto(deviceId)
-                var retryCount = 0
-                var success = false
-                // Retry up to 3 times for failed network calls.
-                while (retryCount < 3 && !success) {
-                    try {
-                        val response = historyApiService.addOrUpdateHistory("Bearer $authToken", deviceId, dto)
-                        if (response.isSuccessful) {
-                            // Since the response is wrapped, extract the server id from the nested data field.
-                            val updatedId = response.body()?.data?.id
-                            historyRepository.markAsSynced(entry, updatedId)
-                            success = true
-                        } else {
-                            retryCount++
-                            delay(1000L * retryCount) // Exponential backoff.
+        try {
+            Log.d(TAG, "Starting to push local changes to server")
+
+            // Process pending history uploads
+            val pendingUploads = historyRepository.getPendingUploads().first()
+            Log.d(TAG, "Found ${pendingUploads.size} pending history uploads")
+
+            for (entry in pendingUploads) {
+                try {
+                    when (entry.syncStatus) {
+                        SyncStatus.PENDING_UPLOAD -> {
+                            // Convert to DTO and send to server
+                            val dto = entry.toDto(deviceId)
+
+                            // Debug: Log what we're about to send
+                            Log.d(TAG, "Syncing history entry: URL=${entry.url}, Title=${entry.title}, UserID=${entry.userId}")
+
+                            val response = historyApiService.addHistoryEntry("Bearer $authToken", dto)
+
+                            // Update local entry with server ID and mark as synced
+                            historyRepository.markAsSynced(entry, response.data.id)
+                            Log.d(TAG, "Successfully synced history entry: ${entry.url}")
                         }
-                    } catch (e: Exception) {
-                        retryCount++
-                        delay(1000L * retryCount)
+
+                        SyncStatus.PENDING_DELETE -> {
+                            // Only try to delete from server if we have a server ID
+                            if (entry.serverId != null) {
+                                historyApiService.deleteHistoryEntry("Bearer $authToken", entry.serverId)
+
+                                // After confirmed deletion on server, delete locally
+                                historyRepository.finalizeDeletion(entry)
+                                Log.d(TAG, "Successfully deleted history entry from server: ${entry.url}")
+                            } else {
+                                // If no server ID, just delete locally (was never synced)
+                                historyRepository.finalizeDeletion(entry)
+                                Log.d(TAG, "Deleted local-only history entry: ${entry.url}")
+                            }
+                        }
+
+                        else -> {
+                            // Skip entries already synced or with conflicts
+                            Log.d(TAG, "Skipping history entry with status ${entry.syncStatus}: ${entry.url}")
+                        }
                     }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error syncing history entry ${entry.url}: ${e.message}", e)
+                    // Continue with other entries
                 }
             }
+
+            Log.d(TAG, "Completed pushing local changes")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error pushing local changes: ${e.message}", e)
+            throw e
         }
     }
-}
-
-/**
- * Extension function to convert a HistoryEntity to a HistoryDto.
- * Adapts the local model to match the backend schema.
- *
- * @param deviceId The device identification value to be sent with the request.
- * @return A HistoryDto containing fields required by the backend.
- */
-fun HistoryEntity.toDto(deviceId: String): HistoryDto {
-    return HistoryDto(
-        id = this.serverId, // May be null if not synced yet.
-        userId = this.userId,
-        url = this.url,
-        title = this.title,
-        // Using lastModified as the timestamp for synchronization purposes.
-        timestamp = this.lastModified,
-        device = deviceId
-    )
 }

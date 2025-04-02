@@ -2,74 +2,61 @@ package com.example.mobilebrowser.api
 
 import com.example.mobilebrowser.data.dto.ApiResponse
 import com.example.mobilebrowser.data.dto.HistoryDto
-import retrofit2.Response
 import retrofit2.http.*
 
 /**
- * Retrofit service interface for History API operations.
- * Provides endpoints to retrieve, add/update, and delete history entries.
+ * Retrofit interface for history-related API endpoints.
  */
 interface HistoryApiService {
-
     /**
-     * Retrieve all history entries for the authenticated user.
+     * Retrieves all history entries for the authenticated user.
      *
-     * @param authHeader The authorization header in the format "Bearer <token>".
-     * @param deviceId The device identification header.
-     * @param userId The user identifier to filter history entries.
-     * @return A Response containing a list of HistoryDto.
+     * @param authorization Bearer token for authentication
+     * @return ApiResponse containing a list of history entries
      */
     @GET("history")
     suspend fun getHistory(
-        @Header("Authorization") authHeader: String,
-        @Header("X-Device-ID") deviceId: String,
-        @Query("userId") userId: String
-    ): Response<ApiResponse<List<HistoryDto>>>
+        @Header("Authorization") authorization: String
+    ): ApiResponse<List<HistoryDto>>
 
     /**
-     * Add a new history entry or update an existing one.
-     * The backend should decide whether to insert or update based on the provided data.
+     * Adds a new history entry to the server.
      *
-     * @param authHeader The authorization header in the format "Bearer <token>".
-     * @param deviceId The device identification header.
-     * @param history The HistoryDto object representing the history entry.
-     * @return A Response containing the created or updated HistoryDto.
+     * @param authorization Bearer token for authentication
+     * @param historyEntry The history data to upload
+     * @return ApiResponse containing the saved history entry with server-assigned ID
      */
     @POST("history")
-    suspend fun addOrUpdateHistory(
-        @Header("Authorization") authHeader: String,
-        @Header("X-Device-ID") deviceId: String,
-        @Body history: HistoryDto
-    ): Response<ApiResponse<HistoryDto>>
+    suspend fun addHistoryEntry(
+        @Header("Authorization") authorization: String,
+        @Body historyEntry: HistoryDto
+    ): ApiResponse<HistoryDto>
 
     /**
-     * Delete a specific history entry from the backend.
+     * Updates an existing history entry on the server.
      *
-     * @param authHeader The authorization header in the format "Bearer <token>".
-     * @param deviceId The device identification header.
-     * @param serverId The server-assigned ID of the history entry to delete.
-     * @return A Response with no content on success.
+     * @param authorization Bearer token for authentication
+     * @param id Server ID of the history entry to update
+     * @param historyEntry Updated history data
+     * @return ApiResponse containing the updated history entry
+     */
+    @PUT("history/{id}")
+    suspend fun updateHistoryEntry(
+        @Header("Authorization") authorization: String,
+        @Path("id") id: String,
+        @Body historyEntry: HistoryDto
+    ): ApiResponse<HistoryDto>
+
+    /**
+     * Deletes a history entry from the server.
+     *
+     * @param authorization Bearer token for authentication
+     * @param id Server ID of the history entry to delete
+     * @return ApiResponse with operation status
      */
     @DELETE("history/{id}")
     suspend fun deleteHistoryEntry(
-        @Header("Authorization") authHeader: String,
-        @Header("X-Device-ID") deviceId: String,
-        @Path("id") serverId: String
-    ): Response<Unit>
-
-    /**
-     * Clear all history entries for the authenticated user.
-     * Maps to DELETE /api/history on the backend.
-     *
-     * @param authHeader The authorization header in the format "Bearer <token>".
-     * @param deviceId The device identification header.
-     * @param userId The user identifier to specify whose history should be cleared.
-     * @return A Response with no content on success.
-     */
-    @DELETE("history")
-    suspend fun clearHistory(
-        @Header("Authorization") authHeader: String,
-        @Header("X-Device-ID") deviceId: String,
-        @Query("userId") userId: String
-    ): Response<Unit>
+        @Header("Authorization") authorization: String,
+        @Path("id") id: String
+    ): ApiResponse<Any>
 }

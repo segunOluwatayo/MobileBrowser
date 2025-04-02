@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.mobilebrowser.data.entity.HistoryEntity
 import com.example.mobilebrowser.data.repository.HistoryRepository
+import com.example.mobilebrowser.data.util.UserDataStore
 import com.example.mobilebrowser.sync.SyncStatusState
 import com.example.mobilebrowser.sync.UserSyncManager
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -15,12 +16,18 @@ import java.util.Calendar
 import java.util.Date
 import javax.inject.Inject
 
+/**
+ * ViewModel for handling browsing history data and operations.
+ * Improved to properly handle user authentication and synchronization.
+ */
 @HiltViewModel
 class HistoryViewModel @Inject constructor(
     private val repository: HistoryRepository,
-    private val userSyncManager: UserSyncManager
+    private val userSyncManager: UserSyncManager,
+    private val userDataStore: UserDataStore // Add UserDataStore dependency
 ) : ViewModel() {
-    // Expose local history data to the UI.
+
+    // Expose local history data to the UI
     val allHistory = repository.getAllHistory()
         .stateIn(
             scope = viewModelScope,
@@ -28,39 +35,23 @@ class HistoryViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
-    // Expose the sync status so the UI can show sync progress or errors.
+    // Expose the sync status so the UI can show sync progress or errors
     private val _syncStatus = MutableStateFlow<SyncStatusState>(SyncStatusState.Idle)
     val syncStatus: StateFlow<SyncStatusState> = _syncStatus.asStateFlow()
 
-    /**
-     * Allows the UI to trigger a manual sync operation.
-     * This pushes any local pending changes (PENDING_UPLOAD) to the backend.
-     *
-     * @param authToken The authentication token for API calls.
-     * @param deviceId The device identification header value.
-     * @param userId The current user's identifier.
-     */
-    fun triggerManualSync(authToken: String, deviceId: String, userId: String) {
-        viewModelScope.launch {
-            _syncStatus.value = SyncStatusState.Syncing
-            try {
-                userSyncManager.pushLocalChanges(authToken, deviceId, userId)
-                _syncStatus.value = SyncStatusState.Synced
-            } catch (e: Exception) {
-                _syncStatus.value = SyncStatusState.Error(e.message ?: "Unknown error during sync")
-            }
-        }
-    }
+    // Last sync timestamp
+    private val _lastSyncTimestamp = MutableStateFlow<Long?>(null)
+    val lastSyncTimestamp: StateFlow<Long?> = _lastSyncTimestamp.asStateFlow()
 
-    // Search query state.
+    // Search query state
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
-    // Error state.
+    // Error state
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
-    // Today's start time.
+    // Today's start time
     private val todayStart: Date = Calendar.getInstance().apply {
         set(Calendar.HOUR_OF_DAY, 0)
         set(Calendar.MINUTE, 0)
@@ -68,10 +59,10 @@ class HistoryViewModel @Inject constructor(
         set(Calendar.MILLISECOND, 0)
     }.time
 
-    // Current time.
+    // Current time
     private val now = Date()
 
-    // Last week's start time (excluding today).
+    // Last week's start time (excluding today)
     private val lastWeekStart: Date = Calendar.getInstance().apply {
         add(Calendar.DAY_OF_YEAR, -7)
         set(Calendar.HOUR_OF_DAY, 0)
@@ -80,7 +71,7 @@ class HistoryViewModel @Inject constructor(
         set(Calendar.MILLISECOND, 0)
     }.time
 
-    // All history entries for combined display and debugging.
+    // All history entries for combined display and debugging
     private val allHistoryEntries = repository.getAllHistory()
         .stateIn(
             scope = viewModelScope,
@@ -88,7 +79,7 @@ class HistoryViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
-    // Today's history entries.
+    // Today's history entries
     val todayHistory = allHistoryEntries
         .map { entries ->
             entries.filter { entry ->
@@ -101,7 +92,7 @@ class HistoryViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
-    // Last week's history (excluding today).
+    // Last week's history (excluding today)
     val lastWeekHistory = allHistoryEntries
         .map { entries ->
             entries.filter { entry ->
@@ -114,10 +105,10 @@ class HistoryViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
-    // Search results.
+    // Search results
     @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
     val searchResults = _searchQuery
-        .debounce(300L) // Debounce search input.
+        .debounce(300L) // Debounce search input
         .flatMapLatest { query ->
             if (query.isBlank()) {
                 flowOf(emptyList())
@@ -131,7 +122,7 @@ class HistoryViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
-    // Recent history entries.
+    // Recent history entries
     val recentHistory = repository.getRecentHistory()
         .stateIn(
             scope = viewModelScope,
@@ -139,28 +130,76 @@ class HistoryViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
-    // Update search query.
+    // Update search query
     fun updateSearchQuery(query: String) {
         _searchQuery.value = query
     }
 
     /**
-     * Adds a history entry.
+     * Adds a history entry with proper user association.
+     * FIXED: Now gets the current user ID from UserDataStore
      *
-     * If the user is signed in, pass the valid userId;
-     * if not, the default empty string ("") is used to mark this entry as local-only.
+     * @param url The URL of the visited page
+     * @param title The title of the visited page
+     * @param favicon Optional favicon URL
      */
-    fun addHistoryEntry(url: String, title: String, favicon: String? = null, userId: String = "") {
+    fun addHistoryEntry(url: String, title: String, favicon: String? = null) {
         viewModelScope.launch {
             try {
-                repository.addHistoryEntry(url, title, favicon, userId)
+                // Get the current user ID from UserDataStore
+                val userId = userDataStore.userId.first()
+
+                // Only proceed with valid user ID if signed in
+                val isSignedIn = userDataStore.isSignedIn.first()
+                val effectiveUserId = if (isSignedIn && userId.isNotBlank()) userId else ""
+
+                // Add history entry with proper user ID
+                repository.addHistoryEntry(url, title, favicon, effectiveUserId)
             } catch (e: Exception) {
                 _error.value = "Failed to add history entry: ${e.message}"
             }
         }
     }
 
-    // Delete a specific history entry.
+    /**
+     * Manually trigger a sync operation to push local changes to the server.
+     */
+    fun triggerManualSync() {
+        viewModelScope.launch {
+            _syncStatus.value = SyncStatusState.Syncing
+            try {
+                // Get authentication data
+                val isSignedIn = userDataStore.isSignedIn.first()
+                if (!isSignedIn) {
+                    _error.value = "Cannot sync: User not signed in"
+                    _syncStatus.value = SyncStatusState.Error("User not signed in")
+                    return@launch
+                }
+
+                val accessToken = userDataStore.accessToken.first()
+                val deviceId = userDataStore.deviceId.first().ifEmpty { "android-device" }
+                val userId = userDataStore.userId.first()
+
+                if (accessToken.isBlank() || userId.isBlank()) {
+                    _error.value = "Cannot sync: Missing authentication data"
+                    _syncStatus.value = SyncStatusState.Error("Missing authentication data")
+                    return@launch
+                }
+
+                // Perform sync operation
+                userSyncManager.pushLocalChanges(accessToken, deviceId, userId)
+
+                // Update sync status and timestamp
+                _syncStatus.value = SyncStatusState.Synced
+                _lastSyncTimestamp.value = System.currentTimeMillis()
+            } catch (e: Exception) {
+                _syncStatus.value = SyncStatusState.Error(e.message ?: "Unknown error during sync")
+                _error.value = "Sync failed: ${e.message}"
+            }
+        }
+    }
+
+    // Delete a specific history entry
     fun deleteHistoryEntry(history: HistoryEntity) {
         viewModelScope.launch {
             try {
@@ -171,7 +210,7 @@ class HistoryViewModel @Inject constructor(
         }
     }
 
-    // Delete history by a specified time range.
+    // Delete history by a specified time range
     fun deleteHistoryByTimeRange(timeRange: HistoryTimeRange) {
         viewModelScope.launch {
             try {
@@ -187,18 +226,18 @@ class HistoryViewModel @Inject constructor(
         }
     }
 
-    // Clear any error messages.
+    // Clear any error messages
     fun clearError() {
         _error.value = null
     }
 
-    // Expose all history entries for debugging purposes.
+    // Expose all history entries for debugging purposes
     fun getAllHistoryForDebug(): Flow<List<HistoryEntity>> {
         return repository.getAllHistory()
     }
 }
 
-// Enum for history deletion time ranges.
+// Enum for history deletion time ranges
 enum class HistoryTimeRange {
     LAST_HOUR,
     TODAY,
