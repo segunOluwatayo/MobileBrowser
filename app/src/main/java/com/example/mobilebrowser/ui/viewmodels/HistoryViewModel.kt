@@ -72,7 +72,10 @@ class HistoryViewModel @Inject constructor(
     }.time
 
     // All history entries for combined display and debugging
-    private val allHistoryEntries = repository.getAllHistory()
+    val allHistoryEntries = repository.getAllHistory()
+        .map { entries ->
+            entries.filter { !it.url.startsWith("PENDING_DELETE:") }
+        }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),

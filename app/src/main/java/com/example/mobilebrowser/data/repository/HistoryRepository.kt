@@ -1,5 +1,6 @@
 package com.example.mobilebrowser.data.repository
 
+import android.util.Log
 import com.example.mobilebrowser.api.HistoryApiService
 import com.example.mobilebrowser.data.dao.HistoryDao
 import com.example.mobilebrowser.data.dto.HistoryDto
@@ -145,28 +146,43 @@ class HistoryRepository @Inject constructor(
     ) {
         if (isUserSignedIn && history.userId.isNotBlank()) {
             try {
-                // Choose the deletion endpoint based on availability of serverId.
+                // If we have a server ID, try to delete directly on server
                 if (!history.serverId.isNullOrBlank()) {
                     historyApiService.deleteHistoryEntry("Bearer $accessToken", history.serverId)
+                    // Success! Remove locally
+                    historyDao.deleteHistory(history)
                 } else {
-                    historyApiService.deleteHistoryEntryByUrl("Bearer $accessToken", history.url)
+                    // No server ID, we need to track for deletion but hide from UI
+
+                    // First, create a "shadow" entry for deletion tracking
+                    // Use a special prefix or flag in URL so it won't show in UI queries
+                    val shadowEntry = history.copy(
+                        url = "PENDING_DELETE:" + history.url,
+                        syncStatus = SyncStatus.PENDING_DELETE,
+                        lastModified = Date()
+                    )
+
+                    // Insert the shadow tracking entry
+                    historyDao.insertHistory(shadowEntry)
+
+                    // Delete the original entry so it disappears from UI
+                    historyDao.deleteHistory(history)
                 }
-                // If the API call succeeds, remove from local DB.
-                historyDao.deleteHistory(history)
             } catch (e: Exception) {
-                // On failure, mark as pending delete so that the sync manager can retry.
-                val markedEntry = history.copy(
+                // API failure - create shadow entry and delete original
+                val shadowEntry = history.copy(
+                    url = "PENDING_DELETE:" + history.url,
                     syncStatus = SyncStatus.PENDING_DELETE,
                     lastModified = Date()
                 )
-                historyDao.updateHistory(markedEntry)
+                historyDao.insertHistory(shadowEntry)
+                historyDao.deleteHistory(history)
             }
         } else {
-            // For anonymous users, just delete locally.
+            // For anonymous users, just delete locally
             historyDao.deleteHistory(history)
         }
     }
-
 
     /**
      * Deletes history entries within a specific date range.

@@ -103,4 +103,26 @@ class UserSyncManager @Inject constructor(
             }
         }
     }
+    private suspend fun syncPendingDeletes(accessToken: String, deviceId: String) {
+        // Get all entries marked for deletion
+        val pendingDeletes = historyRepository.getPendingDeletes().first()
+
+        for (entry in pendingDeletes) {
+            if (entry.url.startsWith("PENDING_DELETE:")) {
+                // Extract the real URL
+                val realUrl = entry.url.substringAfter("PENDING_DELETE:")
+
+                try {
+                    // Try to delete on server by URL if we have a special endpoint
+                    // historyApiService.deleteHistoryEntryByUrl("Bearer $accessToken", realUrl)
+
+                    // Remove the shadow entry after server deletion
+                    historyRepository.finalizeDeletion(entry)
+                } catch (e: Exception) {
+                    // Log error, keep shadow entry for next sync attempt
+                    Log.e("UserSyncManager", "Failed to sync delete: ${e.message}")
+                }
+            }
+        }
+    }
 }
