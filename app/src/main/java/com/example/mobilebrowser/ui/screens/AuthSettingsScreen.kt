@@ -4,7 +4,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AccountCircle
@@ -18,22 +17,35 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.mobilebrowser.sync.SyncStatusState
 import com.example.mobilebrowser.ui.viewmodels.AuthViewModel
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AuthSettingsScreen(
     onNavigateBack: () -> Unit,
-    onNavigateToUrl: (String) -> Unit = {}, // For navigation
+    onNavigateToUrl: (String) -> Unit = {},
     viewModel: AuthViewModel = hiltViewModel()
 ) {
     val isSignedIn by viewModel.isSignedIn.collectAsState()
     val userName by viewModel.userName.collectAsState()
     val userEmail by viewModel.userEmail.collectAsState()
+    val syncStatus by viewModel.syncStatus.collectAsState()
+    val lastSyncTimestamp by viewModel.lastSyncTimestamp.collectAsState()
+
     var showSignOutDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     var isLoading by remember { mutableStateOf(false) }
+
+    // Format the last sync timestamp into a readable string.
+    val lastSyncText = lastSyncTimestamp?.let { timestamp ->
+        val sdf = SimpleDateFormat("hh:mm a", Locale.getDefault())
+        "Last Sync: ${sdf.format(Date(timestamp))}"
+    } ?: "Never Synced"
 
     Scaffold(
         topBar = {
@@ -54,7 +66,6 @@ fun AuthSettingsScreen(
                 .padding(16.dp)
         ) {
             if (isSignedIn) {
-                // Signed-in UI
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -69,7 +80,6 @@ fun AuthSettingsScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            // User avatar
                             Surface(
                                 modifier = Modifier
                                     .size(60.dp)
@@ -85,8 +95,6 @@ fun AuthSettingsScreen(
                                     tint = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                             }
-
-                            // User info
                             Column(
                                 modifier = Modifier
                                     .padding(start = 16.dp)
@@ -106,10 +114,38 @@ fun AuthSettingsScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Sign out button (now directly signs out from app)
+                        // Sync status section with actual data.
+                        Column(
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = when (syncStatus) {
+                                    is SyncStatusState.Idle -> "Sync Status: Idle"
+                                    is SyncStatusState.Syncing -> "Sync Status: Syncing..."
+                                    is SyncStatusState.Synced -> "Sync Status: Synced"
+                                    is SyncStatusState.Error -> "Sync Status: Error"
+                                },
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                text = lastSyncText,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            OutlinedButton(
+                                onClick = { viewModel.performInitialSync() },
+                                modifier = Modifier.padding(top = 8.dp)
+                            ) {
+                                Text("Sync Now")
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Sign out button.
                         if (isLoading) {
                             OutlinedButton(
-                                onClick = { /* do nothing while loading */ },
+                                onClick = { /* no action while loading */ },
                                 modifier = Modifier.align(Alignment.End),
                                 enabled = false
                             ) {
@@ -137,16 +173,14 @@ fun AuthSettingsScreen(
                     }
                 }
 
-                // Add Manage Your Account section (FIXED - removed sync_logout parameter)
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 16.dp)
                         .clickable {
-                            // Get token and construct authenticated dashboard URL with mobile flag
-                            // REMOVED sync_logout=true parameter to prevent immediate logout
                             viewModel.getAccessToken { token ->
-                                val dashboardUrl = "https://nimbus-browser-backend-production.up.railway.app/dashboard?token=$token&mobile=true"
+                                val dashboardUrl =
+                                    "https://nimbus-browser-backend-production.up.railway.app/dashboard?token=$token&mobile=true"
                                 onNavigateToUrl(dashboardUrl)
                             }
                         }
@@ -166,7 +200,6 @@ fun AuthSettingsScreen(
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(24.dp)
                             )
-
                             Column(
                                 modifier = Modifier
                                     .padding(start = 16.dp)
@@ -182,7 +215,6 @@ fun AuthSettingsScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                                 contentDescription = null,
@@ -191,52 +223,11 @@ fun AuthSettingsScreen(
                         }
                     }
                 }
-
-                // Sync settings
-                Card(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                    ) {
-                        Text(
-                            text = "Sync",
-                            style = MaterialTheme.typography.titleMedium
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        // Sync settings items
-                        SyncSettingItem(
-                            title = "Bookmarks",
-                            isEnabled = true
-                        )
-
-                        SyncSettingItem(
-                            title = "History",
-                            isEnabled = true
-                        )
-
-                        SyncSettingItem(
-                            title = "Passwords",
-                            isEnabled = true
-                        )
-
-                        SyncSettingItem(
-                            title = "Open Tabs",
-                            isEnabled = true
-                        )
-                    }
-                }
             } else {
-                // Signed-out UI
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
-                            // Navigate to login page
                             onNavigateToUrl("https://nimbus-browser-backend-production.up.railway.app/?mobile=true")
                         }
                 ) {
@@ -255,7 +246,6 @@ fun AuthSettingsScreen(
                                 modifier = Modifier.size(24.dp),
                                 tint = MaterialTheme.colorScheme.primary
                             )
-
                             Column(
                                 modifier = Modifier
                                     .padding(start = 16.dp)
@@ -271,7 +261,6 @@ fun AuthSettingsScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                                 contentDescription = null,
@@ -284,7 +273,7 @@ fun AuthSettingsScreen(
         }
     }
 
-    // Sign out confirmation dialog
+    // Sign out confirmation dialog.
     if (showSignOutDialog) {
         AlertDialog(
             onDismissRequest = { showSignOutDialog = false },
@@ -295,15 +284,12 @@ fun AuthSettingsScreen(
                     onClick = {
                         showSignOutDialog = false
                         isLoading = true
-
-                        // Handle sign out directly in the app
                         scope.launch {
                             try {
                                 viewModel.signOut()
-                                // After sign-out is complete, navigate back
                                 onNavigateBack()
                             } catch (e: Exception) {
-                                // Handle error
+                                // Handle error.
                             } finally {
                                 isLoading = false
                             }
@@ -321,6 +307,7 @@ fun AuthSettingsScreen(
         )
     }
 }
+
 
 @Composable
 fun SyncSettingItem(

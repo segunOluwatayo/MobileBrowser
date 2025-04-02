@@ -70,7 +70,11 @@ dependencies {
     implementation(libs.androidx.hilt.navigation.compose)
     implementation (libs.androidx.datastore.preferences)
     implementation(libs.coil.compose)
-    implementation ("androidx.security:security-crypto:1.1.0-alpha06")
+    implementation (libs.androidx.security.crypto)
+    implementation (libs.retrofit2.retrofit)
+    implementation (libs.converter.gson)
+    implementation ("com.squareup.okhttp3:logging-interceptor:4.9.3")
+
     // Room
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)

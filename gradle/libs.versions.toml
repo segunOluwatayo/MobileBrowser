@@ -1,6 +1,7 @@
 [versions]
 agp = "8.7.3"
 coilCompose = "2.2.2"
+converterGson = "2.9.0"
 datastorePreferences = "1.1.3"
 geckoview = "121.0.20240108143603"
 hiltAndroid = "2.55"
@@ -14,11 +15,13 @@ lifecycleRuntimeKtx = "2.8.7"
 activityCompose = "1.10.1"
 composeBom = "2025.02.00"
 materialIconsExtendedVersion = "1.7.8"
+retrofitVersion = "2.9.0"
 roomRuntime = "2.6.1"
 navigationCompose = "2.8.8"
 media3CommonKtx = "1.5.1"
 firebaseCrashlyticsBuildtools = "3.0.3"
 hiltCommon = "1.2.0"
+securityCrypto = "1.1.0-alpha06"
 workRuntimeKtx = "2.10.0"
 testing = "1.0.0"
 
@@ -31,7 +34,9 @@ androidx-material-icons-extended = { module = "androidx.compose.material:materia
 androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "roomRuntime" }
 androidx-room-ktx = { module = "androidx.room:room-ktx", version.ref = "roomRuntime" }
 androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "roomRuntime" }
+androidx-security-crypto = { module = "androidx.security:security-crypto", version.ref = "securityCrypto" }
 coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coilCompose" }
+converter-gson = { module = "com.squareup.retrofit2:converter-gson", version.ref = "converterGson" }
 geckoview = { module = "org.mozilla.geckoview:geckoview", version.ref = "geckoview" }
 hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hiltAndroid" }
 hilt-compiler = { module = "com.google.dagger:hilt-compiler", version.ref = "hiltAndroid" }
@@ -53,6 +58,7 @@ androidx-media3-common-ktx = { group = "androidx.media3", name = "media3-common-
 firebase-crashlytics-buildtools = { group = "com.google.firebase", name = "firebase-crashlytics-buildtools", version.ref = "firebaseCrashlyticsBuildtools" }
 androidx-hilt-common = { group = "androidx.hilt", name = "hilt-common", version.ref = "hiltCommon" }
 androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workRuntimeKtx" }
+retrofit2-retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofitVersion" }
 testing = { group = "com.google.assistant.appactions", name = "testing", version.ref = "testing" }
 
 [plugins]

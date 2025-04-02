@@ -2,6 +2,7 @@ package com.example.mobilebrowser.data.dao
 
 import androidx.room.*
 import com.example.mobilebrowser.data.entity.HistoryEntity
+import com.example.mobilebrowser.data.entity.SyncStatus
 import kotlinx.coroutines.flow.Flow
 import java.util.Date
 
@@ -11,48 +12,45 @@ interface HistoryDao {
     @Query("SELECT * FROM history ORDER BY lastVisited DESC")
     fun getAllHistory(): Flow<List<HistoryEntity>>
 
-    // Search history entries by title or URL
+    // Search history entries by title or URL (using a SQL LIKE query)
     @Query("SELECT * FROM history WHERE title LIKE :query OR url LIKE :query ORDER BY lastVisited DESC")
     fun searchHistory(query: String): Flow<List<HistoryEntity>>
 
-    // Insert a new history entry
+    // Insert a new history entry.
+    // On conflict (e.g., same primary key), replace the old entry.
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertHistory(history: HistoryEntity): Long
 
-    // Delete a specific history entry
+    // Update an existing history entry.
+    @Update
+    suspend fun updateHistory(history: HistoryEntity)
+
+    // Delete a specific history entry.
     @Delete
     suspend fun deleteHistory(history: HistoryEntity)
 
-    // Delete history entries within a specific time range
+    // Delete history entries within a specific time range.
     @Query("DELETE FROM history WHERE lastVisited BETWEEN :startDate AND :endDate")
     suspend fun deleteHistoryInRange(startDate: Date, endDate: Date)
 
-    // Delete all history
+    // Delete all history entries.
     @Query("DELETE FROM history")
     suspend fun deleteAllHistory()
 
-    // Update visit count and last visited date for an existing URL
-    @Query("""
-        UPDATE history 
-        SET visitCount = visitCount + 1, 
-            lastVisited = :lastVisited 
-        WHERE url = :url
-    """)
-    suspend fun incrementVisitCount(url: String, lastVisited: Date = Date())
-
-    // Check if a URL exists in history
-    @Query("SELECT EXISTS(SELECT 1 FROM history WHERE url = :url)")
-    suspend fun isUrlInHistory(url: String): Boolean
-
-    // Get history entries for a specific date range
-    @Query("SELECT * FROM history WHERE lastVisited BETWEEN :startDate AND :endDate ORDER BY lastVisited DESC")
-    fun getHistoryInRange(startDate: Date, endDate: Date): Flow<List<HistoryEntity>>
-
-    // Get history entry by URL
+    // Get a specific history entry by its URL.
+    // Returns null if no matching entry is found.
     @Query("SELECT * FROM history WHERE url = :url LIMIT 1")
     suspend fun getHistoryByUrl(url: String): HistoryEntity?
 
-    // Get the most recently visited URL
+    // Get history entries for a specific date range.
+    @Query("SELECT * FROM history WHERE lastVisited BETWEEN :startDate AND :endDate ORDER BY lastVisited DESC")
+    fun getHistoryInRange(startDate: Date, endDate: Date): Flow<List<HistoryEntity>>
+
+    // Get the most recent history entries, limited by the provided count.
     @Query("SELECT * FROM history ORDER BY lastVisited DESC LIMIT :limit")
     fun getRecentHistory(limit: Int): Flow<List<HistoryEntity>>
+
+    // Retrieve history entries filtered by their synchronization status.
+    @Query("SELECT * FROM history WHERE syncStatus = :status")
+    fun getHistoryBySyncStatus(status: SyncStatus): Flow<List<HistoryEntity>>
 }

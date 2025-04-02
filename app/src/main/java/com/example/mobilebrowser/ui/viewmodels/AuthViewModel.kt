@@ -4,6 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.mobilebrowser.data.service.AuthService
 import com.example.mobilebrowser.data.util.UserDataStore
+import com.example.mobilebrowser.sync.InitialSyncManager
+import com.example.mobilebrowser.sync.SyncStatusState
+import com.example.mobilebrowser.sync.UserSyncManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -17,43 +20,83 @@ import javax.inject.Inject
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val authService: AuthService,
-    private val userDataStore: UserDataStore
+    private val userDataStore: UserDataStore,
+    private val userSyncManager: UserSyncManager,
+    private val initialSyncManager: InitialSyncManager
 ) : ViewModel() {
 
-    // Expose authentication state from datastore
-    val isSignedIn = userDataStore.isSignedIn
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = false
-        )
+    // Expose authentication state from datastore.
+    val isSignedIn: StateFlow<Boolean> = userDataStore.isSignedIn
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
-    // User display name from datastore
-    val userName = userDataStore.userName
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = ""
-        )
+    // Expose user display name.
+    val userName: StateFlow<String> = userDataStore.userName
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
 
-    // User email from datastore
-    val userEmail = userDataStore.userEmail
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = ""
-        )
+    // Expose user email.
+    val userEmail: StateFlow<String> = userDataStore.userEmail
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
 
-    // Error message state
+    // Expose sync status.
+    private val _syncStatus = MutableStateFlow<SyncStatusState>(SyncStatusState.Idle)
+    val syncStatus: StateFlow<SyncStatusState> = _syncStatus.asStateFlow()
+
+    // Expose last sync timestamp (epoch millis).
+    private val _lastSyncTimestamp = MutableStateFlow<Long?>(null)
+    val lastSyncTimestamp: StateFlow<Long?> = _lastSyncTimestamp.asStateFlow()
+
+    // Error message state.
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
-    // Loading state
+    // Loading state.
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     /**
-     * New method to get access token for account dashboard
+     * Initiates an initial sync operation after a successful login.
+     * It now uses InitialSyncManager to perform the sync.
+     */
+    fun performInitialSync() {
+        viewModelScope.launch {
+            _syncStatus.value = SyncStatusState.Syncing
+            try {
+                // Use InitialSyncManager to perform first-time sync.
+                initialSyncManager.performInitialSync()
+                _syncStatus.value = SyncStatusState.Synced
+                _lastSyncTimestamp.value = System.currentTimeMillis()
+            } catch (e: Exception) {
+                _syncStatus.value = SyncStatusState.Error(e.message ?: "Unknown error during sync")
+            }
+        }
+    }
+
+    /**
+     * Initiates the sign in process.
+     */
+    fun signIn() {
+        authService.openLoginPage()
+    }
+
+    /**
+     * Signs out the current user.
+     */
+    fun signOut() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                userDataStore.clearUserAuthData()
+                authService.signOut()
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to sign out: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Retrieves an access token and calls the provided callback.
      */
     fun getAccessToken(callback: (String) -> Unit) {
         viewModelScope.launch {
@@ -71,31 +114,8 @@ class AuthViewModel @Inject constructor(
     }
 
     /**
-     * Initiate sign in process by opening the authentication website
-     */
-    fun signIn() {
-        authService.openLoginPage()
-    }
-
-    /**
-     * Sign out the current user
-     */
-    fun signOut() {
-        viewModelScope.launch {
-            _isLoading.value = true
-            try {
-                userDataStore.clearUserAuthData()
-                authService.signOut()
-            } catch (e: Exception) {
-                _errorMessage.value = "Failed to sign out: ${e.message}"
-            } finally {
-                _isLoading.value = false
-            }
-        }
-    }
-
-    /**
-     * Process authentication data received from the web authentication flow
+     * Processes authentication data received from the web authentication flow.
+     * After saving the authentication data, it triggers the first-time sync.
      */
     fun processAuthResult(
         accessToken: String?,
@@ -117,6 +137,8 @@ class AuthViewModel @Inject constructor(
                         email = email ?: "",
                         deviceId = deviceId
                     )
+                    // After saving the auth data, trigger the initial sync.
+                    performInitialSync()
                 } else {
                     _errorMessage.value = "Incomplete authentication data received"
                 }
@@ -129,7 +151,7 @@ class AuthViewModel @Inject constructor(
     }
 
     /**
-     * Clear any error message
+     * Clears any error message.
      */
     fun clearError() {
         _errorMessage.value = null

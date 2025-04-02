@@ -23,7 +23,7 @@ class UserDataStore @Inject constructor(
 ) {
     private val dataStore = context.userDataStore
 
-    // Keys for user authentication data
+    // Keys for user authentication data.
     companion object {
         val ACCESS_TOKEN_KEY = stringPreferencesKey("access_token")
         val REFRESH_TOKEN_KEY = stringPreferencesKey("refresh_token")
@@ -34,7 +34,7 @@ class UserDataStore @Inject constructor(
         val DEVICE_ID_KEY = stringPreferencesKey("device_id")
     }
 
-    // Expose authentication state as a Flow
+    // Expose authentication state as a Flow.
     val isSignedIn: Flow<Boolean> = dataStore.data
         .catch { exception ->
             if (exception is IOException) {
@@ -47,7 +47,7 @@ class UserDataStore @Inject constructor(
             preferences[IS_SIGNED_IN_KEY] ?: false
         }
 
-    // Flow for user name (display name)
+    // Flow for user name (display name).
     val userName: Flow<String> = dataStore.data
         .catch { exception ->
             if (exception is IOException) {
@@ -60,7 +60,7 @@ class UserDataStore @Inject constructor(
             preferences[USER_NAME_KEY] ?: ""
         }
 
-    // Flow for user email
+    // Flow for user email.
     val userEmail: Flow<String> = dataStore.data
         .catch { exception ->
             if (exception is IOException) {
@@ -73,7 +73,7 @@ class UserDataStore @Inject constructor(
             preferences[USER_EMAIL_KEY] ?: ""
         }
 
-    // Retrieve the access token
+    // Retrieve the access token.
     val accessToken: Flow<String> = dataStore.data
         .catch { exception ->
             if (exception is IOException) {
@@ -86,7 +86,7 @@ class UserDataStore @Inject constructor(
             preferences[ACCESS_TOKEN_KEY] ?: ""
         }
 
-    // Retrieve the refresh token
+    // Retrieve the refresh token.
     val refreshToken: Flow<String> = dataStore.data
         .catch { exception ->
             if (exception is IOException) {
@@ -99,7 +99,33 @@ class UserDataStore @Inject constructor(
             preferences[REFRESH_TOKEN_KEY] ?: ""
         }
 
-    // Save user authentication data
+    // NEW: Expose the user ID.
+    val userId: Flow<String> = dataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                emit(androidx.datastore.preferences.core.emptyPreferences())
+            } else {
+                throw exception
+            }
+        }
+        .map { preferences ->
+            preferences[USER_ID_KEY] ?: ""
+        }
+
+    // NEW: Expose the device ID.
+    val deviceId: Flow<String> = dataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                emit(androidx.datastore.preferences.core.emptyPreferences())
+            } else {
+                throw exception
+            }
+        }
+        .map { preferences ->
+            preferences[DEVICE_ID_KEY] ?: ""
+        }
+
+    // Save user authentication data.
     suspend fun saveUserAuthData(
         accessToken: String,
         refreshToken: String,
@@ -121,7 +147,7 @@ class UserDataStore @Inject constructor(
         }
     }
 
-    // Clear user authentication data (logout)
+    // Clear user authentication data (logout).
     suspend fun clearUserAuthData() {
         dataStore.edit { preferences ->
             preferences[ACCESS_TOKEN_KEY] = ""
@@ -130,7 +156,7 @@ class UserDataStore @Inject constructor(
             preferences[USER_NAME_KEY] = ""
             preferences[USER_EMAIL_KEY] = ""
             preferences[IS_SIGNED_IN_KEY] = false
-            // Optionally keep device ID for analytics or future sign-ins
+            // Optionally keep device ID for analytics or future sign-ins.
         }
     }
 }
