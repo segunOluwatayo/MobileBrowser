@@ -704,6 +704,14 @@ class MainActivity : ComponentActivity() {
                                         scope.launch {
                                             try {
                                                 isNavigating = true
+                                                // First close the overlay to ensure UI responsiveness
+                                                currentOverlay = OverlayScreen.None
+                                                // Short delay to allow UI to update
+                                                delay(100)
+
+                                                // Set URL and load it in the session
+                                                currentUrl = url
+                                                isHomepageActive = false
                                                 tabViewModel.updateActiveTabContent(url, currentPageTitle)
                                                 activeTab?.let { tab ->
                                                     currentSession = sessionManager.getOrCreateSession(

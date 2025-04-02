@@ -231,19 +231,23 @@ fun HistoryScreen(
                     ) {
                         ModernDeleteOption("Last hour", HistoryTimeRange.LAST_HOUR) {
                             showDeleteDialog = false
-                            showDeleteConfirmation = it
+//                            showDeleteConfirmation = it
+                            viewModel.deleteHistoryByTimeRange(HistoryTimeRange.LAST_HOUR)
                         }
                         ModernDeleteOption("Today", HistoryTimeRange.TODAY) {
                             showDeleteDialog = false
-                            showDeleteConfirmation = it
+//                            showDeleteConfirmation = it
+                            viewModel.deleteHistoryByTimeRange(HistoryTimeRange.TODAY)
                         }
                         ModernDeleteOption("Yesterday", HistoryTimeRange.YESTERDAY) {
                             showDeleteDialog = false
-                            showDeleteConfirmation = it
+//                            showDeleteConfirmation = it
+
                         }
                         ModernDeleteOption("All time", HistoryTimeRange.ALL) {
                             showDeleteDialog = false
-                            showDeleteConfirmation = it
+//                            showDeleteConfirmation = it
+                            viewModel.deleteHistoryByTimeRange(HistoryTimeRange.YESTERDAY)
                         }
                     }
                 },

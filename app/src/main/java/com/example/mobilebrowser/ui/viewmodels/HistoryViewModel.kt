@@ -210,6 +210,7 @@ class HistoryViewModel @Inject constructor(
         }
     }
 
+
     // Delete history by a specified time range
     fun deleteHistoryByTimeRange(timeRange: HistoryTimeRange) {
         viewModelScope.launch {
