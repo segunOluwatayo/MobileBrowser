@@ -639,41 +639,54 @@ class MainActivity : ComponentActivity() {
                                         scope.launch {
                                             try {
                                                 isNavigating = true
-                                                tabViewModel.updateActiveTabContent(url, currentPageTitle)
-                                                activeTab?.let { tab ->
-                                                    currentSession = sessionManager.getOrCreateSession(
-                                                        tabId = tab.id,
-                                                        url = tab.url,
-                                                        onUrlChange = { newUrl ->
-                                                            currentUrl = newUrl
-                                                            bookmarkViewModel.updateCurrentUrl(newUrl)
-                                                            tabViewModel.updateActiveTabContent(newUrl, currentPageTitle)
-                                                        },
-                                                        onTitleChange = { newTitle ->
-                                                            if (newTitle.isNotBlank() && newTitle != "Loading...") {
-                                                                currentPageTitle = newTitle
-                                                                tabViewModel.updateActiveTabContent(currentUrl, newTitle)
-                                                                recordHistory(currentUrl, newTitle)
+                                                // First close the overlay to ensure UI responsiveness
+                                                currentOverlay = OverlayScreen.None
+                                                // Short delay to allow UI to update
+                                                delay(100)
 
-                                                                // Schedule safe thumbnail capture
-                                                                if (newTitle != "New Tab" && newTitle != "about:blank") {
-                                                                    scope.launch {
-                                                                        delay(1000)
-                                                                        safelyCaptureThumbnail(tab.id)
-                                                                    }
+                                                // Create a new tab with the bookmark URL
+                                                val newTabId = tabViewModel.createTab(url = url, title = "Loading...")
+
+                                                // Create a new session for the new tab
+                                                currentSession = sessionManager.getOrCreateSession(
+                                                    tabId = newTabId,
+                                                    url = url,
+                                                    onUrlChange = { newUrl ->
+                                                        currentUrl = newUrl
+                                                        bookmarkViewModel.updateCurrentUrl(newUrl)
+                                                        tabViewModel.updateActiveTabContent(newUrl, currentPageTitle)
+                                                    },
+                                                    onTitleChange = { newTitle ->
+                                                        if (newTitle.isNotBlank() && newTitle != "Loading...") {
+                                                            currentPageTitle = newTitle
+                                                            tabViewModel.updateActiveTabContent(currentUrl, newTitle)
+                                                            recordHistory(currentUrl, newTitle)
+
+                                                            // Schedule safe thumbnail capture
+                                                            if (newTitle != "New Tab" && newTitle != "about:blank") {
+                                                                scope.launch {
+                                                                    delay(1000)
+                                                                    safelyCaptureThumbnail(newTabId)
                                                                 }
                                                             }
-                                                        },
-                                                        onCanGoBack = { canGoBack = it },
-                                                        onCanGoForward = { canGoForward = it },
-                                                        downloadDelegate = geckoDownloadDelegate
-                                                    )
-                                                }
+                                                        }
+                                                    },
+                                                    onCanGoBack = { canGoBack = it },
+                                                    onCanGoForward = { canGoForward = it },
+                                                    downloadDelegate = geckoDownloadDelegate
+                                                )
+
+                                                // Switch to the new tab
+                                                tabViewModel.switchToTab(newTabId)
+
+                                                // Update UI state
                                                 currentUrl = url
+                                                isHomepageActive = false
+
+                                                // Explicitly load the URL in the new session
                                                 currentSession?.loadUri(url)
-                                                currentOverlay = OverlayScreen.None
                                             } catch (e: Exception) {
-                                                Log.e("MainActivity", "Error navigating to bookmark: ${e.message}")
+                                                Log.e("MainActivity", "Error navigating to bookmark in new tab: ${e.message}")
                                             } finally {
                                                 isNavigating = false
                                             }
