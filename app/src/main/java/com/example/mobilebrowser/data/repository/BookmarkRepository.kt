@@ -1,5 +1,6 @@
 package com.example.mobilebrowser.data.repository
 
+import android.util.Log
 import com.example.mobilebrowser.data.dao.BookmarkDao
 import com.example.mobilebrowser.data.dto.BookmarkDto
 import com.example.mobilebrowser.data.entity.BookmarkEntity
@@ -20,7 +21,12 @@ class BookmarkRepository @Inject constructor(
     suspend fun getBookmarkById(id: Long): BookmarkEntity? = bookmarkDao.getBookmarkById(id)
 
     // Add a new bookmark to the database
-    suspend fun addBookmark(bookmark: BookmarkEntity): Long = bookmarkDao.insertBookmark(bookmark)
+    suspend fun addBookmark(bookmark: BookmarkEntity): Long {
+        Log.d("BookmarkRepository", "Adding bookmark: '${bookmark.title}', URL: ${bookmark.url}, UserID: ${bookmark.userId}")
+        val id = bookmarkDao.insertBookmark(bookmark)
+        Log.d("BookmarkRepository", "Added bookmark with ID: $id")
+        return id
+    }
 
     // Update an existing bookmark in the database
     suspend fun updateBookmark(bookmark: BookmarkEntity) = bookmarkDao.updateBookmark(bookmark)
@@ -40,10 +46,18 @@ class BookmarkRepository @Inject constructor(
         bookmarkDao.getBookmarksByTag("%$tag%")
 
     // Retrieve a bookmark by its URL
-    suspend fun getBookmarkByUrl(url: String): BookmarkEntity? = bookmarkDao.getBookmarkByUrl(url)
+    suspend fun getBookmarkByUrl(url: String): BookmarkEntity? {
+        val result = bookmarkDao.getBookmarkByUrl(url)
+        Log.d("BookmarkRepository", "getBookmarkByUrl($url) returned: ${result?.id ?: "null"}")
+        return result
+    }
 
     // Retrieve all bookmarks as a List (non-reactive), used for synchronization
-    suspend fun getAllBookmarksAsList(): List<BookmarkEntity> = bookmarkDao.getAllBookmarksAsList()
+    suspend fun getAllBookmarksAsList(): List<BookmarkEntity> {
+        val bookmarks = bookmarkDao.getAllBookmarksAsList()
+        Log.d("BookmarkRepository", "getAllBookmarksAsList() returned ${bookmarks.size} bookmarks")
+        return bookmarks
+    }
 
     // Retrieve bookmarks pending upload
     suspend fun getPendingUploads(): List<BookmarkEntity> {
