@@ -1,5 +1,6 @@
 package com.example.mobilebrowser.di
 
+import com.example.mobilebrowser.api.BookmarkApiService
 import com.example.mobilebrowser.api.HistoryApiService
 import com.example.mobilebrowser.data.util.UserDataStore
 import dagger.Module
@@ -63,4 +64,11 @@ object NetworkModule {
     fun provideHistoryApiService(retrofit: Retrofit): HistoryApiService {
         return retrofit.create(HistoryApiService::class.java)
     }
+
+    @Provides
+    @Singleton
+    fun provideBookmarkApiService(retrofit: Retrofit): BookmarkApiService {
+        return retrofit.create(BookmarkApiService::class.java)
+    }
+
 }

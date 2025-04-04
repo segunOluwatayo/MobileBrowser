@@ -1,4 +1,5 @@
 package com.example.mobilebrowser.data.dao
+
 import androidx.room.*
 import com.example.mobilebrowser.data.entity.BookmarkEntity
 import kotlinx.coroutines.flow.Flow
@@ -6,9 +7,13 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface BookmarkDao {
 
-    // Retrieve all bookmarks from the database, ordered by the date they were added (most recent first).
+    // Retrieve all bookmarks from the database, ordered by date added (most recent first).
     @Query("SELECT * FROM bookmarks ORDER BY dateAdded DESC")
     fun getAllBookmarks(): Flow<List<BookmarkEntity>>
+
+    // Retrieve all bookmarks as a List (not a Flow) for sync operations.
+    @Query("SELECT * FROM bookmarks ORDER BY dateAdded DESC")
+    suspend fun getAllBookmarksAsList(): List<BookmarkEntity>
 
     // Fetch a single bookmark by its unique ID.
     @Query("SELECT * FROM bookmarks WHERE id = :id")

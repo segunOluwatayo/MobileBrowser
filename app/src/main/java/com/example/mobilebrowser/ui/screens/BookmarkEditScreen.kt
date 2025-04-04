@@ -23,6 +23,7 @@ fun BookmarkEditScreen(
     var title by remember { mutableStateOf("") }
     var url by remember { mutableStateOf("") }
     var tags by remember { mutableStateOf("") }
+    val currentUserId by viewModel.currentUserId.collectAsState(initial = "")
 
     // Load existing bookmark data if editing an existing bookmark
     LaunchedEffect(bookmarkId) {
@@ -86,6 +87,7 @@ fun BookmarkEditScreen(
                     // Create a BookmarkEntity using the current input values.
                     val bookmark = BookmarkEntity(
                         id = bookmarkId ?: 0,
+                        userId = currentUserId,
                         title = title,
                         url = url,
                         tags = tags.takeIf { it.isNotBlank() },

@@ -2,23 +2,27 @@ package com.example.mobilebrowser.sync
 
 import android.util.Log
 import com.example.mobilebrowser.api.HistoryApiService
-import com.example.mobilebrowser.data.entity.HistoryEntity
+import com.example.mobilebrowser.api.BookmarkApiService
+import com.example.mobilebrowser.data.dto.ApiResponse
+import com.example.mobilebrowser.data.dto.HistoryDto
+import com.example.mobilebrowser.data.dto.BookmarkDto
 import com.example.mobilebrowser.data.entity.SyncStatus
 import com.example.mobilebrowser.data.repository.HistoryRepository
-import com.example.mobilebrowser.data.util.UserDataStore
+import com.example.mobilebrowser.data.repository.BookmarkRepository
 import com.example.mobilebrowser.data.repository.toDto
+import com.example.mobilebrowser.data.util.UserDataStore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Manages the initial synchronization of data after user authentication.
- * Handles both pulling remote data and pushing pending local changes.
- */
 @Singleton
 class InitialSyncManager @Inject constructor(
     private val historyRepository: HistoryRepository,
     private val historyApiService: HistoryApiService,
+    private val bookmarkRepository: BookmarkRepository,
+    private val bookmarkApiService: BookmarkApiService,
     private val userDataStore: UserDataStore
 ) {
     private val TAG = "InitialSyncManager"
@@ -43,11 +47,17 @@ class InitialSyncManager @Inject constructor(
 
             Log.d(TAG, "Auth credentials obtained. UserID: $userId")
 
-            // Push all pending changes first
+            // Push pending changes for history
             pushPendingHistory(accessToken, deviceId, userId)
 
-            // Then pull remote data
+            // Pull remote history data
             pullRemoteHistory(accessToken)
+
+            // Push pending changes for bookmarks
+            pushPendingBookmarks(accessToken, deviceId, userId)
+
+            // Pull remote bookmark data
+            pullRemoteBookmarks(accessToken)
 
             Log.d(TAG, "Initial sync completed successfully")
         } catch (e: Exception) {
@@ -62,38 +72,24 @@ class InitialSyncManager @Inject constructor(
     private suspend fun pushPendingHistory(token: String, deviceId: String, userId: String) {
         try {
             Log.d(TAG, "Pushing pending history to server")
-
-            // Get all pending history entries
             val pendingEntries = historyRepository.getPendingUploads().first()
             Log.d(TAG, "Found ${pendingEntries.size} pending history entries to upload")
-
             if (pendingEntries.isEmpty()) {
                 Log.d(TAG, "No pending history entries to push")
                 return
             }
-
-            // Process each pending entry
             pendingEntries.forEach { entry ->
                 try {
-                    // Create a DTO for this entry
                     val dto = entry.toDto(deviceId)
-
                     Log.d(TAG, "Pushing history entry: $dto")
-
-                    // Make API call to sync this entry
-                    val response = historyApiService.addHistoryEntry("Bearer $token", dto)
-
-                    // Update the local entry to mark it as synced
+                    val response: ApiResponse<HistoryDto> = historyApiService.addHistoryEntry("Bearer $token", dto)
                     val serverId = response.data.id
                     historyRepository.markAsSynced(entry, serverId)
-
                     Log.d(TAG, "Successfully synced history entry: ${entry.url}")
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to sync history entry ${entry.url}: ${e.message}")
-                    // Continue with other entries even if one fails
                 }
             }
-
             Log.d(TAG, "Completed pushing pending history entries")
         } catch (e: Exception) {
             Log.e(TAG, "Error pushing pending history: ${e.message}", e)
@@ -102,45 +98,119 @@ class InitialSyncManager @Inject constructor(
     }
 
     /**
-     * Pulls history entries from the remote server and updates local database.
+     * Pulls history entries from the remote server and updates the local database.
      */
     private suspend fun pullRemoteHistory(token: String) {
         try {
             Log.d(TAG, "Pulling remote history from server")
-
-            // Get remote history entries
-            val response = historyApiService.getHistory("Bearer $token")
+            val response: ApiResponse<List<HistoryDto>> = historyApiService.getHistory("Bearer $token")
             val remoteEntries = response.data
-
             Log.d(TAG, "Received ${remoteEntries.size} history entries from server")
-
-            // Process each remote entry
             remoteEntries.forEach { remoteEntry ->
                 try {
-                    // Check if we already have this entry locally by URL
                     val localEntry = historyRepository.getHistoryByUrl(remoteEntry.url)
-
                     if (localEntry == null) {
-                        // New entry from server, add it locally
                         historyRepository.insertHistoryFromDto(remoteEntry)
                         Log.d(TAG, "Added new history entry from server: ${remoteEntry.url}")
                     } else if (localEntry.syncStatus != SyncStatus.PENDING_UPLOAD) {
-                        // Local entry exists but no pending changes, update with server data
                         historyRepository.updateHistoryFromDto(remoteEntry)
                         Log.d(TAG, "Updated local history entry from server: ${remoteEntry.url}")
                     } else {
-                        // Local has pending changes, keep local version for now
                         Log.d(TAG, "Keeping local version of ${remoteEntry.url} due to pending changes")
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error processing remote history entry ${remoteEntry.url}: ${e.message}")
-                    // Continue with other entries even if one fails
                 }
             }
-
             Log.d(TAG, "Completed pulling remote history")
         } catch (e: Exception) {
             Log.e(TAG, "Error pulling remote history: ${e.message}", e)
+            throw e
+        }
+    }
+
+    /**
+     * Pushes all local bookmark entries marked as PENDING_UPLOAD to the server.
+     */
+    private suspend fun pushPendingBookmarks(token: String, deviceId: String, userId: String) {
+        try {
+            Log.d(TAG, "Pushing pending bookmarks to server")
+            val pendingEntries = bookmarkRepository.getPendingUploads()
+            Log.d(TAG, "Found ${pendingEntries.size} pending bookmark entries to upload")
+            if (pendingEntries.isEmpty()) {
+                Log.d(TAG, "No pending bookmark entries to push")
+                return
+            }
+            pendingEntries.forEach { entry ->
+                try {
+                    val dto = entry.toDto(userId)
+                    Log.d(TAG, "Pushing bookmark entry: $dto")
+                    val response: ApiResponse<BookmarkDto> = bookmarkApiService.addBookmark("Bearer $token", dto)
+                    val serverId = response.data.id
+                    bookmarkRepository.markAsSynced(entry, serverId)
+                    Log.d(TAG, "Successfully synced bookmark entry: ${entry.url}")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to sync bookmark entry ${entry.url}: ${e.message}")
+                }
+            }
+            Log.d(TAG, "Completed pushing pending bookmark entries")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error pushing pending bookmarks: ${e.message}", e)
+            throw e
+        }
+    }
+
+    /**
+     * Pulls bookmark entries from the remote server and updates the local database.
+     */
+    private suspend fun pullRemoteBookmarks(token: String) {
+        try {
+            Log.d(TAG, "Pulling remote bookmarks from server")
+            val response: ApiResponse<List<BookmarkDto>> = bookmarkApiService.getAllBookmarks("Bearer $token")
+            val remoteEntries = response.data
+            Log.d(TAG, "Received ${remoteEntries.size} bookmarks from server")
+            remoteEntries.forEach { remoteEntry ->
+                try {
+                    val localEntry = bookmarkRepository.getBookmarkByUrl(remoteEntry.url)
+                    if (localEntry == null) {
+                        val newEntry = com.example.mobilebrowser.data.entity.BookmarkEntity(
+                            title = remoteEntry.title,
+                            url = remoteEntry.url,
+                            userId = remoteEntry.userId,
+                            favicon = remoteEntry.favicon,
+                            lastVisited = remoteEntry.timestamp,
+                            tags = remoteEntry.tags,
+                            dateAdded = remoteEntry.timestamp,
+                            serverId = remoteEntry.id,
+                            syncStatus = SyncStatus.SYNCED
+                        )
+                        bookmarkRepository.addBookmark(newEntry)
+                        Log.d(TAG, "Inserted new bookmark from server: ${remoteEntry.url}")
+                    } else if (localEntry.syncStatus != SyncStatus.PENDING_UPLOAD) {
+                        if (remoteEntry.timestamp.after(localEntry.dateAdded)) {
+                            val updatedEntry = localEntry.copy(
+                                title = remoteEntry.title,
+                                url = remoteEntry.url,
+                                favicon = remoteEntry.favicon,
+                                lastVisited = remoteEntry.timestamp,
+                                tags = remoteEntry.tags,
+                                dateAdded = remoteEntry.timestamp,
+                                serverId = remoteEntry.id,
+                                syncStatus = SyncStatus.SYNCED
+                            )
+                            bookmarkRepository.updateBookmark(updatedEntry)
+                            Log.d(TAG, "Updated local bookmark from server: ${remoteEntry.url}")
+                        }
+                    } else {
+                        Log.d(TAG, "Local bookmark ${remoteEntry.url} has pending changes. Skipping update.")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error processing remote bookmark ${remoteEntry.url}: ${e.message}")
+                }
+            }
+            Log.d(TAG, "Completed pulling remote bookmarks")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error pulling remote bookmarks: ${e.message}", e)
             throw e
         }
     }

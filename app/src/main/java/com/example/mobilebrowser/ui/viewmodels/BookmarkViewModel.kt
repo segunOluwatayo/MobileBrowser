@@ -7,6 +7,9 @@ import androidx.lifecycle.viewModelScope
 import com.example.mobilebrowser.data.entity.BookmarkEntity
 import com.example.mobilebrowser.data.repository.BookmarkRepository
 import com.example.mobilebrowser.data.util.BookmarkThumbnailService
+import com.example.mobilebrowser.data.util.UserDataStore
+import com.example.mobilebrowser.sync.SyncStatusState
+import com.example.mobilebrowser.sync.UserSyncManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -21,9 +24,12 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 class BookmarkViewModel @Inject constructor(
     private val repository: BookmarkRepository,
     private val thumbnailService: BookmarkThumbnailService,
+    private val userSyncManager: UserSyncManager,
+    private val userDataStore: UserDataStore,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
+    val currentUserId = userDataStore.userId
     // StateFlow to store the current search query
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
@@ -51,6 +57,39 @@ class BookmarkViewModel @Inject constructor(
     // StateFlow to track if the current URL is bookmarked
     private val _isCurrentUrlBookmarked = MutableStateFlow(false)
     val isCurrentUrlBookmarked: StateFlow<Boolean> = _isCurrentUrlBookmarked.asStateFlow()
+
+    // Sync status state flow to provide UI feedback
+    private val _syncStatus = MutableStateFlow<SyncStatusState>(SyncStatusState.Idle)
+    val syncStatus: StateFlow<SyncStatusState> = _syncStatus
+
+    /**
+     * Triggers manual synchronization for bookmarks.
+     */
+    fun triggerBookmarkSync() {
+        viewModelScope.launch {
+            _syncStatus.value = SyncStatusState.Syncing
+            try {
+                // Retrieve required authentication data from UserDataStore
+                val accessToken = userDataStore.accessToken.first()
+                val deviceId = userDataStore.deviceId.first().ifEmpty { "android-device" }
+                val userId = userDataStore.userId.first()
+                if (accessToken.isBlank() || userId.isBlank()) {
+                    _syncStatus.value = SyncStatusState.Error("Missing authentication data")
+                    return@launch
+                }
+
+                // Push local changes (uploads & deletions) for bookmarks
+                userSyncManager.pushLocalBookmarkChanges(accessToken, deviceId, userId)
+
+                // Pull remote bookmarks and update the local database
+//                userSyncManager.pullRemoteBookmarks(accessToken)
+
+                _syncStatus.value = SyncStatusState.Synced
+            } catch (e: Exception) {
+                _syncStatus.value = SyncStatusState.Error(e.message ?: "Unknown sync error")
+            }
+        }
+    }
 
     // Updates the current search query
     fun updateSearchQuery(query: String) {
@@ -81,6 +120,7 @@ class BookmarkViewModel @Inject constructor(
     // Quickly adds a new bookmark using just a URL and title
     fun quickAddBookmark(url: String, title: String) {
         viewModelScope.launch {
+            val userId = userDataStore.userId.first()
             // Use the URL's domain as fallback title if title is empty
             val bookmarkTitle = if (title.isBlank()) {
                 try {
@@ -94,6 +134,7 @@ class BookmarkViewModel @Inject constructor(
 
             val bookmark = BookmarkEntity(
                 title = bookmarkTitle,
+                userId = userId,
                 url = url,
                 favicon = null, // TODO: Implement favicon fetching
                 lastVisited = Date(),
@@ -153,6 +194,7 @@ class BookmarkViewModel @Inject constructor(
      */
     fun quickAddBookmarkWithThumbnail(url: String, title: String, thumbnail: Bitmap?) {
         viewModelScope.launch {
+            val userId = userDataStore.userId.first()
             // Create and add the bookmark
             val bookmark = BookmarkEntity(
                 title = title.ifBlank() {
@@ -163,6 +205,7 @@ class BookmarkViewModel @Inject constructor(
                     }
                 },
                 url = url,
+                userId = userId,
                 favicon = null,
                 lastVisited = Date(),
                 tags = null

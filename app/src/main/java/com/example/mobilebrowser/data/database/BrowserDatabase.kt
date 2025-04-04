@@ -23,7 +23,7 @@ import com.example.mobilebrowser.data.util.Converters
  */
 @Database(
     entities = [BookmarkEntity::class, TabEntity::class, HistoryEntity::class, DownloadEntity::class, ShortcutEntity::class],
-    version = 11,
+    version = 12,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
