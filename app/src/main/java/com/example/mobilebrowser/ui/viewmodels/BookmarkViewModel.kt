@@ -2,6 +2,7 @@ package com.example.mobilebrowser.ui.viewmodels
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.mobilebrowser.data.entity.BookmarkEntity
@@ -155,9 +156,35 @@ class BookmarkViewModel @Inject constructor(
     // Deletes a bookmark and updates the bookmark state for the current URL
     fun deleteBookmark(bookmark: BookmarkEntity) {
         viewModelScope.launch {
-            repository.deleteBookmark(bookmark)
-            if (bookmark.url == _currentUrl.value) {
-                _isCurrentUrlBookmarked.value = false
+            try {
+                // Check if user is signed in
+                val isSignedIn = userDataStore.isSignedIn.first()
+
+                if (isSignedIn) {
+                    val accessToken = userDataStore.accessToken.first()
+                    val deviceId = userDataStore.deviceId.first().ifEmpty { "android-device" }
+
+                    // Delegate full deletion logic with sync to the repository
+                    repository.deleteBookmarkImmediate(
+                        bookmark = bookmark,
+                        isUserSignedIn = isSignedIn,
+                        accessToken = accessToken,
+                        deviceId = deviceId
+                    )
+
+                    // Trigger sync to clean up any pending deletes
+                    triggerBookmarkSync()
+                } else {
+                    // Anonymous user — just delete locally
+                    repository.deleteBookmark(bookmark)
+                }
+
+                // Update bookmark state for UI
+                if (bookmark.url == _currentUrl.value) {
+                    _isCurrentUrlBookmarked.value = false
+                }
+            } catch (e: Exception) {
+                Log.e("BookmarkViewModel", "Failed to delete bookmark: ${e.message}", e)
             }
         }
     }

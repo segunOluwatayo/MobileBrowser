@@ -1,21 +1,28 @@
 package com.example.mobilebrowser.data.repository
 
 import android.util.Log
+import com.example.mobilebrowser.api.BookmarkApiService
 import com.example.mobilebrowser.data.dao.BookmarkDao
 import com.example.mobilebrowser.data.dto.BookmarkDto
 import com.example.mobilebrowser.data.entity.BookmarkEntity
 import com.example.mobilebrowser.data.entity.SyncStatus
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class BookmarkRepository @Inject constructor(
-    private val bookmarkDao: BookmarkDao
+    private val bookmarkDao: BookmarkDao,
+    private val bookmarkApiService: BookmarkApiService
 ) {
 
     // Fetch all bookmarks, ordered by date added (most recent first)
-    fun getAllBookmarks(): Flow<List<BookmarkEntity>> = bookmarkDao.getAllBookmarks()
+    fun getAllBookmarks(): Flow<List<BookmarkEntity>> =
+        bookmarkDao.getAllBookmarks()
+            .map { bookmarks ->
+                bookmarks.filter { !it.url.startsWith("PENDING_DELETE:") }
+            }
 
     // Retrieve a bookmark by its ID
     suspend fun getBookmarkById(id: Long): BookmarkEntity? = bookmarkDao.getBookmarkById(id)
@@ -40,6 +47,9 @@ class BookmarkRepository @Inject constructor(
     // Search for bookmarks whose title or URL matches the given query string
     fun searchBookmarks(query: String): Flow<List<BookmarkEntity>> =
         bookmarkDao.searchBookmarks("%$query%")
+            .map { bookmarks ->
+                bookmarks.filter { !it.url.startsWith("PENDING_DELETE:") }
+            }
 
     // Fetch bookmarks associated with a specific tag
     fun getBookmarksByTag(tag: String): Flow<List<BookmarkEntity>> =
@@ -66,7 +76,9 @@ class BookmarkRepository @Inject constructor(
 
     // Retrieve bookmarks pending deletion
     suspend fun getPendingDeletions(): List<BookmarkEntity> {
-        return getAllBookmarksAsList().filter { it.syncStatus == SyncStatus.PENDING_DELETE }
+        return getAllBookmarksAsList().filter {
+            it.syncStatus == SyncStatus.PENDING_DELETE || it.url.startsWith("PENDING_DELETE:")
+        }
     }
 
     /**
@@ -92,6 +104,52 @@ class BookmarkRepository @Inject constructor(
     suspend fun markForDeletion(bookmark: BookmarkEntity) {
         val updatedBookmark = bookmark.copy(syncStatus = SyncStatus.PENDING_DELETE)
         bookmarkDao.updateBookmark(updatedBookmark)
+    }
+
+    suspend fun deleteBookmarkImmediate(
+        bookmark: BookmarkEntity,
+        isUserSignedIn: Boolean,
+        accessToken: String,
+        deviceId: String
+    ) {
+        if (isUserSignedIn && bookmark.userId.isNotBlank()) {
+            try {
+                // If we have a server ID, try to delete directly on server
+                if (!bookmark.serverId.isNullOrBlank()) {
+                    bookmarkApiService.deleteBookmark("Bearer $accessToken", bookmark.serverId)
+                    // Success! Remove locally
+                    bookmarkDao.deleteBookmark(bookmark)
+                } else {
+                    // No server ID, we need to track for deletion but hide from UI
+
+                    // Create a shadow entry for deletion tracking
+                    // Use a special prefix in URL so it won't show in UI queries
+                    val shadowEntry = bookmark.copy(
+                        url = "PENDING_DELETE:" + bookmark.url,
+                        syncStatus = SyncStatus.PENDING_DELETE
+                    )
+
+                    // Insert the shadow tracking entry
+                    bookmarkDao.insertBookmark(shadowEntry)
+
+                    // Delete the original entry so it disappears from UI
+                    bookmarkDao.deleteBookmark(bookmark)
+                }
+            } catch (e: Exception) {
+                Log.e("BookmarkRepository", "Error deleting bookmark from server: ${e.message}", e)
+
+                // API failure - create shadow entry and delete original
+                val shadowEntry = bookmark.copy(
+                    url = "PENDING_DELETE:" + bookmark.url,
+                    syncStatus = SyncStatus.PENDING_DELETE
+                )
+                bookmarkDao.insertBookmark(shadowEntry)
+                bookmarkDao.deleteBookmark(bookmark)
+            }
+        } else {
+            // For anonymous users, just delete locally
+            bookmarkDao.deleteBookmark(bookmark)
+        }
     }
 }
 
