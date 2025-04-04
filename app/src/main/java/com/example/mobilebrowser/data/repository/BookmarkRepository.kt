@@ -105,7 +105,7 @@ class BookmarkRepository @Inject constructor(
         val updatedBookmark = bookmark.copy(syncStatus = SyncStatus.PENDING_DELETE)
         bookmarkDao.updateBookmark(updatedBookmark)
     }
-
+    
     suspend fun deleteBookmarkImmediate(
         bookmark: BookmarkEntity,
         isUserSignedIn: Boolean,
@@ -124,7 +124,9 @@ class BookmarkRepository @Inject constructor(
 
                     // Create a shadow entry for deletion tracking
                     // Use a special prefix in URL so it won't show in UI queries
+                    // Set id=0 to let Room auto-generate a new ID
                     val shadowEntry = bookmark.copy(
+                        id = 0, // Important: Reset ID to avoid primary key conflict
                         url = "PENDING_DELETE:" + bookmark.url,
                         syncStatus = SyncStatus.PENDING_DELETE
                     )
@@ -140,6 +142,7 @@ class BookmarkRepository @Inject constructor(
 
                 // API failure - create shadow entry and delete original
                 val shadowEntry = bookmark.copy(
+                    id = 0, // Important: Reset ID to avoid primary key conflict
                     url = "PENDING_DELETE:" + bookmark.url,
                     syncStatus = SyncStatus.PENDING_DELETE
                 )
