@@ -188,6 +188,12 @@ class HistoryViewModel @Inject constructor(
 //            }
 //        }
 //    }
+    /**
+     * Delete a specific history entry with proper synchronization.
+     * Ensures items are properly deleted from both local database and server.
+     *
+     * @param history The history entry to delete
+     */
     fun deleteHistoryEntry(history: HistoryEntity) {
         viewModelScope.launch {
             try {
@@ -195,10 +201,49 @@ class HistoryViewModel @Inject constructor(
                 if (isSignedIn) {
                     val accessToken = userDataStore.accessToken.first()
                     val deviceId = userDataStore.deviceId.first().ifEmpty { "android-device" }
-                    // Call the immediate deletion method for signed-in users
-                    repository.deleteHistoryEntryImmediate(history, isSignedIn, accessToken, deviceId)
-                    // Optionally, trigger a manual sync to catch any pending deletions
-                    triggerManualSync()
+                    val userId = userDataStore.userId.first()
+
+                    // For items with a serverId, ensure we're actually calling the API method
+                    if (!history.serverId.isNullOrBlank()) {
+                        try {
+                            // Directly delete from server first
+                            userSyncManager.deleteHistoryEntryFromServer(history.serverId, accessToken)
+                            // If server deletion succeeds, delete locally
+                            repository.deleteHistoryEntry(history, isSignedIn)
+                        } catch (e: Exception) {
+                            // If server deletion fails, create a new entry for deletion tracking
+                            val pendingDeleteUrl = "PENDING_DELETE:" + history.url
+
+                            // Create a new entry marked for deletion
+                            repository.addHistoryEntry(
+                                url = pendingDeleteUrl,
+                                title = history.title,
+                                favicon = history.favicon,
+                                userId = userId
+                            )
+
+                            // Delete the original entry
+                            repository.deleteHistoryEntry(history, isSignedIn)
+                        }
+                    } else {
+                        // For items without serverId, create a tracking entry and delete original
+                        val pendingDeleteUrl = "PENDING_DELETE:" + history.url
+
+                        // Create a new history entry with the PENDING_DELETE prefix in URL
+                        // This will be processed during sync
+                        repository.addHistoryEntry(
+                            url = pendingDeleteUrl,
+                            title = history.title,
+                            favicon = history.favicon,
+                            userId = userId
+                        )
+
+                        // Delete the original entry
+                        repository.deleteHistoryEntry(history, isSignedIn)
+
+                        // Trigger an immediate sync to process the deletion
+                        triggerManualSync()
+                    }
                 } else {
                     // For anonymous users, just delete locally
                     repository.deleteHistoryEntry(history, isSignedIn)

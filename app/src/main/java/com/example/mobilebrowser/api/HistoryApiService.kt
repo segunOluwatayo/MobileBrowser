@@ -46,8 +46,24 @@ interface HistoryApiService {
     @HTTP(method = "DELETE", path = "history", hasBody = true)
     suspend fun deleteHistoryEntryByUrl(
         @Header("Authorization") authorization: String,
-        @Query("url") url: String
+        @Query("url") url: String,
+        @Body deleteRequest: DeleteHistoryRequest
     ): ApiResponse<Any>
+
+    data class DeleteHistoryRequest(
+        val url: String,
+        val userId: String,
+        val device: String
+    )
+
+    @DELETE("history")
+    suspend fun deleteHistoryEntryByUrl(
+        @Header("Authorization") authToken: String,
+        @Query("userId") userId: String,
+        @Query("device") deviceId: String,
+        @Query("startDate") startDate: String? = null,
+        @Query("endDate") endDate: String? = null
+    )
 
     /**
      * Gets all history entries for the authenticated user.

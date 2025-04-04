@@ -32,6 +32,87 @@ class UserSyncManager @Inject constructor(
     private val TAG = "UserSyncManager"
 
     /**
+     * Directly deletes a history entry from the server using its server ID
+     *
+     * @param historyId The server ID of the history entry to delete
+     * @param accessToken The user's access token for authentication
+     */
+    suspend fun deleteHistoryEntryFromServer(historyId: String, accessToken: String) {
+        try {
+            // Call the API to delete the entry directly
+            historyApiService.deleteHistoryEntry("Bearer $accessToken", historyId)
+        } catch (e: Exception) {
+            throw Exception("Failed to delete history from server: ${e.message}")
+        }
+    }
+
+    /**
+     * Process pending history deletions during sync
+     *
+     * @param accessToken User's authentication token
+     * @param deviceId Current device identifier
+     * @param userId User identifier
+     * @return Number of successfully processed deletions
+     */
+    private suspend fun processPendingHistoryDeletions(
+        accessToken: String,
+        deviceId: String,
+        userId: String
+    ): Int {
+        var deletionCount = 0
+
+        try {
+            // Get all history entries
+            val allHistory = historyRepository.getAllHistoryAsList()
+
+            // Filter for entries with the PENDING_DELETE: URL prefix
+            val pendingDeletions = allHistory.filter { it.url.startsWith("PENDING_DELETE:") }
+
+            for (pendingDelete in pendingDeletions) {
+                try {
+                    // Extract the original URL from the pending delete entry
+                    val originalUrl = pendingDelete.url.removePrefix("PENDING_DELETE:")
+
+                    // If the entry has a server ID, use that for deletion
+                    if (!pendingDelete.serverId.isNullOrBlank()) {
+                        historyApiService.deleteHistoryEntry(
+                            "Bearer $accessToken",
+                            pendingDelete.serverId
+                        )
+                    } else {
+                        // Otherwise try to find and delete by URL
+                        try {
+                            // Find the item on the server by URL and delete it
+                            historyApiService.deleteHistoryEntryByUrl(
+                                "Bearer $accessToken",
+                                originalUrl,
+                                userId,
+                                deviceId
+                            )
+                        } catch (e: Exception) {
+                            // If we couldn't find by URL, that's OK - it might not exist on server
+                            // Just log it and continue
+                            Log.d("UserSyncManager", "Could not find history item to delete: $originalUrl")
+                        }
+                    }
+
+                    // Remove the pending deletion entry after we've processed it
+                    historyRepository.finalizeDeletion(pendingDelete)
+                    deletionCount++
+
+                } catch (e: Exception) {
+                    Log.e("UserSyncManager", "Error processing deletion for ${pendingDelete.url}: ${e.message}")
+                    // We'll leave the pending deletion entry for the next sync attempt
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("UserSyncManager", "Error during pending deletion processing: ${e.message}")
+        }
+
+        return deletionCount
+    }
+
+    /**
      * Pushes local history changes (both additions and deletions) to the server.
      *
      * @param accessToken The user's authentication token
@@ -39,9 +120,58 @@ class UserSyncManager @Inject constructor(
      * @param userId The user's ID
      */
     suspend fun pushLocalChanges(accessToken: String, deviceId: String, userId: String) {
+        val deletionsProcessed = processPendingHistoryDeletions(accessToken, deviceId, userId)
+        Log.d(TAG, "Processed $deletionsProcessed history items with PENDING_DELETE URL prefix")
         withContext(Dispatchers.IO) {
             try {
-                // 1. Process new/updated entries
+                // 1. Handle pending deletions (enhanced logic)
+                try {
+                    val pendingDeletes = historyRepository.getAllHistoryAsList()
+                        .filter {
+                            it.syncStatus == SyncStatus.PENDING_DELETE &&
+                                    !it.url.startsWith("PENDING_DELETE:") // Skip items already processed
+                        }
+
+
+                    Log.d(TAG, "Found ${pendingDeletes.size} history entries pending deletion (enhanced)")
+
+                    for (deleteItem in pendingDeletes) {
+                        try {
+                            // Skip entries not belonging to the current user
+                            if (deleteItem.userId != userId) continue
+
+                            if (!deleteItem.serverId.isNullOrBlank()) {
+                                historyApiService.deleteHistoryEntry(
+                                    "Bearer $accessToken",
+                                    deleteItem.serverId
+                                )
+                                Log.d(TAG, "Successfully deleted history entry by server ID: ${deleteItem.url}")
+                            } else {
+                                val originalUrl = if (deleteItem.url.startsWith("PENDING_DELETE:")) {
+                                    deleteItem.url.removePrefix("PENDING_DELETE:")
+                                } else {
+                                    deleteItem.url
+                                }
+
+                                historyApiService.deleteHistoryEntryByUrl(
+                                    "Bearer $accessToken",
+                                    originalUrl,
+                                    userId,
+                                    deviceId
+                                )
+                                Log.d(TAG, "Successfully deleted history entry by URL: $originalUrl")
+                            }
+
+                            historyRepository.finalizeDeletion(deleteItem)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error deleting item from server: ${e.message}", e)
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error processing pending deletions: ${e.message}", e)
+                }
+
+                // 2. Handle pending uploads (unchanged logic)
                 val pendingUploads = historyRepository.getPendingUploads().first()
                 Log.d(TAG, "Found ${pendingUploads.size} history entries pending upload")
 
@@ -56,45 +186,11 @@ class UserSyncManager @Inject constructor(
                             dto
                         )
 
-                        // Mark as synced if successful
                         val serverId = response.data.id
                         historyRepository.markAsSynced(entry, serverId)
                         Log.d(TAG, "Successfully synced history entry: ${entry.url}")
                     } catch (e: Exception) {
                         Log.e(TAG, "Error syncing history entry: ${e.message}", e)
-                    }
-                }
-
-                // 2. Process deleted entries
-                val pendingDeletes = historyRepository.getPendingDeletes().first()
-                Log.d(TAG, "Found ${pendingDeletes.size} history entries pending deletion")
-
-                for (entry in pendingDeletes) {
-                    try {
-                        // Skip entries not belonging to the current user
-                        if (entry.userId != userId) continue
-
-                        // If the entry has a server ID, delete it from the server
-                        if (!entry.serverId.isNullOrBlank()) {
-                            historyApiService.deleteHistoryEntry(
-                                "Bearer $accessToken",
-                                entry.serverId
-                            )
-                            Log.d(TAG, "Successfully deleted history entry from server: ${entry.url}")
-                        } else {
-                            // If no server ID, check if we need to delete by URL
-                            val dto = entry.toDto(deviceId)
-                            historyApiService.deleteHistoryEntryByUrl(
-                                "Bearer $accessToken",
-                                dto.url
-                            )
-                            Log.d(TAG, "Successfully deleted history entry by URL: ${entry.url}")
-                        }
-
-                        // Permanently remove from local database now that server is updated
-                        historyRepository.finalizeDeletion(entry)
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error deleting history entry: ${e.message}", e)
                     }
                 }
             } catch (e: Exception) {
