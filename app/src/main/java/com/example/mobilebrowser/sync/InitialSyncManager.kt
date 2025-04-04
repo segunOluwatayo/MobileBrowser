@@ -206,10 +206,30 @@ class InitialSyncManager @Inject constructor(
             val currentUserId = userDataStore.userId.first()
             Log.d(TAG, "Current user ID: $currentUserId")
 
+            // First, get all shadow entries (bookmarks pending deletion)
+            // We'll use this to avoid re-adding bookmarks that were intentionally deleted
+            val pendingDeletions = bookmarkRepository.getPendingDeletions()
+            val pendingDeletionUrls = pendingDeletions.map {
+                // Extract the original URL by removing the "PENDING_DELETE:" prefix
+                if (it.url.startsWith("PENDING_DELETE:")) {
+                    it.url.removePrefix("PENDING_DELETE:")
+                } else {
+                    it.url
+                }
+            }
+
+            Log.d(TAG, "Found ${pendingDeletionUrls.size} bookmarks pending deletion")
+
             remoteEntries.forEach { remoteEntry ->
                 try {
                     // Add logging for each bookmark being processed
                     Log.d(TAG, "Processing remote bookmark: ${remoteEntry.url}, userId: ${remoteEntry.userId}, serverId: ${remoteEntry.id}")
+
+                    // Skip bookmarks that are pending deletion locally
+                    if (pendingDeletionUrls.contains(remoteEntry.url)) {
+                        Log.d(TAG, "Skipping bookmark ${remoteEntry.url} as it's pending deletion locally")
+                        return@forEach
+                    }
 
                     // Create default values for any potentially null fields
                     val currentTime = Date()

@@ -248,22 +248,76 @@ class UserSyncManager @Inject constructor(
             try {
                 val pendingDeletions = bookmarkRepository.getPendingDeletions()
                 Log.d(TAG, "Found ${pendingDeletions.size} bookmarks pending deletion")
+
                 for (bookmark in pendingDeletions) {
                     if (bookmark.userId != userId) continue
+
                     try {
-                        if (!bookmark.serverId.isNullOrEmpty()) {
-                            val response: ApiResponse<Any> = bookmarkApiService.deleteBookmark(
-                                authorization = "Bearer $accessToken",
-                                id = bookmark.serverId
-                            )
-                            Log.d(TAG, "Deleted bookmark from server by ID: ${bookmark.url}")
+                        // Extract original URL if it has the PENDING_DELETE prefix
+                        val originalUrl = if (bookmark.url.startsWith("PENDING_DELETE:")) {
+                            bookmark.url.removePrefix("PENDING_DELETE:")
                         } else {
-                            Log.d(TAG, "Bookmark ${bookmark.url} has no serverId. Skipping server deletion.")
+                            bookmark.url
                         }
-                        // Remove bookmark locally upon successful deletion.
-                        bookmarkRepository.deleteBookmark(bookmark)
+
+                        var deletedFromServer = false
+
+                        if (!bookmark.serverId.isNullOrEmpty()) {
+                            // If we have server ID, delete by ID
+                            Log.d(TAG, "Deleting bookmark from server by ID: ${bookmark.serverId}")
+                            try {
+                                bookmarkApiService.deleteBookmark(
+                                    authorization = "Bearer $accessToken",
+                                    id = bookmark.serverId
+                                )
+                                deletedFromServer = true
+                                Log.d(TAG, "Successfully deleted bookmark from server by ID: ${bookmark.url}")
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Failed to delete bookmark by ID: ${e.message}")
+                            }
+                        }
+
+                        if (!deletedFromServer) {
+                            // If no server ID or deletion by ID failed, find and delete by URL
+                            Log.d(TAG, "Attempting to find and delete bookmark by URL: $originalUrl")
+
+                            try {
+                                // 1. Get all bookmarks from server
+                                val response = bookmarkApiService.getAllBookmarks("Bearer $accessToken")
+
+                                // 2. Find the bookmark with matching URL
+                                val matchingBookmark = response.data.find { it.url == originalUrl }
+
+                                if (matchingBookmark?.id != null) {
+                                    // 3. Delete the bookmark using its server ID
+                                    Log.d(TAG, "Found matching bookmark on server with ID: ${matchingBookmark.id}")
+                                    bookmarkApiService.deleteBookmark(
+                                        authorization = "Bearer $accessToken",
+                                        id = matchingBookmark.id
+                                    )
+                                    deletedFromServer = true
+                                    Log.d(TAG, "Successfully deleted bookmark by URL lookup: $originalUrl")
+                                } else {
+                                    Log.d(TAG, "No matching bookmark found on server for URL: $originalUrl")
+                                    // If bookmark doesn't exist on server, consider it "deleted"
+                                    deletedFromServer = true
+                                }
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error finding/deleting bookmark by URL: ${e.message}")
+                            }
+                        }
+
+                        // Only remove local shadow entry if we successfully deleted from server
+                        // or confirmed it doesn't exist on server
+                        if (deletedFromServer) {
+                            // Remove bookmark locally upon successful deletion
+                            bookmarkRepository.deleteBookmark(bookmark)
+                            Log.d(TAG, "Removed local shadow entry for deleted bookmark: ${bookmark.url}")
+                        } else {
+                            Log.d(TAG, "Keeping shadow entry for retry: ${bookmark.url}")
+                        }
                     } catch (deleteError: Exception) {
-                        Log.e(TAG, "Error deleting bookmark ${bookmark.url} from server: ${deleteError.message}", deleteError)
+                        Log.e(TAG, "Error processing deletion for ${bookmark.url}: ${deleteError.message}", deleteError)
                     }
                 }
             } catch (e: Exception) {
@@ -278,6 +332,7 @@ class UserSyncManager @Inject constructor(
                     if (bookmark.userId != userId) continue
                     try {
                         val dto = bookmark.toDto(userId)
+                        Log.d(TAG, "Pushing bookmark to server: ${bookmark.url}")
                         val response: ApiResponse<BookmarkDto> = bookmarkApiService.addBookmark(
                             authorization = "Bearer $accessToken",
                             bookmark = dto
