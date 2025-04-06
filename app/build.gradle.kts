@@ -73,7 +73,8 @@ dependencies {
     implementation (libs.androidx.security.crypto)
     implementation (libs.retrofit2.retrofit)
     implementation (libs.converter.gson)
-    implementation ("com.squareup.okhttp3:logging-interceptor:4.9.3")
+    implementation (libs.logging.interceptor)
+    implementation (libs.androidx.hilt.work)
 
     // Room
     implementation(libs.androidx.room.runtime)

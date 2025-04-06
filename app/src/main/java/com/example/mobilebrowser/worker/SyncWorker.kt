@@ -28,7 +28,8 @@ class SyncWorker @AssistedInject constructor(
 
     override suspend fun doWork(): Result {
         try {
-            Log.d(TAG, "SyncWorker doWork() called at ${System.currentTimeMillis()}")
+            Log.d(TAG, "SyncWorker doWork() started at ${System.currentTimeMillis()}")
+
             // Check if user is signed in
             val isSignedIn = userDataStore.isSignedIn.first()
             if (!isSignedIn) {
@@ -36,7 +37,8 @@ class SyncWorker @AssistedInject constructor(
                 return Result.success()
             }
 
-            // Get authentication data
+            // Log each step of the process
+            Log.d(TAG, "Fetching auth credentials...")
             val accessToken = userDataStore.accessToken.first()
             val deviceId = userDataStore.deviceId.first().ifEmpty { "android-device" }
             val userId = userDataStore.userId.first()
@@ -46,18 +48,15 @@ class SyncWorker @AssistedInject constructor(
                 return Result.success()
             }
 
-            Log.d(TAG, "Starting automatic background sync")
+            Log.d(TAG, "Starting automatic background sync with valid credentials")
 
-            // Perform sync operations - push local changes to server
+            // Perform sync operations
             userSyncManager.performSync(accessToken, deviceId, userId)
 
-            // Only push local changes in background sync to avoid conflicts
-            // with any active editing the user might be doing
-
-            Log.d(TAG, "Background sync completed successfully")
+            Log.d(TAG, "Background sync completed successfully at ${System.currentTimeMillis()}")
             return Result.success()
         } catch (e: Exception) {
-            Log.e(TAG, "Background sync failed: ${e.message}", e)
+            Log.e(TAG, "Background sync failed with exception: ${e.message}", e)
             // Retry on failure
             return Result.retry()
         }
@@ -81,19 +80,32 @@ class SyncWorker @AssistedInject constructor(
 
             // Create a periodic work request that runs every 3 minutes
             val syncRequest = PeriodicWorkRequestBuilder<SyncWorker>(
-                3, TimeUnit.MINUTES, // Run every 3 minutes
+                3, TimeUnit.MINUTES,
                 30, TimeUnit.SECONDS  // With 30 seconds flex time for battery optimization
             )
                 .setConstraints(constraints)
+                // Add an initial delay to avoid immediate execution conflicts
+                .setInitialDelay(10, TimeUnit.SECONDS)
+                .addTag("sync_worker")  // Add a tag for easier debugging
                 .build()
 
-            // Enqueue the work request, replacing any existing one with the same name
+            // Use REPLACE instead of KEEP to ensure the latest configuration is used
             WorkManager.getInstance(context)
                 .enqueueUniquePeriodicWork(
                     WORK_NAME,
-                    ExistingPeriodicWorkPolicy.KEEP, // Keep existing if any
+                    ExistingPeriodicWorkPolicy.REPLACE,  // Changed from KEEP to REPLACE
                     syncRequest
                 )
+
+            // Also schedule an immediate one-time sync to verify functionality
+            val immediateSync = OneTimeWorkRequestBuilder<SyncWorker>()
+                .setConstraints(constraints)
+                .addTag("immediate_sync")
+                .build()
+
+            WorkManager.getInstance(context).enqueue(immediateSync)
+
+            Log.d(TAG, "Background sync worker scheduled with REPLACE policy and immediate sync queued")
         }
 
         /**

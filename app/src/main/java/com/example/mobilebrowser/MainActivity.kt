@@ -27,6 +27,7 @@ import org.mozilla.geckoview.GeckoSession
 import android.view.View
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
+import androidx.work.WorkManager
 import com.example.mobilebrowser.data.service.AuthService
 import com.example.mobilebrowser.worker.SyncWorker
 import javax.inject.Inject
@@ -838,4 +839,14 @@ class MainActivity : ComponentActivity() {
                         url.contains("dashboard")
     }
 
+    fun checkWorkStatus() {
+        val workManager = WorkManager.getInstance(applicationContext)
+
+        workManager.getWorkInfosByTagLiveData("sync_worker")
+            .observe(this) { workInfoList ->
+                for (workInfo in workInfoList) {
+                    Log.d("WorkStatus", "Sync worker state: ${workInfo.state}")
+                }
+            }
+    }
 }
