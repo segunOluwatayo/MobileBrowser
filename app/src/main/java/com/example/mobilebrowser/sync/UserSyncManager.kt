@@ -190,10 +190,7 @@ class UserSyncManager @Inject constructor(
 
                     try {
                         if (!deleteItem.serverId.isNullOrBlank()) {
-                            historyApiService.deleteHistoryEntry(
-                                "Bearer $accessToken",
-                                deleteItem.serverId
-                            )
+                            historyApiService.deleteHistoryEntry("Bearer $accessToken", deleteItem.serverId)
                             Log.d(TAG, "Deleted item from server by ID: ${deleteItem.url}")
                         } else {
                             val originalUrl = if (deleteItem.url.startsWith("PENDING_DELETE:")) {
@@ -203,27 +200,17 @@ class UserSyncManager @Inject constructor(
                             }
 
                             try {
-                                historyApiService.deleteHistoryEntryByUrl(
-                                    "Bearer $accessToken",
-                                    originalUrl
-                                )
+                                historyApiService.deleteHistoryEntryByUrl("Bearer $accessToken", originalUrl)
                                 Log.d(TAG, "Deleted item from server by URL: $originalUrl")
                             } catch (notFound: Exception) {
-                                Log.d(
-                                    TAG,
-                                    "Could not find item on server for url: $originalUrl. Ignoring."
-                                )
+                                Log.d(TAG, "Could not find item on server for url: $originalUrl. Ignoring.")
                             }
                         }
 
                         historyRepository.finalizeDeletion(deleteItem)
 
                     } catch (deleteError: Exception) {
-                        Log.e(
-                            TAG,
-                            "Error deleting item ${deleteItem.url} from server: ${deleteError.message}",
-                            deleteError
-                        )
+                        Log.e(TAG, "Error deleting item ${deleteItem.url} from server: ${deleteError.message}", deleteError)
                     }
                 }
             } catch (e: Exception) {
@@ -246,11 +233,7 @@ class UserSyncManager @Inject constructor(
                         historyRepository.markAsSynced(entry, serverId)
                         Log.d(TAG, "Successfully uploaded: ${entry.url}")
                     } catch (uploadError: Exception) {
-                        Log.e(
-                            TAG,
-                            "Error uploading entry ${entry.url}: ${uploadError.message}",
-                            uploadError
-                        )
+                        Log.e(TAG, "Error uploading entry ${entry.url}: ${uploadError.message}", uploadError)
                     }
                 }
             } catch (e: Exception) {
@@ -294,10 +277,7 @@ class UserSyncManager @Inject constructor(
                                     id = bookmark.serverId
                                 )
                                 deletedFromServer = true
-                                Log.d(
-                                    TAG,
-                                    "Successfully deleted bookmark from server by ID: ${bookmark.url}"
-                                )
+                                Log.d(TAG, "Successfully deleted bookmark from server by ID: ${bookmark.url}")
                             } catch (e: Exception) {
                                 Log.e(TAG, "Failed to delete bookmark by ID: ${e.message}")
                             }
@@ -305,39 +285,26 @@ class UserSyncManager @Inject constructor(
 
                         if (!deletedFromServer) {
                             // If no server ID or deletion by ID failed, find and delete by URL
-                            Log.d(
-                                TAG,
-                                "Attempting to find and delete bookmark by URL: $originalUrl"
-                            )
+                            Log.d(TAG, "Attempting to find and delete bookmark by URL: $originalUrl")
 
                             try {
                                 // 1. Get all bookmarks from server
-                                val response =
-                                    bookmarkApiService.getAllBookmarks("Bearer $accessToken")
+                                val response = bookmarkApiService.getAllBookmarks("Bearer $accessToken")
 
                                 // 2. Find the bookmark with matching URL
                                 val matchingBookmark = response.data.find { it.url == originalUrl }
 
                                 if (matchingBookmark?.id != null) {
                                     // 3. Delete the bookmark using its server ID
-                                    Log.d(
-                                        TAG,
-                                        "Found matching bookmark on server with ID: ${matchingBookmark.id}"
-                                    )
+                                    Log.d(TAG, "Found matching bookmark on server with ID: ${matchingBookmark.id}")
                                     bookmarkApiService.deleteBookmark(
                                         authorization = "Bearer $accessToken",
                                         id = matchingBookmark.id
                                     )
                                     deletedFromServer = true
-                                    Log.d(
-                                        TAG,
-                                        "Successfully deleted bookmark by URL lookup: $originalUrl"
-                                    )
+                                    Log.d(TAG, "Successfully deleted bookmark by URL lookup: $originalUrl")
                                 } else {
-                                    Log.d(
-                                        TAG,
-                                        "No matching bookmark found on server for URL: $originalUrl"
-                                    )
+                                    Log.d(TAG, "No matching bookmark found on server for URL: $originalUrl")
                                     // If bookmark doesn't exist on server, consider it "deleted"
                                     deletedFromServer = true
                                 }
@@ -351,19 +318,12 @@ class UserSyncManager @Inject constructor(
                         if (deletedFromServer) {
                             // Remove bookmark locally upon successful deletion
                             bookmarkRepository.deleteBookmark(bookmark)
-                            Log.d(
-                                TAG,
-                                "Removed local shadow entry for deleted bookmark: ${bookmark.url}"
-                            )
+                            Log.d(TAG, "Removed local shadow entry for deleted bookmark: ${bookmark.url}")
                         } else {
                             Log.d(TAG, "Keeping shadow entry for retry: ${bookmark.url}")
                         }
                     } catch (deleteError: Exception) {
-                        Log.e(
-                            TAG,
-                            "Error processing deletion for ${bookmark.url}: ${deleteError.message}",
-                            deleteError
-                        )
+                        Log.e(TAG, "Error processing deletion for ${bookmark.url}: ${deleteError.message}", deleteError)
                     }
                 }
             } catch (e: Exception) {
@@ -387,11 +347,7 @@ class UserSyncManager @Inject constructor(
                         bookmarkRepository.markAsSynced(bookmark, serverId)
                         Log.d(TAG, "Successfully uploaded bookmark: ${bookmark.url}")
                     } catch (uploadError: Exception) {
-                        Log.e(
-                            TAG,
-                            "Error uploading bookmark ${bookmark.url}: ${uploadError.message}",
-                            uploadError
-                        )
+                        Log.e(TAG, "Error uploading bookmark ${bookmark.url}: ${uploadError.message}", uploadError)
                     }
                 }
             } catch (e: Exception) {
@@ -432,10 +388,7 @@ class UserSyncManager @Inject constructor(
                                     id = tab.serverId
                                 )
                                 deletedFromServer = true
-                                Log.d(
-                                    TAG,
-                                    "Successfully deleted tab from server by ID: ${tab.serverId}"
-                                )
+                                Log.d(TAG, "Successfully deleted tab from server by ID: ${tab.serverId}")
                             } catch (e: Exception) {
                                 Log.e(TAG, "Failed to delete tab by ID: ${e.message}")
                             }
@@ -453,17 +406,11 @@ class UserSyncManager @Inject constructor(
                                         id = matchingTab.id
                                     )
                                     deletedFromServer = true
-                                    Log.d(
-                                        TAG,
-                                        "Successfully deleted tab by URL lookup: $originalUrl"
-                                    )
+                                    Log.d(TAG, "Successfully deleted tab by URL lookup: $originalUrl")
                                 } else {
                                     // If not found, consider it deleted
                                     deletedFromServer = true
-                                    Log.d(
-                                        TAG,
-                                        "No matching tab found on server for URL: $originalUrl"
-                                    )
+                                    Log.d(TAG, "No matching tab found on server for URL: $originalUrl")
                                 }
                             } catch (e: Exception) {
                                 Log.e(TAG, "Error finding/deleting tab by URL: ${e.message}")
@@ -515,7 +462,6 @@ class UserSyncManager @Inject constructor(
 
     /**
      * Pulls remote tabs from the server and updates the local database.
-     * Enhanced to properly handle skipping tabs that were deleted locally.
      */
     suspend fun pullRemoteTabs(accessToken: String, userId: String) {
         withContext(Dispatchers.IO) {
@@ -537,20 +483,9 @@ class UserSyncManager @Inject constructor(
 
                 for (remoteTab in remoteTabs) {
                     try {
-                        // Skip tabs with empty URLs
-                        if (remoteTab.url.isBlank()) {
-                            Log.d(TAG, "Skipping tab with empty URL")
-                            continue
-                        }
-
                         // Skip tabs pending deletion locally
-                        if (pendingDeletionUrls.contains(remoteTab.url) ||
-                            tabRepository.wasRecentlyDeleted(remoteTab.url)
-                        ) {
-                            Log.d(
-                                TAG,
-                                "Skipping tab ${remoteTab.url} as it's pending deletion locally or recently deleted"
-                            )
+                        if (pendingDeletionUrls.contains(remoteTab.url)) {
+                            Log.d(TAG, "Skipping tab ${remoteTab.url} as it's pending deletion locally")
                             continue
                         }
 
@@ -564,16 +499,12 @@ class UserSyncManager @Inject constructor(
                             tabRepository.updateTabFromDto(remoteTab, userId)
                             Log.d(TAG, "Updated local tab from server: ${remoteTab.url}")
                         } else {
-                            Log.d(
-                                TAG,
-                                "Local tab ${remoteTab.url} has pending changes. Skipping update."
-                            )
+                            Log.d(TAG, "Local tab ${remoteTab.url} has pending changes. Skipping update.")
                         }
                     } catch (e: Exception) {
                         Log.e(TAG, "Error processing remote tab ${remoteTab.url}: ${e.message}")
                     }
                 }
-                Log.d(TAG, "Completed pulling remote tabs")
             } catch (e: Exception) {
                 Log.e(TAG, "Error pulling remote tabs: ${e.message}")
                 throw e
