@@ -375,6 +375,8 @@ class UserSyncManager @Inject constructor(
                 for (tab in pendingDeletes) {
                     if (tab.userId != userId) continue
 
+                    Log.d(TAG, "Tab pending deletion with URL: ${tab.url}, serverId: ${tab.serverId}, userId: ${tab.userId}")
+
                     try {
                         // Extract original URL if needed
                         val originalUrl = if (tab.url.startsWith("PENDING_DELETE:")) {

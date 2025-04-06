@@ -268,7 +268,8 @@ class TabViewModel @Inject constructor(
                         tab = tab,
                         isUserSignedIn = isSignedIn,
                         accessToken = accessToken,
-                        deviceId = deviceId
+                        deviceId = deviceId,
+                        userId = userDataStore.userId.first()
                     )
 
                     // Trigger sync to clean up

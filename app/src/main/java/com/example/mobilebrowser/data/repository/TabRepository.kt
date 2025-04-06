@@ -111,7 +111,8 @@ class TabRepository @Inject constructor(
         tab: TabEntity,
         isUserSignedIn: Boolean,
         accessToken: String,
-        deviceId: String
+        deviceId: String,
+        userId: String
     ) {
         if (isUserSignedIn && tab.userId.isNotBlank()) {
             try {
@@ -125,7 +126,9 @@ class TabRepository @Inject constructor(
                     val shadowTab = tab.copy(
                         id = 0, // Reset ID to avoid primary key conflict
                         url = "PENDING_DELETE:" + tab.url,
-                        syncStatus = SyncStatus.PENDING_DELETE
+                        syncStatus = SyncStatus.PENDING_DELETE,
+                        serverId = tab.serverId,
+                        userId = userId
                     )
                     tabDao.insertTab(shadowTab)
                     tabDao.deleteTab(tab)
@@ -137,7 +140,9 @@ class TabRepository @Inject constructor(
                 val shadowTab = tab.copy(
                     id = 0,
                     url = "PENDING_DELETE:" + tab.url,
-                    syncStatus = SyncStatus.PENDING_DELETE
+                    syncStatus = SyncStatus.PENDING_DELETE,
+                    serverId = tab.serverId,
+                    userId = userId
                 )
                 tabDao.insertTab(shadowTab)
                 tabDao.deleteTab(tab)
