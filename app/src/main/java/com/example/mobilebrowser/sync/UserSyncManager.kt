@@ -368,7 +368,14 @@ class UserSyncManager @Inject constructor(
                 Log.d(TAG, "Found ${pendingDeletes.size} tabs pending deletion")
 
                 val allPendingUploads = tabRepository.getPendingUploads()
-                val pendingUploads = allPendingUploads.filter { it.title != "Loading..." }
+                val pendingUploads = allPendingUploads.filter {
+                    it.url.isNotBlank() &&
+                            it.title != "Loading..."
+//                            it.title != "New Tab"
+                }
+
+                Log.d(TAG, "Found ${pendingUploads.size} tabs pending upload (filtered from ${allPendingUploads.size})")
+
 
                 Log.d(TAG, "Found ${pendingUploads.size} tabs pending upload (filtered from ${allPendingUploads.size})")
 

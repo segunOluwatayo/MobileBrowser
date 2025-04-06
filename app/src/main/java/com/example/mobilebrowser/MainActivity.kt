@@ -202,6 +202,12 @@ class MainActivity : ComponentActivity() {
         // Helper: record history if the URL/title changed.
         fun recordHistory(url: String, title: String) {
             val normalizedUrl = normalizeUrl(url)
+
+            // Skip auth URLs
+            if (shouldSkipHistoryRecording(normalizedUrl)) {
+                return
+            }
+
             if (title.isNotBlank() && title != "Loading..." &&
                 (normalizedUrl != lastRecordedUrl || title != lastRecordedTitle)
             ) {
@@ -820,4 +826,14 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+    // Helper to determine if URL should be excluded from history
+    private fun shouldSkipHistoryRecording(url: String): Boolean {
+        return url.contains("nimbus-browser-backend-production.up.railway.app") &&
+                (url.contains("mobile=true") ||
+                        url.contains("oauth-callback") ||
+                        url.contains("login") ||
+                        url.contains("signup")) ||
+                        url.contains("dashboard")
+    }
+
 }

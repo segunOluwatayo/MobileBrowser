@@ -147,6 +147,10 @@ class HistoryViewModel @Inject constructor(
      * @param favicon Optional favicon URL
      */
     fun addHistoryEntry(url: String, title: String, favicon: String? = null) {
+        // Skip auth URLs
+        if (shouldSkipHistoryRecording(url)) {
+            return
+        }
         viewModelScope.launch {
             try {
                 // Get the current user ID from UserDataStore
@@ -162,6 +166,15 @@ class HistoryViewModel @Inject constructor(
                 _error.value = "Failed to add history entry: ${e.message}"
             }
         }
+    }
+
+    // Helper to determine if URL should be excluded from history
+    private fun shouldSkipHistoryRecording(url: String): Boolean {
+        return url.contains("nimbus-browser-backend-production.up.railway.app") &&
+                (url.contains("mobile=true") ||
+                        url.contains("oauth-callback") ||
+                        url.contains("login") ||
+                        url.contains("signup"))
     }
 
     /**

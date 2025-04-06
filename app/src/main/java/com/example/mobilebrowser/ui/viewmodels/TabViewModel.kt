@@ -174,7 +174,7 @@ class TabViewModel @Inject constructor(
             tabDao.deactivateAllTabs()
 
             // Only set PENDING_UPLOAD if it's not a loading title
-            val syncStatus = if (title != "Loading...") {
+            val syncStatus = if (title != "Loading..." && url.isNotBlank()) {
                 SyncStatus.PENDING_UPLOAD
             } else {
                 SyncStatus.SYNCED  // Don't mark for sync yet
