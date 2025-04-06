@@ -28,6 +28,7 @@ import android.view.View
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 import com.example.mobilebrowser.data.service.AuthService
+import com.example.mobilebrowser.worker.SyncWorker
 import javax.inject.Inject
 
 // Enum to track which overlay screen is active
@@ -59,6 +60,7 @@ class MainActivity : ComponentActivity() {
         }
         // Schedule the dynamic shortcut worker
         DynamicShortcutWorker.schedule(this)
+        SyncWorker.schedule(this)
 
         // Handle deep link if the activity was launched from one
         handleIncomingIntent(intent)

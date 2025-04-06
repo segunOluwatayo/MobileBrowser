@@ -140,10 +140,23 @@ import java.util.Date
 import javax.inject.Inject
 import javax.inject.Singleton
 
+//sealed class SyncStatusState {
+//    object Idle : SyncStatusState()
+//    object Syncing : SyncStatusState()
+//    object Synced : SyncStatusState()
+//    data class Error(val message: String) : SyncStatusState()
+//}
 sealed class SyncStatusState {
+    /** No sync activity in progress */
     object Idle : SyncStatusState()
+
+    /** Sync is currently in progress */
     object Syncing : SyncStatusState()
+
+    /** Data has been successfully synchronized */
     object Synced : SyncStatusState()
+
+    /** An error occurred during synchronization */
     data class Error(val message: String) : SyncStatusState()
 }
 

@@ -198,7 +198,7 @@ class InitialSyncManager @Inject constructor(
     /**
      * Pulls history entries from the remote server and updates the local database.
      */
-    private suspend fun pullRemoteHistory(token: String) {
+    suspend fun pullRemoteHistory(token: String) {
         try {
             Log.d(TAG, "Pulling remote history from server")
             val response: ApiResponse<List<HistoryDto>> = historyApiService.getHistory("Bearer $token")
@@ -261,7 +261,7 @@ class InitialSyncManager @Inject constructor(
     /**
      * Pulls bookmark entries from the remote server and updates the local database.
      */
-    private suspend fun pullRemoteBookmarks(token: String) {
+    suspend fun pullRemoteBookmarks(token: String) {
         try {
             Log.d(TAG, "Pulling remote bookmarks from server")
             val response: ApiResponse<List<BookmarkDto>> = bookmarkApiService.getAllBookmarks("Bearer $token")
@@ -474,7 +474,7 @@ class InitialSyncManager @Inject constructor(
     /**
      * Pulls tabs from the remote server.
      */
-    private suspend fun pullRemoteTabs(token: String, userId: String) {
+    suspend fun pullRemoteTabs(token: String, userId: String) {
         withContext(Dispatchers.IO) {
             try {
                 Log.d(TAG, "Pulling remote tabs from server")

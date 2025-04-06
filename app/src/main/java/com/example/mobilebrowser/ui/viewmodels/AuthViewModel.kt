@@ -1,5 +1,7 @@
 package com.example.mobilebrowser.ui.viewmodels
 
+import android.content.Context
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.mobilebrowser.data.service.AuthService
@@ -7,7 +9,10 @@ import com.example.mobilebrowser.data.util.UserDataStore
 import com.example.mobilebrowser.sync.InitialSyncManager
 import com.example.mobilebrowser.sync.SyncStatusState
 import com.example.mobilebrowser.sync.UserSyncManager
+import com.example.mobilebrowser.worker.SyncWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -22,7 +27,8 @@ class AuthViewModel @Inject constructor(
     private val authService: AuthService,
     private val userDataStore: UserDataStore,
     private val userSyncManager: UserSyncManager,
-    private val initialSyncManager: InitialSyncManager
+    private val initialSyncManager: InitialSyncManager,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     // Expose authentication state from datastore.
@@ -119,6 +125,70 @@ class AuthViewModel @Inject constructor(
     }
 
     /**
+     * Manually triggers a sync operation.
+     * This complements the automatic background sync.
+     */
+    fun performManualSync() {
+        viewModelScope.launch {
+            _syncStatus.value = SyncStatusState.Syncing
+            try {
+                // Get authentication data
+                val isSignedIn = userDataStore.isSignedIn.first()
+                if (!isSignedIn) {
+                    _errorMessage.value = "Cannot sync: User not signed in"
+                    _syncStatus.value = SyncStatusState.Error("User not signed in")
+                    return@launch
+                }
+
+                val accessToken = userDataStore.accessToken.first()
+                val deviceId = userDataStore.deviceId.first().ifEmpty { "android-device" }
+                val userId = userDataStore.userId.first()
+
+                if (accessToken.isBlank() || userId.isBlank()) {
+                    _errorMessage.value = "Cannot sync: Missing authentication data"
+                    _syncStatus.value = SyncStatusState.Error("Missing authentication data")
+                    return@launch
+                }
+
+                // Perform sync operations with progress updates
+                Log.d("AuthViewModel", "Starting manual sync")
+
+                // Push local changes to server
+                userSyncManager.pushLocalChanges(accessToken, deviceId, userId)
+
+                // Add small delay to make sync feel more substantial
+                delay(300)
+
+                userSyncManager.pushLocalBookmarkChanges(accessToken, deviceId, userId)
+
+                delay(300)
+
+                userSyncManager.pushLocalTabChanges(accessToken, deviceId, userId)
+
+                // Pull remote changes - this is done only in manual sync, not background sync
+                delay(300)
+                initialSyncManager.pullRemoteHistory(accessToken)
+                delay(300)
+                initialSyncManager.pullRemoteBookmarks(accessToken)
+                delay(300)
+                initialSyncManager.pullRemoteTabs(accessToken, userId)
+
+                // Update sync status and timestamp
+                _syncStatus.value = SyncStatusState.Synced
+                _lastSyncTimestamp.value = System.currentTimeMillis()
+                Log.d("AuthViewModel", "Manual sync completed successfully")
+
+                // Clear any previous error
+                _errorMessage.value = null
+            } catch (e: Exception) {
+                Log.e("AuthViewModel", "Manual sync failed: ${e.message}", e)
+                _syncStatus.value = SyncStatusState.Error(e.message ?: "Unknown error during sync")
+                _errorMessage.value = "Sync failed: ${e.message}"
+            }
+        }
+    }
+
+    /**
      * Initiates the sign in process.
      */
     fun signIn() {
@@ -132,6 +202,8 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
             try {
+                // Cancel background sync when signing out
+                SyncWorker.cancel(context)
                 userDataStore.clearUserAuthData()
                 authService.signOut()
             } catch (e: Exception) {
@@ -184,6 +256,10 @@ class AuthViewModel @Inject constructor(
                         email = email ?: "",
                         deviceId = deviceId
                     )
+
+                    // Schedule background sync worker after successful sign in
+                    SyncWorker.schedule(context)
+
                     // After saving the auth data, trigger the initial sync.
                     performInitialSync()
                 } else {

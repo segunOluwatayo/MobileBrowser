@@ -17,6 +17,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.mobilebrowser.sync.SyncStatusState
+import com.example.mobilebrowser.ui.composables.SyncStatusIndicator
 import com.example.mobilebrowser.ui.viewmodels.AuthViewModel
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -121,30 +122,36 @@ fun AuthSettingsScreen(
                         Spacer(modifier = Modifier.height(16.dp))
 
                         // Sync status section with actual data.
-                        Column(
+//                        Column(
+//                            modifier = Modifier.fillMaxWidth()
+//                        ) {
+//                            Text(
+//                                text = when (syncStatus) {
+//                                    is SyncStatusState.Idle -> "Sync Status: Idle"
+//                                    is SyncStatusState.Syncing -> "Sync Status: Syncing..."
+//                                    is SyncStatusState.Synced -> "Sync Status: Synced"
+//                                    is SyncStatusState.Error -> "Sync Status: Error"
+//                                },
+//                                style = MaterialTheme.typography.bodyMedium
+//                            )
+//                            Text(
+//                                text = lastSyncText,
+//                                style = MaterialTheme.typography.bodySmall,
+//                                color = MaterialTheme.colorScheme.onSurfaceVariant
+//                            )
+//                            OutlinedButton(
+//                                onClick = { viewModel.performInitialSync() },
+//                                modifier = Modifier.padding(top = 8.dp)
+//                            ) {
+//                                Text("Sync Now")
+//                            }
+//                        }
+                        SyncStatusIndicator(
+                            syncStatus = syncStatus,
+                            lastSyncTimestamp = lastSyncTimestamp,
+                            onSyncClicked = { viewModel.performManualSync() },
                             modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = when (syncStatus) {
-                                    is SyncStatusState.Idle -> "Sync Status: Idle"
-                                    is SyncStatusState.Syncing -> "Sync Status: Syncing..."
-                                    is SyncStatusState.Synced -> "Sync Status: Synced"
-                                    is SyncStatusState.Error -> "Sync Status: Error"
-                                },
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                            Text(
-                                text = lastSyncText,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            OutlinedButton(
-                                onClick = { viewModel.performInitialSync() },
-                                modifier = Modifier.padding(top = 8.dp)
-                            ) {
-                                Text("Sync Now")
-                            }
-                        }
+                        )
 
                         Spacer(modifier = Modifier.height(16.dp))
 
