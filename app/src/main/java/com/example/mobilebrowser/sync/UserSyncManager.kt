@@ -122,12 +122,15 @@ package com.example.mobilebrowser.sync
 import android.util.Log
 import com.example.mobilebrowser.api.BookmarkApiService
 import com.example.mobilebrowser.api.HistoryApiService
+import com.example.mobilebrowser.api.TabApiService
+import com.example.mobilebrowser.data.dao.TabDao
 import com.example.mobilebrowser.data.dto.ApiResponse
 import com.example.mobilebrowser.data.dto.BookmarkDto
 import com.example.mobilebrowser.data.dto.HistoryDto
 import com.example.mobilebrowser.data.entity.SyncStatus
 import com.example.mobilebrowser.data.repository.BookmarkRepository
 import com.example.mobilebrowser.data.repository.HistoryRepository
+import com.example.mobilebrowser.data.repository.TabRepository
 import com.example.mobilebrowser.data.repository.toDto
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -149,7 +152,10 @@ class UserSyncManager @Inject constructor(
     private val historyApiService: HistoryApiService,
     // Bookmark dependencies
     private val bookmarkRepository: BookmarkRepository,
-    private val bookmarkApiService: BookmarkApiService
+    private val bookmarkApiService: BookmarkApiService,
+    private val tabRepository: TabRepository,
+    private val tabDao: TabDao,
+    private val tabApiService: TabApiService
 ) {
     private val TAG = "UserSyncManager"
 
@@ -352,6 +358,162 @@ class UserSyncManager @Inject constructor(
     }
 
     /**
+     * Pushes all local tab changes to the server.
+     */
+    suspend fun pushLocalTabChanges(accessToken: String, deviceId: String, userId: String) {
+        withContext(Dispatchers.IO) {
+            // Handle tabs pending deletion
+            try {
+                val pendingDeletes = tabRepository.getPendingDeletes()
+                Log.d(TAG, "Found ${pendingDeletes.size} tabs pending deletion")
+
+                for (tab in pendingDeletes) {
+                    if (tab.userId != userId) continue
+
+                    try {
+                        // Extract original URL if needed
+                        val originalUrl = if (tab.url.startsWith("PENDING_DELETE:")) {
+                            tab.url.removePrefix("PENDING_DELETE:")
+                        } else {
+                            tab.url
+                        }
+
+                        var deletedFromServer = false
+
+                        if (!tab.serverId.isNullOrEmpty()) {
+                            // If we have server ID, delete by ID
+                            try {
+                                tabApiService.deleteTab(
+                                    authorization = "Bearer $accessToken",
+                                    id = tab.serverId
+                                )
+                                deletedFromServer = true
+                                Log.d(TAG, "Successfully deleted tab from server by ID: ${tab.serverId}")
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Failed to delete tab by ID: ${e.message}")
+                            }
+                        }
+
+                        if (!deletedFromServer) {
+                            // If no server ID or deletion failed, try to find by URL
+                            try {
+                                val response = tabApiService.getAllTabs("Bearer $accessToken")
+                                val matchingTab = response.data.find { it.url == originalUrl }
+
+                                if (matchingTab?.id != null) {
+                                    tabApiService.deleteTab(
+                                        authorization = "Bearer $accessToken",
+                                        id = matchingTab.id
+                                    )
+                                    deletedFromServer = true
+                                    Log.d(TAG, "Successfully deleted tab by URL lookup: $originalUrl")
+                                } else {
+                                    // If not found, consider it deleted
+                                    deletedFromServer = true
+                                    Log.d(TAG, "No matching tab found on server for URL: $originalUrl")
+                                }
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error finding/deleting tab by URL: ${e.message}")
+                            }
+                        }
+
+                        // Remove local shadow entry if successful
+                        if (deletedFromServer) {
+                            tabRepository.deleteTab(tab)
+                            Log.d(TAG, "Removed local shadow entry for deleted tab: ${tab.url}")
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error processing tab deletion: ${e.message}")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error handling tab pending deletions: ${e.message}")
+            }
+
+            // Handle tabs pending upload
+            try {
+                val pendingUploads = tabRepository.getPendingUploads()
+                Log.d(TAG, "Found ${pendingUploads.size} tabs pending upload")
+
+                for (tab in pendingUploads) {
+                    if (tab.userId != userId) continue
+
+                    try {
+                        val dto = tab.toDto(userId, deviceId)
+                        Log.d(TAG, "Pushing tab to server: ${tab.url}")
+
+                        val response = tabApiService.addTab(
+                            authorization = "Bearer $accessToken",
+                            tab = dto
+                        )
+
+                        val serverId = response.data.id
+                        tabRepository.markAsSynced(tab, serverId)
+                        Log.d(TAG, "Successfully uploaded tab: ${tab.url}")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error uploading tab ${tab.url}: ${e.message}")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error handling tab pending uploads: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Pulls remote tabs from the server and updates the local database.
+     */
+    suspend fun pullRemoteTabs(accessToken: String, userId: String) {
+        withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "Pulling remote tabs from server")
+                val response = tabApiService.getAllTabs("Bearer $accessToken")
+                val remoteTabs = response.data
+                Log.d(TAG, "Received ${remoteTabs.size} tabs from server")
+
+                // Get local tabs pending deletion to avoid re-adding
+                val pendingDeletions = tabRepository.getPendingDeletes()
+                val pendingDeletionUrls = pendingDeletions.map {
+                    if (it.url.startsWith("PENDING_DELETE:")) {
+                        it.url.removePrefix("PENDING_DELETE:")
+                    } else {
+                        it.url
+                    }
+                }
+
+                for (remoteTab in remoteTabs) {
+                    try {
+                        // Skip tabs pending deletion locally
+                        if (pendingDeletionUrls.contains(remoteTab.url)) {
+                            Log.d(TAG, "Skipping tab ${remoteTab.url} as it's pending deletion locally")
+                            continue
+                        }
+
+                        val localTab = tabDao.getTabByUrl(remoteTab.url)
+                        if (localTab == null) {
+                            // Insert new tab from server
+                            tabRepository.insertTabFromDto(remoteTab, userId)
+                            Log.d(TAG, "Inserted new tab from server: ${remoteTab.url}")
+                        } else if (localTab.syncStatus != SyncStatus.PENDING_UPLOAD) {
+                            // Update existing tab if remote is newer
+                            tabRepository.updateTabFromDto(remoteTab, userId)
+                            Log.d(TAG, "Updated local tab from server: ${remoteTab.url}")
+                        } else {
+                            Log.d(TAG, "Local tab ${remoteTab.url} has pending changes. Skipping update.")
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error processing remote tab ${remoteTab.url}: ${e.message}")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error pulling remote tabs: ${e.message}")
+                throw e
+            }
+        }
+    }
+}
+
+    /**
      * Pulls remote bookmarks from the server and updates the local database.
      * Inserts new bookmarks or updates existing ones if the remote data is newer.
      */
@@ -409,5 +571,5 @@ class UserSyncManager @Inject constructor(
 //            }
 //        }
 //    }
-}
+
 

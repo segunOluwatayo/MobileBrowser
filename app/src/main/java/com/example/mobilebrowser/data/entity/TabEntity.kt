@@ -34,5 +34,9 @@ data class TabEntity(
     val closedAt: Date? = null,
 
     // New thumbnail field to store the thumbnail URI/path
-    val thumbnail: String? = null
+    val thumbnail: String? = null,
+
+    val userId: String = "", // User ID for ownership
+    val serverId: String? = null, // Server-assigned ID after sync
+    val syncStatus: SyncStatus = SyncStatus.PENDING_UPLOAD // Sync state
 )

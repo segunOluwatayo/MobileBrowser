@@ -97,4 +97,16 @@ interface TabDao {
      */
     @Query("UPDATE tabs SET closedAt = :closedAt WHERE closedAt IS NULL AND createdAt < :threshold")
     suspend fun markOpenTabsOlderThan(threshold: Date, closedAt: Date)
+
+    /**
+     * Get all tabs as a List (not a Flow) for sync operations.
+     */
+    @Query("SELECT * FROM tabs ORDER BY position ASC")
+    suspend fun getAllTabsAsList(): List<TabEntity>
+
+    /**
+     * Get a tab by its URL.
+     */
+    @Query("SELECT * FROM tabs WHERE url = :url LIMIT 1")
+    suspend fun getTabByUrl(url: String): TabEntity?
 }

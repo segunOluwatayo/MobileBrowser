@@ -10,11 +10,16 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import com.example.mobilebrowser.data.dao.TabDao
+import com.example.mobilebrowser.data.entity.SyncStatus
 import com.example.mobilebrowser.data.entity.TabEntity
 import com.example.mobilebrowser.data.repository.BookmarkRepository
 import com.example.mobilebrowser.data.repository.TabRepository
 import com.example.mobilebrowser.data.util.DataStoreManager
 import com.example.mobilebrowser.data.util.ThumbnailUtil
+import com.example.mobilebrowser.data.util.UserDataStore
+import com.example.mobilebrowser.sync.SyncStatusState
+import com.example.mobilebrowser.sync.UserSyncManager
 import com.example.mobilebrowser.worker.TabAutoCloseWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -33,6 +38,9 @@ import javax.inject.Inject
 class TabViewModel @Inject constructor(
     private val repository: TabRepository,
     private val bookmarkRepository: BookmarkRepository,
+    private val userDataStore: UserDataStore,
+    private val userSyncManager: UserSyncManager,
+    private val tabDao: TabDao,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
     // Initialization state
@@ -93,6 +101,52 @@ class TabViewModel @Inject constructor(
         }
     }
 
+    // Sync status state flow to provide UI feedback
+    private val _syncStatus = MutableStateFlow<SyncStatusState>(SyncStatusState.Idle)
+    val syncStatus: StateFlow<SyncStatusState> = _syncStatus
+
+    // Last sync timestamp
+    private val _lastSyncTimestamp = MutableStateFlow<Long?>(null)
+    val lastSyncTimestamp: StateFlow<Long?> = _lastSyncTimestamp.asStateFlow()
+
+    /**
+     * Triggers manual synchronization for tabs.
+     */
+    fun triggerTabSync() {
+        viewModelScope.launch {
+            _syncStatus.value = SyncStatusState.Syncing
+            try {
+                // Get authentication data
+                val isSignedIn = userDataStore.isSignedIn.first()
+                if (!isSignedIn) {
+                    _syncStatus.value = SyncStatusState.Error("User not signed in")
+                    return@launch
+                }
+
+                val accessToken = userDataStore.accessToken.first()
+                val deviceId = userDataStore.deviceId.first().ifEmpty { "android-device" }
+                val userId = userDataStore.userId.first()
+
+                if (accessToken.isBlank() || userId.isBlank()) {
+                    _syncStatus.value = SyncStatusState.Error("Missing authentication data")
+                    return@launch
+                }
+
+                // Sync tabs
+                userSyncManager.pushLocalTabChanges(accessToken, deviceId, userId)
+                userSyncManager.pullRemoteTabs(accessToken, userId)
+
+                // Update status
+                _syncStatus.value = SyncStatusState.Synced
+                _lastSyncTimestamp.value = System.currentTimeMillis()
+            } catch (e: Exception) {
+                _syncStatus.value = SyncStatusState.Error(e.message ?: "Unknown error during sync")
+                Log.e("TabViewModel", "Sync failed: ${e.message}")
+            }
+        }
+    }
+
+
     private fun initializeDefaultTab() {
         viewModelScope.launch {
             try {
@@ -112,9 +166,32 @@ class TabViewModel @Inject constructor(
 
     suspend fun createTab(url: String = "", title: String = "New Tab"): Long {
         return try {
-            val newTabId = repository.createTab(url, title, tabCount.value)
-            Log.d("TabViewModel", "Created new tab with ID: $newTabId, URL: $url, Title: $title")
-            newTabId
+            // Get user ID if signed in
+            val isSignedIn = userDataStore.isSignedIn.first()
+            val userId = if (isSignedIn) userDataStore.userId.first() else ""
+
+            // Deactivate existing tabs
+            tabDao.deactivateAllTabs()
+
+            // Create tab with user ID
+            val tab = TabEntity(
+                url = url,
+                title = title,
+                position = tabCount.value,
+                isActive = true,
+                userId = userId,
+                syncStatus = SyncStatus.PENDING_UPLOAD
+            )
+
+            val tabId = tabDao.insertTab(tab)
+            Log.d("TabViewModel", "Created new tab with ID: $tabId, URL: $url, Title: $title")
+
+            // Trigger sync if user is signed in
+            if (isSignedIn) {
+                triggerTabSync()
+            }
+
+            tabId
         } catch (e: Exception) {
             Log.e("TabViewModel", "Failed to create tab: ${e.message}", e)
             throw e
@@ -163,6 +240,27 @@ class TabViewModel @Inject constructor(
     fun closeTab(tab: TabEntity) {
         viewModelScope.launch {
             try {
+                // Check if user is signed in
+                val isSignedIn = userDataStore.isSignedIn.first()
+
+                if (isSignedIn) {
+                    val accessToken = userDataStore.accessToken.first()
+                    val deviceId = userDataStore.deviceId.first().ifEmpty { "android-device" }
+
+                    // Delete with server sync
+                    repository.deleteTabImmediate(
+                        tab = tab,
+                        isUserSignedIn = isSignedIn,
+                        accessToken = accessToken,
+                        deviceId = deviceId
+                    )
+
+                    // Trigger sync to clean up
+                    triggerTabSync()
+                } else {
+                    // Just delete locally
+                    repository.deleteTab(tab)
+                }
                 // Retrieve the current policy (e.g., "MANUAL", "ONE_DAY", etc.)
                 val policy = currentTabPolicy.value
 
