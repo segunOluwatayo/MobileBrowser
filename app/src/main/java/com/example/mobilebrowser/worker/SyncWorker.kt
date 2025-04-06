@@ -28,6 +28,7 @@ class SyncWorker @AssistedInject constructor(
 
     override suspend fun doWork(): Result {
         try {
+            Log.d(TAG, "SyncWorker doWork() called at ${System.currentTimeMillis()}")
             // Check if user is signed in
             val isSignedIn = userDataStore.isSignedIn.first()
             if (!isSignedIn) {

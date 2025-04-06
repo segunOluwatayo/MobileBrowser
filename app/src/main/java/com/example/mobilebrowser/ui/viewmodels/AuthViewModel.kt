@@ -109,6 +109,8 @@ class AuthViewModel @Inject constructor(
                 val syncBookmarks = userDataStore.syncBookmarksEnabled.first()
                 val syncTabs = userDataStore.syncTabsEnabled.first()
 
+                updateSyncStatus(SyncStatusState.Synced)
+
                 // Use InitialSyncManager to perform first-time sync with preferences
                 initialSyncManager.performInitialSync(
                     syncHistory = syncHistory,
@@ -271,5 +273,13 @@ class AuthViewModel @Inject constructor(
      */
     fun clearError() {
         _errorMessage.value = null
+    }
+
+    // Create a centralized way to update sync status in AuthViewModel
+    private fun updateSyncStatus(status: SyncStatusState) {
+        _syncStatus.value = status
+        if (status is SyncStatusState.Synced) {
+            _lastSyncTimestamp.value = System.currentTimeMillis()
+        }
     }
 }
