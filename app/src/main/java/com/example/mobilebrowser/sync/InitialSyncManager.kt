@@ -346,8 +346,9 @@ class InitialSyncManager @Inject constructor(
     }
 
     /**
-     * Pulls tabs from the remote server.
-     */
+    * Pulls tabs from the remote server.
+    * Enhanced to respect recently deleted tabs.
+    */
     private suspend fun pullRemoteTabs(token: String, userId: String) {
         try {
             Log.d(TAG, "Pulling remote tabs from server")
@@ -373,9 +374,10 @@ class InitialSyncManager @Inject constructor(
                         return@forEach
                     }
 
-                    // Skip tabs pending deletion locally
-                    if (pendingDeletionUrls.contains(remoteTab.url)) {
-                        Log.d(TAG, "Skipping tab ${remoteTab.url} as it's pending deletion locally")
+                    // Skip tabs pending deletion locally or recently deleted
+                    if (pendingDeletionUrls.contains(remoteTab.url) ||
+                        tabRepository.wasRecentlyDeleted(remoteTab.url)) {
+                        Log.d(TAG, "Skipping tab ${remoteTab.url} as it's pending deletion or recently deleted locally")
                         return@forEach
                     }
 
@@ -387,8 +389,7 @@ class InitialSyncManager @Inject constructor(
                         tabRepository.updateTabFromDto(remoteTab, userId)
                         Log.d(TAG, "Updated local tab from server: ${remoteTab.url}")
                     } else {
-                        tabRepository.updateTabFromDto(remoteTab, userId)
-                        Log.d(TAG, "Local tab ${remoteTab.url} has pending changes. Skipping update.")
+                        Log.d(TAG, "Local tab ${remoteTab.url} has pending changes. Keeping local version.")
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error processing remote tab ${remoteTab.url}: ${e.message}")

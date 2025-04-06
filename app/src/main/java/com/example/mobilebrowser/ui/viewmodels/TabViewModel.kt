@@ -240,6 +240,8 @@ class TabViewModel @Inject constructor(
     fun closeTab(tab: TabEntity) {
         viewModelScope.launch {
             try {
+                Log.d("TabViewModel", "Closing tab: ${tab.id}, URL: ${tab.url}")
+
                 // Check if user is signed in
                 val isSignedIn = userDataStore.isSignedIn.first()
 
@@ -256,30 +258,41 @@ class TabViewModel @Inject constructor(
                     )
 
                     // Trigger sync to clean up
-                    triggerTabSync()
+                    // Don't pull tabs right after deletion to avoid re-adding
+                    // Just push the deletion to server
+                    viewModelScope.launch {
+                        try {
+                            val userId = userDataStore.userId.first()
+                            userSyncManager.pushLocalTabChanges(accessToken, deviceId, userId)
+                            Log.d("TabViewModel", "Deletion sync complete for tab ${tab.id}")
+                        } catch (e: Exception) {
+                            Log.e("TabViewModel", "Error during tab deletion sync: ${e.message}")
+                        }
+                    }
                 } else {
-                    // Just delete locally
+                    // Just delete locally for non-signed in users
                     repository.deleteTab(tab)
+                    Log.d("TabViewModel", "Deleted local tab (anonymous user): ${tab.url}")
                 }
-                // Retrieve the current policy (e.g., "MANUAL", "ONE_DAY", etc.)
+
+                // Retrieve the current policy
                 val policy = currentTabPolicy.value
 
-                if (policy == "MANUAL") {
-                    // Delete the tab immediately.
-                    repository.deleteTab(tab)
-                } else {
-                    // Mark the tab as closed by setting the closedAt timestamp.
+                // For MANUAL policy, we already deleted the tab above, so nothing to do
+                // For other policies, mark the tab as closed instead of deleting
+                if (policy != "MANUAL") {
                     repository.markTabAsClosed(tab.id, Date())
+                    Log.d("TabViewModel", "Marked tab ${tab.id} as closed according to policy: $policy")
                 }
 
-                Log.d("TabViewModel", "Closed tab: ${tab.id}")
-
-                // If no open tabs remain, create a new one.
-                if (tabCount.value == 0) {
-//                    createTab()
+                // If no open tabs remain, create a new one
+                if (tabCount.value <= 1) { // <= 1 because we're in the process of closing one tab
+                    Log.d("TabViewModel", "Creating new tab as we're closing the last one")
+                    createTab()
                 }
             } catch (e: Exception) {
-                Log.e("TabViewModel", "Failed to close tab: ${e.message}")
+                Log.e("TabViewModel", "Failed to close tab: ${e.message}", e)
+                _error.value = "Failed to close tab: ${e.message}"
             }
         }
     }

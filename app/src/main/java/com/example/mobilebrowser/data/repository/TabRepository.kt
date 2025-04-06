@@ -20,6 +20,9 @@ class TabRepository @Inject constructor(
     private val tabDao: TabDao,
     private val tabApiService: TabApiService
 ) {
+    // Keep track of recently deleted tab URLs to prevent re-adding them
+    private val recentlyDeletedUrls = mutableSetOf<String>()
+
     /**
      * Gets all tabs ordered by position
      */
@@ -60,7 +63,32 @@ class TabRepository @Inject constructor(
     /**
      * Deletes a specific tab
      */
-    suspend fun deleteTab(tab: TabEntity) = tabDao.deleteTab(tab)
+    suspend fun deleteTab(tab: TabEntity) {
+        // Add to recently deleted set to prevent immediate re-adding during sync
+        recentlyDeletedUrls.add(tab.url)
+
+        tabDao.deleteTab(tab)
+
+        // Cleanup the set after some time to prevent memory leaks
+        if (recentlyDeletedUrls.size > 100) {
+            recentlyDeletedUrls.clear()
+        }
+    }
+
+    /**
+     * Clears the recently deleted URLs tracking set
+     */
+    fun clearRecentlyDeletedUrls() {
+        recentlyDeletedUrls.clear()
+    }
+
+    /**
+     * Checks if a URL was recently deleted
+     */
+    fun wasRecentlyDeleted(url: String): Boolean {
+        return recentlyDeletedUrls.contains(url) ||
+                recentlyDeletedUrls.contains("PENDING_DELETE:$url")
+    }
 
     /**
      * Deletes all tabs
@@ -113,6 +141,9 @@ class TabRepository @Inject constructor(
         accessToken: String,
         deviceId: String
     ) {
+        // Always add to recently deleted set
+        recentlyDeletedUrls.add(tab.url)
+
         if (isUserSignedIn && tab.userId.isNotBlank()) {
             try {
                 // If we have a server ID, try to delete directly on server
@@ -120,6 +151,7 @@ class TabRepository @Inject constructor(
                     tabApiService.deleteTab("Bearer $accessToken", tab.serverId)
                     // Success! Remove locally
                     tabDao.deleteTab(tab)
+                    Log.d("TabRepository", "Successfully deleted tab from server: ${tab.url}")
                 } else {
                     // No server ID, create a shadow entry and delete the original
                     val shadowTab = tab.copy(
@@ -129,6 +161,11 @@ class TabRepository @Inject constructor(
                     )
                     tabDao.insertTab(shadowTab)
                     tabDao.deleteTab(tab)
+
+                    // Add the shadow URL to recently deleted set as well
+                    recentlyDeletedUrls.add(shadowTab.url)
+
+                    Log.d("TabRepository", "Created shadow entry for deletion: ${shadowTab.url}")
                 }
             } catch (e: Exception) {
                 Log.e("TabRepository", "Error deleting tab from server: ${e.message}", e)
@@ -141,10 +178,16 @@ class TabRepository @Inject constructor(
                 )
                 tabDao.insertTab(shadowTab)
                 tabDao.deleteTab(tab)
+
+                // Add the shadow URL to recently deleted set as well
+                recentlyDeletedUrls.add(shadowTab.url)
+
+                Log.e("TabRepository", "Created shadow entry after error: ${shadowTab.url}")
             }
         } else {
             // For anonymous users, just delete locally
             tabDao.deleteTab(tab)
+            Log.d("TabRepository", "Deleted local tab (anonymous user): ${tab.url}")
         }
     }
 
@@ -152,6 +195,12 @@ class TabRepository @Inject constructor(
      * Update the TabEntity from a TabDto received from the server.
      */
     suspend fun updateTabFromDto(remote: TabDto, userId: String) {
+        // Skip if this URL was recently deleted locally
+        if (wasRecentlyDeleted(remote.url)) {
+            Log.d("TabRepository", "Skipping update for recently deleted tab: ${remote.url}")
+            return
+        }
+
         val localTab = tabDao.getTabByUrl(remote.url)
         if (localTab != null) {
             // Handle null timestamp when comparing dates
@@ -173,6 +222,9 @@ class TabRepository @Inject constructor(
                     syncStatus = SyncStatus.SYNCED
                 )
                 tabDao.updateTab(updatedTab)
+                Log.d("TabRepository", "Updated tab from DTO: ${remote.url}")
+            } else {
+                Log.d("TabRepository", "Remote tab not newer than local, skipping update: ${remote.url}")
             }
         }
     }
@@ -181,6 +233,12 @@ class TabRepository @Inject constructor(
      * Insert a new tab from a TabDto received from the server.
      */
     suspend fun insertTabFromDto(remote: TabDto, userId: String): Long {
+        // Skip if this URL was recently deleted locally
+        if (wasRecentlyDeleted(remote.url)) {
+            Log.d("TabRepository", "Skipping insertion of recently deleted tab: ${remote.url}")
+            return -1L
+        }
+
         // Use current timestamp if remote timestamp is null
         val currentTime = Date()
 
@@ -191,7 +249,7 @@ class TabRepository @Inject constructor(
 
             // IMPORTANT: Handle null timestamps
             lastVisited = remote.timestamp ?: currentTime,
-            createdAt = remote.timestamp ?: currentTime, // This fixes the null parameter error
+            createdAt = remote.timestamp ?: currentTime,
 
             serverId = remote.id,
             syncStatus = SyncStatus.SYNCED,
@@ -200,7 +258,9 @@ class TabRepository @Inject constructor(
             isActive = false,
             position = 0
         )
-        return tabDao.insertTab(newTab)
+        val insertedId = tabDao.insertTab(newTab)
+        Log.d("TabRepository", "Inserted new tab from DTO: ${remote.url}, ID: $insertedId")
+        return insertedId
     }
 
     /**
