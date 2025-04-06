@@ -32,6 +32,16 @@ class UserDataStore @Inject constructor(
         val USER_EMAIL_KEY = stringPreferencesKey("user_email")
         val IS_SIGNED_IN_KEY = booleanPreferencesKey("is_signed_in")
         val DEVICE_ID_KEY = stringPreferencesKey("device_id")
+
+        // New keys for sync preferences
+        val SYNC_HISTORY_ENABLED_KEY = booleanPreferencesKey("sync_history_enabled")
+        val SYNC_BOOKMARKS_ENABLED_KEY = booleanPreferencesKey("sync_bookmarks_enabled")
+        val SYNC_TABS_ENABLED_KEY = booleanPreferencesKey("sync_tabs_enabled")
+
+        // Default sync settings (all enabled by default)
+        const val DEFAULT_SYNC_HISTORY_ENABLED = true
+        const val DEFAULT_SYNC_BOOKMARKS_ENABLED = true
+        const val DEFAULT_SYNC_TABS_ENABLED = true
     }
 
     // Expose authentication state as a Flow.
@@ -99,7 +109,7 @@ class UserDataStore @Inject constructor(
             preferences[REFRESH_TOKEN_KEY] ?: ""
         }
 
-    // NEW: Expose the user ID.
+    // Expose the user ID.
     val userId: Flow<String> = dataStore.data
         .catch { exception ->
             if (exception is IOException) {
@@ -112,7 +122,7 @@ class UserDataStore @Inject constructor(
             preferences[USER_ID_KEY] ?: ""
         }
 
-    // NEW: Expose the device ID.
+    // Expose the device ID.
     val deviceId: Flow<String> = dataStore.data
         .catch { exception ->
             if (exception is IOException) {
@@ -123,6 +133,47 @@ class UserDataStore @Inject constructor(
         }
         .map { preferences ->
             preferences[DEVICE_ID_KEY] ?: ""
+        }
+
+    // New flows for sync preferences
+
+    // History sync preference
+    val syncHistoryEnabled: Flow<Boolean> = dataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                emit(androidx.datastore.preferences.core.emptyPreferences())
+            } else {
+                throw exception
+            }
+        }
+        .map { preferences ->
+            preferences[SYNC_HISTORY_ENABLED_KEY] ?: DEFAULT_SYNC_HISTORY_ENABLED
+        }
+
+    // Bookmarks sync preference
+    val syncBookmarksEnabled: Flow<Boolean> = dataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                emit(androidx.datastore.preferences.core.emptyPreferences())
+            } else {
+                throw exception
+            }
+        }
+        .map { preferences ->
+            preferences[SYNC_BOOKMARKS_ENABLED_KEY] ?: DEFAULT_SYNC_BOOKMARKS_ENABLED
+        }
+
+    // Tabs sync preference
+    val syncTabsEnabled: Flow<Boolean> = dataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                emit(androidx.datastore.preferences.core.emptyPreferences())
+            } else {
+                throw exception
+            }
+        }
+        .map { preferences ->
+            preferences[SYNC_TABS_ENABLED_KEY] ?: DEFAULT_SYNC_TABS_ENABLED
         }
 
     // Save user authentication data.
@@ -157,6 +208,29 @@ class UserDataStore @Inject constructor(
             preferences[USER_EMAIL_KEY] = ""
             preferences[IS_SIGNED_IN_KEY] = false
             // Optionally keep device ID for analytics or future sign-ins.
+        }
+    }
+
+    // Methods to update sync preferences
+
+    // Update history sync preference
+    suspend fun updateSyncHistoryEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[SYNC_HISTORY_ENABLED_KEY] = enabled
+        }
+    }
+
+    // Update bookmarks sync preference
+    suspend fun updateSyncBookmarksEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[SYNC_BOOKMARKS_ENABLED_KEY] = enabled
+        }
+    }
+
+    // Update tabs sync preference
+    suspend fun updateSyncTabsEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[SYNC_TABS_ENABLED_KEY] = enabled
         }
     }
 }

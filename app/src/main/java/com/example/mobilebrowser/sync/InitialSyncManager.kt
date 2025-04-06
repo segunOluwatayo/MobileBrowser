@@ -34,12 +34,21 @@ class InitialSyncManager @Inject constructor(
     private val TAG = "InitialSyncManager"
 
     /**
-     * Performs a complete initial synchronization of all data types.
+     * Performs a complete initial synchronization of all data types based on sync preferences.
      * This should be called after successful authentication.
+     *
+     * @param syncHistory Whether to sync browser history
+     * @param syncBookmarks Whether to sync bookmarks
+     * @param syncTabs Whether to sync open tabs
      */
-    suspend fun performInitialSync() {
+    suspend fun performInitialSync(
+        syncHistory: Boolean = true,
+        syncBookmarks: Boolean = true,
+        syncTabs: Boolean = true
+    ) {
         try {
-            Log.d(TAG, "Starting initial sync process")
+            Log.d(TAG, "Starting initial sync process with preferences - " +
+                    "History: $syncHistory, Bookmarks: $syncBookmarks, Tabs: $syncTabs")
 
             // Get authentication credentials
             val accessToken = userDataStore.accessToken.first()
@@ -54,49 +63,77 @@ class InitialSyncManager @Inject constructor(
             Log.d(TAG, "Auth credentials obtained. UserID: $userId, DeviceID: $deviceId")
 
             try {
-                // First try to pull remote data
+                // First try to pull remote data based on preferences
                 Log.d(TAG, "Starting with pull operations to populate local database")
 
-                // Pull remote bookmark data first
-                Log.d(TAG, "Pulling remote bookmarks first...")
-                pullRemoteBookmarks(accessToken)
+                // Pull remote bookmark data if enabled
+                if (syncBookmarks) {
+                    Log.d(TAG, "Pulling remote bookmarks...")
+                    pullRemoteBookmarks(accessToken)
+                } else {
+                    Log.d(TAG, "Skipping bookmark pull (disabled in preferences)")
+                }
 
-                // Pull remote history data
-                Log.d(TAG, "Pulling remote history...")
-                pullRemoteHistory(accessToken)
+                // Pull remote history data if enabled
+                if (syncHistory) {
+                    Log.d(TAG, "Pulling remote history...")
+                    pullRemoteHistory(accessToken)
+                } else {
+                    Log.d(TAG, "Skipping history pull (disabled in preferences)")
+                }
 
-                // Pull tabs
-                Log.d(TAG, "Pulling remote tabs...")
-                pullRemoteTabs(accessToken, userId)
+                // Pull tabs if enabled
+                if (syncTabs) {
+                    Log.d(TAG, "Pulling remote tabs...")
+                    pullRemoteTabs(accessToken, userId)
+                } else {
+                    Log.d(TAG, "Skipping tabs pull (disabled in preferences)")
+                }
 
-                // Push tabs
-                Log.d(TAG, "Pushing pending tabs...")
-                pushPendingTabs(accessToken, deviceId, userId)
+                // Now push any pending changes based on preferences
+                Log.d(TAG, "Now pushing local changes based on sync preferences")
 
-                // Now push any pending changes
-                Log.d(TAG, "Now pushing any pending local changes")
+                // Push tabs if enabled
+                if (syncTabs) {
+                    Log.d(TAG, "Pushing pending tabs...")
+                    pushPendingTabs(accessToken, deviceId, userId)
+                } else {
+                    Log.d(TAG, "Skipping tabs push (disabled in preferences)")
+                }
 
-                // Push pending changes for bookmarks
-                Log.d(TAG, "Pushing pending bookmarks...")
-                pushPendingBookmarks(accessToken, deviceId, userId)
+                // Push pending changes for bookmarks if enabled
+                if (syncBookmarks) {
+                    Log.d(TAG, "Pushing pending bookmarks...")
+                    pushPendingBookmarks(accessToken, deviceId, userId)
+                } else {
+                    Log.d(TAG, "Skipping bookmarks push (disabled in preferences)")
+                }
 
-                // Push pending changes for history
-                Log.d(TAG, "Pushing pending history...")
-                pushPendingHistory(accessToken, deviceId, userId)
+                // Push pending changes for history if enabled
+                if (syncHistory) {
+                    Log.d(TAG, "Pushing pending history...")
+                    pushPendingHistory(accessToken, deviceId, userId)
+                } else {
+                    Log.d(TAG, "Skipping history push (disabled in preferences)")
+                }
 
                 Log.d(TAG, "Initial sync completed successfully")
             } catch (e: Exception) {
                 Log.e(TAG, "Error during specific sync operation: ${e.message}", e)
 
-                // Try each operation individually to maximize chances of partial success
+                // Try each enabled operation individually to maximize chances of partial success
                 try {
-                    pullRemoteBookmarks(accessToken)
+                    if (syncBookmarks) {
+                        pullRemoteBookmarks(accessToken)
+                    }
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to pull remote bookmarks: ${e.message}", e)
                 }
 
                 try {
-                    pullRemoteHistory(accessToken)
+                    if (syncHistory) {
+                        pullRemoteHistory(accessToken)
+                    }
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to pull remote history: ${e.message}", e)
                 }
@@ -107,6 +144,24 @@ class InitialSyncManager @Inject constructor(
             Log.e(TAG, "Initial sync failed: ${e.message}", e)
             throw e
         }
+    }
+
+    /**
+     * Overloaded method that reads sync preferences from UserDataStore.
+     * This provides backward compatibility with existing code.
+     */
+    suspend fun performInitialSync() {
+        // Read sync preferences from UserDataStore
+        val syncHistory = userDataStore.syncHistoryEnabled.first()
+        val syncBookmarks = userDataStore.syncBookmarksEnabled.first()
+        val syncTabs = userDataStore.syncTabsEnabled.first()
+
+        // Call the main implementation with these preferences
+        performInitialSync(
+            syncHistory = syncHistory,
+            syncBookmarks = syncBookmarks,
+            syncTabs = syncTabs
+        )
     }
 
     /**
@@ -206,8 +261,6 @@ class InitialSyncManager @Inject constructor(
     /**
      * Pulls bookmark entries from the remote server and updates the local database.
      */
-    // Update this method in your InitialSyncManager.kt file
-
     private suspend fun pullRemoteBookmarks(token: String) {
         try {
             Log.d(TAG, "Pulling remote bookmarks from server")
@@ -318,24 +371,97 @@ class InitialSyncManager @Inject constructor(
     private suspend fun pushPendingTabs(token: String, deviceId: String, userId: String) {
         try {
             Log.d(TAG, "Pushing pending tabs to server")
-            val pendingTabs = tabRepository.getPendingUploads()
-            Log.d(TAG, "Found ${pendingTabs.size} pending tabs to upload")
+            val pendingDeletes = tabRepository.getPendingDeletes()
+            Log.d(TAG, "Found ${pendingDeletes.size} tabs pending deletion")
 
-            if (pendingTabs.isEmpty()) {
-                Log.d(TAG, "No pending tabs to push")
-                return
+            val allPendingUploads = tabRepository.getPendingUploads()
+            val pendingUploads = allPendingUploads.filter {
+                it.url.isNotBlank() &&
+                        it.title != "Loading..."
             }
 
-            pendingTabs.forEach { tab ->
+            Log.d(TAG, "Found ${pendingUploads.size} tabs pending upload (filtered from ${allPendingUploads.size})")
+
+            for (tab in pendingDeletes) {
+                if (tab.userId != userId) continue
+
+                Log.d(TAG, "Tab pending deletion with URL: ${tab.url}, serverId: ${tab.serverId}, userId: ${tab.userId}")
+
+                try {
+                    // Extract original URL if needed
+                    val originalUrl = if (tab.url.startsWith("PENDING_DELETE:")) {
+                        tab.url.removePrefix("PENDING_DELETE:")
+                    } else {
+                        tab.url
+                    }
+
+                    var deletedFromServer = false
+
+                    if (!tab.serverId.isNullOrEmpty()) {
+                        // If we have server ID, delete by ID
+                        try {
+                            tabApiService.deleteTab(
+                                authorization = "Bearer $token",
+                                id = tab.serverId
+                            )
+                            deletedFromServer = true
+                            Log.d(TAG, "Successfully deleted tab from server by ID: ${tab.serverId}")
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to delete tab by ID: ${e.message}")
+                        }
+                    }
+
+                    if (!deletedFromServer) {
+                        // If no server ID or deletion failed, try to find by URL
+                        try {
+                            val response = tabApiService.getAllTabs("Bearer $token")
+                            val matchingTab = response.data.find { it.url == originalUrl }
+
+                            if (matchingTab?.id != null) {
+                                tabApiService.deleteTab(
+                                    authorization = "Bearer $token",
+                                    id = matchingTab.id
+                                )
+                                deletedFromServer = true
+                                Log.d(TAG, "Successfully deleted tab by URL lookup: $originalUrl")
+                            } else {
+                                // If not found, consider it deleted
+                                deletedFromServer = true
+                                Log.d(TAG, "No matching tab found on server for URL: $originalUrl")
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error finding/deleting tab by URL: ${e.message}")
+                        }
+                    }
+
+                    // Remove local shadow entry if successful
+                    if (deletedFromServer) {
+                        tabRepository.deleteTab(tab)
+                        Log.d(TAG, "Removed local shadow entry for deleted tab: ${tab.url}")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error processing tab deletion: ${e.message}")
+                }
+            }
+
+            // Handle tabs pending upload
+            for (tab in pendingUploads) {
+                if (tab.userId != userId) continue
+
                 try {
                     val dto = tab.toDto(userId, deviceId)
-                    Log.d(TAG, "Pushing tab: $dto")
-                    val response = tabApiService.addTab("Bearer $token", dto)
+                    Log.d(TAG, "Pushing tab to server: ${tab.url}")
+
+                    val response = tabApiService.addTab(
+                        authorization = "Bearer $token",
+                        tab = dto
+                    )
+
                     val serverId = response.data.id
                     tabRepository.markAsSynced(tab, serverId)
-                    Log.d(TAG, "Successfully synced tab: ${tab.url}")
+                    Log.d(TAG, "Successfully uploaded tab: ${tab.url}")
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to sync tab ${tab.url}: ${e.message}")
+                    Log.e(TAG, "Error uploading tab ${tab.url}: ${e.message}")
                 }
             }
             Log.d(TAG, "Completed pushing pending tabs")
@@ -349,56 +475,58 @@ class InitialSyncManager @Inject constructor(
      * Pulls tabs from the remote server.
      */
     private suspend fun pullRemoteTabs(token: String, userId: String) {
-        try {
-            Log.d(TAG, "Pulling remote tabs from server")
-            val response = tabApiService.getAllTabs("Bearer $token")
-            val remoteTabs = response.data
-            Log.d(TAG, "Received ${remoteTabs.size} tab entries from server")
+        withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "Pulling remote tabs from server")
+                val response = tabApiService.getAllTabs("Bearer $token")
+                val remoteTabs = response.data
+                Log.d(TAG, "Received ${remoteTabs.size} tab entries from server")
 
-            // Get tabs pending deletion to avoid re-adding
-            val pendingDeletions = tabRepository.getPendingDeletes()
-            val pendingDeletionUrls = pendingDeletions.map {
-                if (it.url.startsWith("PENDING_DELETE:")) {
-                    it.url.removePrefix("PENDING_DELETE:")
-                } else {
-                    it.url
-                }
-            }
-
-            remoteTabs.forEach { remoteTab ->
-                try {
-                    // Skip entries with empty URLs
-                    if (remoteTab.url.isBlank()) {
-                        Log.d(TAG, "Skipping tab with empty URL")
-                        return@forEach
-                    }
-
-                    // Skip tabs pending deletion locally
-                    if (pendingDeletionUrls.contains(remoteTab.url)) {
-                        Log.d(TAG, "Skipping tab ${remoteTab.url} as it's pending deletion locally")
-                        return@forEach
-                    }
-
-                    val localTab = tabDao.getTabByUrl(remoteTab.url)
-                    if (localTab == null) {
-                        tabRepository.insertTabFromDto(remoteTab, userId)
-                        Log.d(TAG, "Added new tab from server: ${remoteTab.url}")
-                    } else if (localTab.syncStatus != SyncStatus.PENDING_UPLOAD) {
-                        tabRepository.updateTabFromDto(remoteTab, userId)
-                        Log.d(TAG, "Updated local tab from server: ${remoteTab.url}")
+                // Get tabs pending deletion to avoid re-adding
+                val pendingDeletions = tabRepository.getPendingDeletes()
+                val pendingDeletionUrls = pendingDeletions.map {
+                    if (it.url.startsWith("PENDING_DELETE:")) {
+                        it.url.removePrefix("PENDING_DELETE:")
                     } else {
-                        tabRepository.updateTabFromDto(remoteTab, userId)
-                        Log.d(TAG, "Local tab ${remoteTab.url} has pending changes. Skipping update.")
+                        it.url
                     }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error processing remote tab ${remoteTab.url}: ${e.message}")
-                    e.printStackTrace()
                 }
+
+                remoteTabs.forEach { remoteTab ->
+                    try {
+                        // Skip entries with empty URLs
+                        if (remoteTab.url.isBlank()) {
+                            Log.d(TAG, "Skipping tab with empty URL")
+                            return@forEach
+                        }
+
+                        // Skip tabs pending deletion locally
+                        if (pendingDeletionUrls.contains(remoteTab.url)) {
+                            Log.d(TAG, "Skipping tab ${remoteTab.url} as it's pending deletion locally")
+                            return@forEach
+                        }
+
+                        val localTab = tabDao.getTabByUrl(remoteTab.url)
+                        if (localTab == null) {
+                            tabRepository.insertTabFromDto(remoteTab, userId)
+                            Log.d(TAG, "Added new tab from server: ${remoteTab.url}")
+                        } else if (localTab.syncStatus != SyncStatus.PENDING_UPLOAD) {
+                            tabRepository.updateTabFromDto(remoteTab, userId)
+                            Log.d(TAG, "Updated local tab from server: ${remoteTab.url}")
+                        } else {
+                            tabRepository.updateTabFromDto(remoteTab, userId)
+                            Log.d(TAG, "Local tab ${remoteTab.url} has pending changes. Skipping update.")
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error processing remote tab ${remoteTab.url}: ${e.message}")
+                        e.printStackTrace()
+                    }
+                }
+                Log.d(TAG, "Completed pulling remote tabs")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error pulling remote tabs: ${e.message}")
+                throw e
             }
-            Log.d(TAG, "Completed pulling remote tabs")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error pulling remote tabs: ${e.message}")
-            throw e
         }
     }
 }

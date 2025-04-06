@@ -37,6 +37,16 @@ class AuthViewModel @Inject constructor(
     val userEmail: StateFlow<String> = userDataStore.userEmail
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
 
+    // Expose sync preferences
+    val syncHistoryEnabled: StateFlow<Boolean> = userDataStore.syncHistoryEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UserDataStore.DEFAULT_SYNC_HISTORY_ENABLED)
+
+    val syncBookmarksEnabled: StateFlow<Boolean> = userDataStore.syncBookmarksEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UserDataStore.DEFAULT_SYNC_BOOKMARKS_ENABLED)
+
+    val syncTabsEnabled: StateFlow<Boolean> = userDataStore.syncTabsEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UserDataStore.DEFAULT_SYNC_TABS_ENABLED)
+
     // Expose sync status.
     private val _syncStatus = MutableStateFlow<SyncStatusState>(SyncStatusState.Idle)
     val syncStatus: StateFlow<SyncStatusState> = _syncStatus.asStateFlow()
@@ -54,15 +64,52 @@ class AuthViewModel @Inject constructor(
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     /**
+     * Updates the history sync preference.
+     */
+    fun updateSyncHistoryEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            userDataStore.updateSyncHistoryEnabled(enabled)
+        }
+    }
+
+    /**
+     * Updates the bookmarks sync preference.
+     */
+    fun updateSyncBookmarksEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            userDataStore.updateSyncBookmarksEnabled(enabled)
+        }
+    }
+
+    /**
+     * Updates the tabs sync preference.
+     */
+    fun updateSyncTabsEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            userDataStore.updateSyncTabsEnabled(enabled)
+        }
+    }
+
+    /**
      * Initiates an initial sync operation after a successful login.
-     * It now uses InitialSyncManager to perform the sync.
+     * It now uses InitialSyncManager to perform the sync and respects sync preferences.
      */
     fun performInitialSync() {
         viewModelScope.launch {
             _syncStatus.value = SyncStatusState.Syncing
             try {
-                // Use InitialSyncManager to perform first-time sync.
-                initialSyncManager.performInitialSync()
+                // Collect sync preferences
+                val syncHistory = userDataStore.syncHistoryEnabled.first()
+                val syncBookmarks = userDataStore.syncBookmarksEnabled.first()
+                val syncTabs = userDataStore.syncTabsEnabled.first()
+
+                // Use InitialSyncManager to perform first-time sync with preferences
+                initialSyncManager.performInitialSync(
+                    syncHistory = syncHistory,
+                    syncBookmarks = syncBookmarks,
+                    syncTabs = syncTabs
+                )
+
                 _syncStatus.value = SyncStatusState.Synced
                 _lastSyncTimestamp.value = System.currentTimeMillis()
             } catch (e: Exception) {

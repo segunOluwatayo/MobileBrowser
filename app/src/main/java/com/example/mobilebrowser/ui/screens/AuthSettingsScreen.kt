@@ -2,14 +2,13 @@ package com.example.mobilebrowser.ui.screens
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Dashboard
-import androidx.compose.material.icons.filled.Login
-import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,9 +36,15 @@ fun AuthSettingsScreen(
     val syncStatus by viewModel.syncStatus.collectAsState()
     val lastSyncTimestamp by viewModel.lastSyncTimestamp.collectAsState()
 
+    // Sync preferences
+    val syncHistory by viewModel.syncHistoryEnabled.collectAsState()
+    val syncBookmarks by viewModel.syncBookmarksEnabled.collectAsState()
+    val syncTabs by viewModel.syncTabsEnabled.collectAsState()
+
     var showSignOutDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     var isLoading by remember { mutableStateOf(false) }
+    val scrollState = rememberScrollState()
 
     // Format the last sync timestamp into a readable string.
     val lastSyncText = lastSyncTimestamp?.let { timestamp ->
@@ -64,6 +69,7 @@ fun AuthSettingsScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(16.dp)
+                .verticalScroll(scrollState)
         ) {
             if (isSignedIn) {
                 Card(
@@ -137,6 +143,114 @@ fun AuthSettingsScreen(
                                 modifier = Modifier.padding(top = 8.dp)
                             ) {
                                 Text("Sync Now")
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // New section: What to sync
+                        Column(
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "What to sync",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // History sync toggle
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.History,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(16.dp))
+                                    Text(
+                                        text = "History",
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
+                                }
+                                Switch(
+                                    checked = syncHistory,
+                                    onCheckedChange = {
+                                        viewModel.updateSyncHistoryEnabled(it)
+                                    }
+                                )
+                            }
+
+                            // Bookmarks sync toggle
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Bookmarks,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(16.dp))
+                                    Text(
+                                        text = "Bookmarks",
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
+                                }
+                                Switch(
+                                    checked = syncBookmarks,
+                                    onCheckedChange = {
+                                        viewModel.updateSyncBookmarksEnabled(it)
+                                    }
+                                )
+                            }
+
+                            // Open tabs sync toggle
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Tab,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(16.dp))
+                                    Text(
+                                        text = "Open Tabs",
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
+                                }
+                                Switch(
+                                    checked = syncTabs,
+                                    onCheckedChange = {
+                                        viewModel.updateSyncTabsEnabled(it)
+                                    }
+                                )
                             }
                         }
 
