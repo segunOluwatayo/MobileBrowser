@@ -48,9 +48,7 @@ class SyncWorker @AssistedInject constructor(
             Log.d(TAG, "Starting automatic background sync")
 
             // Perform sync operations - push local changes to server
-            userSyncManager.pushLocalChanges(accessToken, deviceId, userId)
-            userSyncManager.pushLocalBookmarkChanges(accessToken, deviceId, userId)
-            userSyncManager.pushLocalTabChanges(accessToken, deviceId, userId)
+            userSyncManager.performSync(accessToken, deviceId, userId)
 
             // Only push local changes in background sync to avoid conflicts
             // with any active editing the user might be doing
