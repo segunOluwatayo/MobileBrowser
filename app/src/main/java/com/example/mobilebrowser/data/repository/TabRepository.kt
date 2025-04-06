@@ -154,20 +154,22 @@ class TabRepository @Inject constructor(
     suspend fun updateTabFromDto(remote: TabDto, userId: String) {
         val localTab = tabDao.getTabByUrl(remote.url)
         if (localTab != null) {
-            // Handle null timestamp when comparing dates
+            // Determine if we should update based on timestamp
             val shouldUpdate = if (remote.timestamp != null && localTab.lastVisited != null) {
                 remote.timestamp.after(localTab.lastVisited)
             } else {
-                // If either timestamp is null, default to updating
-                // This ensures data sync even with missing timestamps
                 true
             }
-
             if (shouldUpdate) {
-                val currentTime = Date() // Current time for defaults
+                val currentTime = Date()
+                // Only update the title if the remote title is not "Loading..."
+                val updatedTitle = if (!remote.title.isNullOrBlank() && remote.title != "Loading...") {
+                    remote.title
+                } else {
+                    localTab.title
+                }
                 val updatedTab = localTab.copy(
-                    title = remote.title ?: localTab.title,
-                    // Use current time if remote timestamp is null
+                    title = updatedTitle,
                     lastVisited = remote.timestamp ?: currentTime,
                     serverId = remote.id,
                     syncStatus = SyncStatus.SYNCED

@@ -226,7 +226,8 @@ class TabViewModel @Inject constructor(
                         tab.copy(
                             url = url,
                             title = title,
-                            lastVisited = Date()
+                            lastVisited = Date(),
+                            syncStatus = SyncStatus.PENDING_UPLOAD
                         )
                     )
                     Log.d("TabViewModel", "Updated tab content - URL: $url, Title: $title")
