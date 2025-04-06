@@ -144,44 +144,37 @@ class AuthViewModel @Inject constructor(
                 val deviceId = userDataStore.deviceId.first().ifEmpty { "android-device" }
                 val userId = userDataStore.userId.first()
 
-                if (accessToken.isBlank() || userId.isBlank()) {
-                    _errorMessage.value = "Cannot sync: Missing authentication data"
-                    _syncStatus.value = SyncStatusState.Error("Missing authentication data")
-                    return@launch
+                // Get sync preferences
+                val syncHistory = userDataStore.syncHistoryEnabled.first()
+                val syncBookmarks = userDataStore.syncBookmarksEnabled.first()
+                val syncTabs = userDataStore.syncTabsEnabled.first()
+
+                // Only sync what user has enabled
+                if (syncHistory) {
+                    userSyncManager.pushLocalChanges(accessToken, deviceId, userId)
+                    delay(300)
+                    initialSyncManager.pullRemoteHistory(accessToken)
                 }
 
-                // Perform sync operations with progress updates
-                Log.d("AuthViewModel", "Starting manual sync")
+                if (syncBookmarks) {
+                    userSyncManager.pushLocalBookmarkChanges(accessToken, deviceId, userId)
+                    delay(300)
+                    initialSyncManager.pullRemoteBookmarks(accessToken)
+                }
 
-                // Push local changes to server
-                userSyncManager.pushLocalChanges(accessToken, deviceId, userId)
-
-                // Add small delay to make sync feel more substantial
-                delay(300)
-
-                userSyncManager.pushLocalBookmarkChanges(accessToken, deviceId, userId)
-
-                delay(300)
-
-                userSyncManager.pushLocalTabChanges(accessToken, deviceId, userId)
-
-                // Pull remote changes - this is done only in manual sync, not background sync
-                delay(300)
-                initialSyncManager.pullRemoteHistory(accessToken)
-                delay(300)
-                initialSyncManager.pullRemoteBookmarks(accessToken)
-                delay(300)
-                initialSyncManager.pullRemoteTabs(accessToken, userId)
+                if (syncTabs) {
+                    userSyncManager.pushLocalTabChanges(accessToken, deviceId, userId)
+                    delay(300)
+                    initialSyncManager.pullRemoteTabs(accessToken, userId)
+                }
 
                 // Update sync status and timestamp
                 _syncStatus.value = SyncStatusState.Synced
                 _lastSyncTimestamp.value = System.currentTimeMillis()
-                Log.d("AuthViewModel", "Manual sync completed successfully")
 
                 // Clear any previous error
                 _errorMessage.value = null
             } catch (e: Exception) {
-                Log.e("AuthViewModel", "Manual sync failed: ${e.message}", e)
                 _syncStatus.value = SyncStatusState.Error(e.message ?: "Unknown error during sync")
                 _errorMessage.value = "Sync failed: ${e.message}"
             }
