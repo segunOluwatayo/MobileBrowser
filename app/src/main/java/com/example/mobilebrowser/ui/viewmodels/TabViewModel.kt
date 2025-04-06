@@ -173,21 +173,27 @@ class TabViewModel @Inject constructor(
             // Deactivate existing tabs
             tabDao.deactivateAllTabs()
 
-            // Create tab with user ID
+            // Only set PENDING_UPLOAD if it's not a loading title
+            val syncStatus = if (title != "Loading...") {
+                SyncStatus.PENDING_UPLOAD
+            } else {
+                SyncStatus.SYNCED  // Don't mark for sync yet
+            }
+
             val tab = TabEntity(
                 url = url,
                 title = title,
                 position = tabCount.value,
                 isActive = true,
                 userId = userId,
-                syncStatus = SyncStatus.PENDING_UPLOAD
+                syncStatus = syncStatus
             )
 
             val tabId = tabDao.insertTab(tab)
             Log.d("TabViewModel", "Created new tab with ID: $tabId, URL: $url, Title: $title")
 
-            // Trigger sync if user is signed in
-            if (isSignedIn) {
+            // Only trigger sync if not a loading tab
+            if (isSignedIn && title != "Loading...") {
                 triggerTabSync()
             }
 
@@ -222,15 +228,22 @@ class TabViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 activeTab.value?.let { tab ->
+                    // Only mark for sync if title is not "Loading..."
+                    val syncStatus = if (title != "Loading...") {
+                        SyncStatus.PENDING_UPLOAD
+                    } else {
+                        tab.syncStatus  // Keep existing sync status
+                    }
+
                     repository.updateTab(
                         tab.copy(
                             url = url,
                             title = title,
                             lastVisited = Date(),
-                            syncStatus = SyncStatus.PENDING_UPLOAD
+                            syncStatus = syncStatus
                         )
                     )
-                    Log.d("TabViewModel", "Updated tab content - URL: $url, Title: $title")
+                    Log.d("TabViewModel", "Updated tab content - URL: $url, Title: $title, SyncStatus: $syncStatus")
                 }
             } catch (e: Exception) {
                 Log.e("TabViewModel", "Failed to update tab content: ${e.message}")

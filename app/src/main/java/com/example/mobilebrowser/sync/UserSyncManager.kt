@@ -367,6 +367,11 @@ class UserSyncManager @Inject constructor(
                 val pendingDeletes = tabRepository.getPendingDeletes()
                 Log.d(TAG, "Found ${pendingDeletes.size} tabs pending deletion")
 
+                val allPendingUploads = tabRepository.getPendingUploads()
+                val pendingUploads = allPendingUploads.filter { it.title != "Loading..." }
+
+                Log.d(TAG, "Found ${pendingUploads.size} tabs pending upload (filtered from ${allPendingUploads.size})")
+
                 for (tab in pendingDeletes) {
                     if (tab.userId != userId) continue
 
