@@ -402,6 +402,62 @@ class MainActivity : ComponentActivity() {
                         request.dismiss()
                         return null
                     }
+
+                    override fun onLoginSelect(
+                        session: GeckoSession,
+                        request: GeckoSession.PromptDelegate.AutocompleteRequest<Autocomplete.LoginSelectOption>
+                    ): GeckoResult<GeckoSession.PromptDelegate.PromptResponse>? {
+                        val geckoResult = GeckoResult<GeckoSession.PromptDelegate.PromptResponse>()
+                        val currentDomain = extractDomain(currentUrl)
+
+                        lifecycleScope.launch {
+                            try {
+                                val credentials = passwordViewModel.getCredentialsForSite(currentUrl)
+                                if (credentials != null) {
+                                    // Build the login entry
+                                    val loginEntry = Autocomplete.LoginEntry.Builder()
+                                        .origin(currentDomain)
+                                        .username(credentials.username)
+                                        .password(passwordViewModel.getDecryptedPassword(credentials.encryptedPassword))
+                                        .build()
+
+                                    // Get one of the options from the request that we can modify
+                                    val options = request.options
+                                    if (options.isNotEmpty()) {
+                                        // Use the first option and update it with our credentials
+                                        val option = options[0]
+                                        geckoResult.complete(request.confirm(option))
+                                        Log.d("PasswordAutofill", "Credentials provided for $currentDomain")
+                                    } else {
+                                        Log.d("PasswordAutofill", "No options available in the request")
+                                        geckoResult.complete(request.dismiss())
+                                    }
+                                } else {
+                                    Log.d("PasswordAutofill", "No credentials found for $currentDomain")
+                                    geckoResult.complete(request.dismiss())
+                                }
+                            } catch (e: Exception) {
+                                Log.e("PasswordAutofill", "Error providing credentials: ${e.message}", e)
+                                geckoResult.complete(request.dismiss())
+                            }
+                        }
+
+                        return geckoResult
+                    }
+
+                    // Helper function to extract domain from URL
+                    private fun extractDomain(url: String): String {
+                        return try {
+                            val uri = java.net.URI(if (url.startsWith("http")) url else "https://$url")
+                            var domain = uri.host ?: return url
+                            if (domain.startsWith("www.")) {
+                                domain = domain.substring(4)
+                            }
+                            domain
+                        } catch (e: Exception) {
+                            url
+                        }
+                    }
                 }
 
 
