@@ -414,19 +414,26 @@ class MainActivity : ComponentActivity() {
                             try {
                                 val credentials = passwordViewModel.getCredentialsForSite(currentUrl)
                                 if (credentials != null) {
-                                    // Build the login entry
-                                    val loginEntry = Autocomplete.LoginEntry.Builder()
-                                        .origin(currentDomain)
-                                        .username(credentials.username)
-                                        .password(passwordViewModel.getDecryptedPassword(credentials.encryptedPassword))
-                                        .build()
-
-                                    // Get one of the options from the request that we can modify
+                                    // Get the decrypted password.
+                                    val decryptedPassword = passwordViewModel.getDecryptedPassword(credentials.encryptedPassword)
+                                    // Get options from the request.
                                     val options = request.options
                                     if (options.isNotEmpty()) {
-                                        // Use the first option and update it with our credentials
-                                        val option = options[0]
-                                        geckoResult.complete(request.confirm(option))
+                                        // (Optionally) retrieve the original option.
+                                        // val option = options[0]
+
+                                        // Create a new LoginEntry with our credentials.
+                                        val loginEntry = Autocomplete.LoginEntry.Builder()
+                                            .origin(currentDomain)
+                                            .username(credentials.username)
+                                            .password(decryptedPassword)
+                                            .build()
+
+                                        // Use the single-argument constructor.
+                                        val updatedOption = Autocomplete.LoginSelectOption(loginEntry)
+
+                                        // Confirm with the updated option.
+                                        geckoResult.complete(request.confirm(updatedOption))
                                         Log.d("PasswordAutofill", "Credentials provided for $currentDomain")
                                     } else {
                                         Log.d("PasswordAutofill", "No options available in the request")
@@ -441,7 +448,6 @@ class MainActivity : ComponentActivity() {
                                 geckoResult.complete(request.dismiss())
                             }
                         }
-
                         return geckoResult
                     }
 
