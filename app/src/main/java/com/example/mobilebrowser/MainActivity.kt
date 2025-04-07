@@ -358,34 +358,48 @@ class MainActivity : ComponentActivity() {
                         val originalOption = option?.value
 
                         if (originalOption != null && option != null) {
-                            val siteUrl = currentUrl  // Use your currentUrl state
+                            val siteUrl = currentUrl
 
-                            // Create an AtomicBoolean to track if the request has been handled
-                            val isHandled = AtomicBoolean(false)
+                            // Check if credentials already exist for this site
+                            lifecycleScope.launch {
+                                try {
+                                    val exists = passwordViewModel.passwordExistsForSite(siteUrl)
 
-                            pendingLogin = PendingLogin(
-                                siteUrl = siteUrl,
-                                username = originalOption.username,
-                                plainPassword = originalOption.password,
-                                confirm = { user, pass ->
-                                    // Only proceed if this is the first time handling this request
-                                    if (isHandled.compareAndSet(false, true)) {
-                                        passwordViewModel.addPassword(siteUrl, user, pass)
-                                        request.confirm(option)  // Pass the option, not originalOption
-                                        pendingLogin = null
-                                    }
-                                },
-                                dismiss = {
-                                    // Only proceed if this is the first time handling this request
-                                    if (isHandled.compareAndSet(false, true)) {
+                                    if (exists) {
+                                        // Password already exists, dismiss the save dialog
+                                        Log.d("MainActivity", "Credentials already exist for $siteUrl, dismissing save dialog")
                                         request.dismiss()
-                                        pendingLogin = null
+                                    } else {
+                                        // No password exists, show the save dialog
+                                        val isHandled = AtomicBoolean(false)
+
+                                        pendingLogin = PendingLogin(
+                                            siteUrl = siteUrl,
+                                            username = originalOption.username,
+                                            plainPassword = originalOption.password,
+                                            confirm = { user, pass ->
+                                                if (isHandled.compareAndSet(false, true)) {
+                                                    passwordViewModel.addPassword(siteUrl, user, pass)
+                                                    request.confirm(option)
+                                                    pendingLogin = null
+                                                }
+                                            },
+                                            dismiss = {
+                                                if (isHandled.compareAndSet(false, true)) {
+                                                    request.dismiss()
+                                                    pendingLogin = null
+                                                }
+                                            }
+                                        )
                                     }
+                                } catch (e: Exception) {
+                                    Log.e("MainActivity", "Error checking for existing credentials: ${e.message}")
+                                    request.dismiss()
                                 }
-                            )
-                        } else {
-                            request.dismiss()
+                            }
+                            return null
                         }
+                        request.dismiss()
                         return null
                     }
                 }

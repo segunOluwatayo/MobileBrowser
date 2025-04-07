@@ -4,6 +4,7 @@ import com.example.mobilebrowser.data.dao.PasswordDao
 import com.example.mobilebrowser.data.entity.PasswordEntity
 import com.example.mobilebrowser.data.util.EncryptionUtil
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -40,5 +41,31 @@ class PasswordRepository @Inject constructor(
     // Decrypt a stored password when needed (e.g., after successful authentication)
     suspend fun decryptPassword(encryptedPassword: String): String {
         return EncryptionUtil.decrypt(encryptedPassword)
+    }
+
+    suspend fun passwordExistsForSite(url: String): Boolean {
+        // Extract domain from URL to make matching more reliable
+        val domain = extractDomain(url)
+        return passwordDao.passwordExistsForSite("%$domain%")
+    }
+
+    private fun extractDomain(url: String): String {
+        return try {
+            val uri = java.net.URI(if (url.startsWith("http")) url else "https://$url")
+            var domain = uri.host ?: return url
+            if (domain.startsWith("www.")) {
+                domain = domain.substring(4)
+            }
+            domain
+        } catch (e: Exception) {
+            url
+        }
+    }
+
+    suspend fun getCredentialsForSite(url: String): PasswordEntity? {
+        val domain = extractDomain(url)
+        return passwordDao.getAllPasswords().first().find {
+            extractDomain(it.siteUrl) == domain
+        }
     }
 }

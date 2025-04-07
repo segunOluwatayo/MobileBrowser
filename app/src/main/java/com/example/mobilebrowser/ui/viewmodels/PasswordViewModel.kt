@@ -45,4 +45,12 @@ class PasswordViewModel @Inject constructor(
     suspend fun getDecryptedPassword(encryptedPassword: String): String {
         return passwordRepository.decryptPassword(encryptedPassword)
     }
+
+    suspend fun passwordExistsForSite(url: String): Boolean {
+        return passwordRepository.passwordExistsForSite(url)
+    }
+
+    suspend fun getCredentialsForSite(url: String): PasswordEntity? {
+        return passwordRepository.getCredentialsForSite(url)
+    }
 }

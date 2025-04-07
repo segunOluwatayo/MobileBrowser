@@ -17,4 +17,7 @@ interface PasswordDao {
 
     @Delete
     suspend fun deletePassword(passwordEntity: PasswordEntity)
+
+    @Query("SELECT EXISTS(SELECT 1 FROM passwords WHERE siteUrl LIKE :url)")
+    suspend fun passwordExistsForSite(url: String): Boolean
 }
