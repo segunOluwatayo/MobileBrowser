@@ -29,7 +29,11 @@ import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 import androidx.work.WorkManager
 import com.example.mobilebrowser.data.service.AuthService
+import com.example.mobilebrowser.ui.composables.PasswordSaveDialog
 import com.example.mobilebrowser.worker.SyncWorker
+import org.mozilla.geckoview.Autocomplete
+import org.mozilla.geckoview.GeckoResult
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 
 // Enum to track which overlay screen is active
@@ -136,6 +140,17 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun BrowserApp() {
+
+        data class PendingLogin(
+            val siteUrl: String,
+            val username: String,
+            val plainPassword: String,
+            val confirm: (String, String) -> Unit,
+            val dismiss: () -> Unit
+        )
+
+        var pendingLogin by remember { mutableStateOf<PendingLogin?>(null) }
+        val passwordViewModel: PasswordViewModel = hiltViewModel()
 
         val authSuccess by remember { authSuccessState }
         val needToClose by remember { needToCloseCurrentTab }
@@ -333,6 +348,49 @@ class MainActivity : ComponentActivity() {
                     onCanGoForward = { canGoForward = it },
                     downloadDelegate = geckoDownloadDelegate  // Pass the delegate
                 )
+
+                currentSession?.promptDelegate = object : GeckoSession.PromptDelegate {
+                    override fun onLoginSave(
+                        session: GeckoSession,
+                        request: GeckoSession.PromptDelegate.AutocompleteRequest<Autocomplete.LoginSaveOption>
+                    ): GeckoResult<GeckoSession.PromptDelegate.PromptResponse>? {
+                        val option = request.options.firstOrNull()
+                        val originalOption = option?.value
+
+                        if (originalOption != null && option != null) {
+                            val siteUrl = currentUrl  // Use your currentUrl state
+
+                            // Create an AtomicBoolean to track if the request has been handled
+                            val isHandled = AtomicBoolean(false)
+
+                            pendingLogin = PendingLogin(
+                                siteUrl = siteUrl,
+                                username = originalOption.username,
+                                plainPassword = originalOption.password,
+                                confirm = { user, pass ->
+                                    // Only proceed if this is the first time handling this request
+                                    if (isHandled.compareAndSet(false, true)) {
+                                        passwordViewModel.addPassword(siteUrl, user, pass)
+                                        request.confirm(option)  // Pass the option, not originalOption
+                                        pendingLogin = null
+                                    }
+                                },
+                                dismiss = {
+                                    // Only proceed if this is the first time handling this request
+                                    if (isHandled.compareAndSet(false, true)) {
+                                        request.dismiss()
+                                        pendingLogin = null
+                                    }
+                                }
+                            )
+                        } else {
+                            request.dismiss()
+                        }
+                        return null
+                    }
+                }
+
+
                 // Update UI state with the tab's stored URL and title.
                 if (isHomepageActive) {
                     currentUrl = ""
@@ -834,6 +892,18 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+        pendingLogin?.let { login ->
+            PasswordSaveDialog(
+                siteUrl = login.siteUrl,
+                username = login.username,
+                plainPassword = login.plainPassword,
+                onDismiss = { login.dismiss() },
+                onSave = { site, user, pass ->
+                    login.confirm(user, pass)
+                }
+            )
+        }
+
     }
     // Helper to determine if URL should be excluded from history
     private fun shouldSkipHistoryRecording(url: String): Boolean {
