@@ -8,8 +8,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.mobilebrowser.ui.composables.PasswordSection
+import com.example.mobilebrowser.ui.composables.EnhancedPasswordSection
 import com.example.mobilebrowser.ui.viewmodels.PasswordViewModel
+import com.example.mobilebrowser.util.BiometricAuthHelper
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,12 +35,8 @@ fun PasswordScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            PasswordSection(
+            EnhancedPasswordSection(
                 passwordViewModel = viewModel,
-                onRequestAuthentication = { password ->
-                    // Implement authentication logic here
-                    // For now, this could be a placeholder that simulates authentication
-                },
                 modifier = Modifier.fillMaxSize()
             )
         }
