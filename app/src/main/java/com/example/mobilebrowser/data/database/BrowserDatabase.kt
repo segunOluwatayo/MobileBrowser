@@ -10,10 +10,12 @@ import com.example.mobilebrowser.data.dao.DownloadDao
 import com.example.mobilebrowser.data.dao.HistoryDao
 import com.example.mobilebrowser.data.dao.ShortcutDao
 import com.example.mobilebrowser.data.dao.TabDao
+import com.example.mobilebrowser.data.dao.PasswordDao
 import com.example.mobilebrowser.data.entity.BookmarkEntity
 import com.example.mobilebrowser.data.entity.DownloadEntity
 import com.example.mobilebrowser.data.entity.HistoryEntity
 import com.example.mobilebrowser.data.entity.ShortcutEntity
+import com.example.mobilebrowser.data.entity.PasswordEntity
 import com.example.mobilebrowser.data.entity.TabEntity
 import com.example.mobilebrowser.data.util.Converters
 
@@ -22,8 +24,8 @@ import com.example.mobilebrowser.data.util.Converters
  * Manages both bookmarks and tabs data.
  */
 @Database(
-    entities = [BookmarkEntity::class, TabEntity::class, HistoryEntity::class, DownloadEntity::class, ShortcutEntity::class],
-    version = 13,
+    entities = [BookmarkEntity::class, TabEntity::class, HistoryEntity::class, DownloadEntity::class, ShortcutEntity::class, PasswordEntity::class],
+    version = 14,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -34,6 +36,7 @@ abstract class BrowserDatabase : RoomDatabase() {
     abstract fun historyDao(): HistoryDao
     abstract fun downloadDao(): DownloadDao
     abstract fun shortcutDao(): ShortcutDao
+    abstract fun passwordDao(): PasswordDao
 
 
     companion object {

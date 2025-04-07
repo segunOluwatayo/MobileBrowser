@@ -75,6 +75,7 @@ dependencies {
     implementation (libs.converter.gson)
     implementation (libs.logging.interceptor)
     implementation (libs.androidx.hilt.work)
+    implementation (libs.androidx.biometric)
 
     // Room
     implementation(libs.androidx.room.runtime)
