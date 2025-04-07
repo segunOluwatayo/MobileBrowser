@@ -35,7 +35,7 @@ import javax.inject.Inject
 // Enum to track which overlay screen is active
 enum class OverlayScreen {
     None, Tabs, Settings, Bookmarks, Downloads, History, SearchEngine,
-    TabManagement, ThemeSelection, HomepageSelection, BookmarkEdit, Account
+    TabManagement, ThemeSelection, HomepageSelection, BookmarkEdit, Account, Passwords
 }
 
 @AndroidEntryPoint
@@ -524,6 +524,7 @@ class MainActivity : ComponentActivity() {
                     onCanGoBackChange = { canGoBack = it },
                     onCanGoForwardChange = { canGoForward = it },
                     showDownloadConfirmationDialog = showDownloadConfirmationDialog,
+                    onShowPasswords = { currentOverlay = OverlayScreen.Passwords },
                     currentDownloadRequest = currentDownloadRequest,
                     onDismissDownloadConfirmationDialog = { showDownloadConfirmationDialog = false },
                     isOverlayActive = currentOverlay != OverlayScreen.None
@@ -775,6 +776,11 @@ class MainActivity : ComponentActivity() {
                                         }
                                     }
                                 }
+                            )
+                        }
+                        OverlayScreen.Passwords -> {
+                            PasswordScreen(
+                                onNavigateBack = { currentOverlay = OverlayScreen.None }
                             )
                         }
                         OverlayScreen.Account -> {

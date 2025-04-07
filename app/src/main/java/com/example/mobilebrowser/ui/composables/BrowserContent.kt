@@ -60,6 +60,7 @@ fun BrowserContent(
     onCloseAllTabs: () -> Unit,
     onShowDownloads: () -> Unit,
     onShowSettings: () -> Unit,
+    onShowPasswords: () -> Unit,
     showDownloadConfirmationDialog: Boolean,
     currentDownloadRequest: DownloadRequest?,
     onDismissDownloadConfirmationDialog: () -> Unit,
@@ -249,6 +250,7 @@ fun BrowserContent(
                     onShowHistory = onShowHistory,
                     onShowDownloads = onShowDownloads,
                     onShowSettings = onShowSettings,
+                    onShowPasswords = onShowPasswords,
                     focusRequester = focusRequester,
                     isHomepageActive = isHomepageActive,
                     onHomeClick = { onNavigate("") }
@@ -405,6 +407,7 @@ fun BrowserContent(
                     onShowHistory = onShowHistory,
                     onShowDownloads = onShowDownloads,
                     onShowSettings = onShowSettings,
+                    onShowPasswords = onShowPasswords,
                     focusRequester = focusRequester,
                     isHomepageActive = isHomepageActive,
                     onHomeClick = { onNavigate("") }

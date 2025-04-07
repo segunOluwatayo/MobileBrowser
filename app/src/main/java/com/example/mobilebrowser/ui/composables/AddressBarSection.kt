@@ -47,6 +47,7 @@ fun AddressBarSection(
     onShowHistory: () -> Unit,
     onShowDownloads: () -> Unit,
     onShowSettings: () -> Unit,
+    onShowPasswords: () -> Unit,
     focusRequester: FocusRequester,
     isHomepageActive: Boolean,
     onHomeClick: () -> Unit,
@@ -200,6 +201,16 @@ fun AddressBarSection(
                         },
                         leadingIcon = { Icon(Icons.Default.Download, contentDescription = null) }
                     )
+
+                    DropdownMenuItem(
+                        text = { Text("Passwords") },
+                        onClick = {
+                            onDismissOverflowMenu()
+                            onShowPasswords()
+                        },
+                        leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) }
+                    )
+
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                     DropdownMenuItem(
                         text = { Text("History") },
