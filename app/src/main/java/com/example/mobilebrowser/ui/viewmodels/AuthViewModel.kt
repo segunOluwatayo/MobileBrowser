@@ -120,6 +120,7 @@ class AuthViewModel @Inject constructor(
 
                 _syncStatus.value = SyncStatusState.Synced
                 _lastSyncTimestamp.value = System.currentTimeMillis()
+                SyncWorker.schedule(context)
             } catch (e: Exception) {
                 _syncStatus.value = SyncStatusState.Error(e.message ?: "Unknown error during sync")
             }

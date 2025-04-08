@@ -27,6 +27,7 @@ import org.mozilla.geckoview.GeckoSession
 import android.view.View
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.example.mobilebrowser.data.service.AuthService
 import com.example.mobilebrowser.ui.composables.PasswordSaveDialog
@@ -208,8 +209,29 @@ class MainActivity : ComponentActivity() {
 
                     // Activate the homepage
                     isHomepageActive = true
-                    currentUrl = ""
-                    currentPageTitle = "New Tab"
+//                    currentUrl = ""
+//                    currentPageTitle = "New Tab"
+                    scope.launch {
+                        try {
+                            // Trigger a one-time immediate sync via WorkManager
+                            val immediateSync = OneTimeWorkRequestBuilder<SyncWorker>()
+                                .addTag("immediate_post_login_sync")
+                                .build()
+
+                            WorkManager.getInstance(applicationContext).enqueue(immediateSync)
+
+                            Log.d("MainActivity", "Scheduled immediate sync after login")
+
+                            // Show success toast
+                            Toast.makeText(
+                                this@MainActivity,
+                                "Synchronization started",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        } catch (e: Exception) {
+                            Log.e("MainActivity", "Failed to start initial sync: ${e.message}", e)
+                        }
+                    }
                 }
             }
         }

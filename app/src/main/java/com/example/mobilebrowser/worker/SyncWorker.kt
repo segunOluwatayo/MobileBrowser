@@ -117,4 +117,27 @@ class SyncWorker @AssistedInject constructor(
             WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME)
         }
     }
+    /**
+     * Schedule an immediate one-time sync
+     * @param context Application context
+     */
+    fun scheduleImmediate(context: Context) {
+        Log.d(TAG, "Scheduling immediate one-time sync")
+
+        // Create constraints - only run when network is available
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+
+        // Create a one-time work request
+        val syncRequest = OneTimeWorkRequestBuilder<SyncWorker>()
+            .setConstraints(constraints)
+            .addTag("immediate_sync")
+            .build()
+
+        // Enqueue the work request
+        WorkManager.getInstance(context).enqueue(syncRequest)
+
+        Log.d(TAG, "Immediate sync scheduled")
+    }
 }
