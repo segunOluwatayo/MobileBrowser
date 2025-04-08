@@ -85,7 +85,8 @@ class GeckoSessionManager(private val context: Context) {
             Log.d(TAG, "URL changed to: $url")
 
             // First, check if this is an OAuth callback URL
-            if (url?.contains("oauth-callback") == true &&
+            if (url?.contains("nimbus-browser-backend-production.up.railway.app") == true &&
+                url.contains("oauth-callback") &&
                 url.contains("accessToken") &&
                 url.contains("refreshToken")) {
 
@@ -165,8 +166,9 @@ class GeckoSessionManager(private val context: Context) {
                 // Standard post-logout page or redirect
                 url?.contains("logout_success") == true -> true
 
-                // Standard web logout endpoints - detecting common patterns
-                url?.contains("/logout") == true || url?.contains("signout") == true -> true
+                // Standard web logout endpoints - but only for our domain!
+                url?.contains("nimbus-browser-backend-production.up.railway.app") == true &&
+                        (url.contains("/logout") || url.contains("signout")) -> true
 
                 // Detect logout response from server
                 url?.contains("logged_out=true") == true -> true
