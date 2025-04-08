@@ -17,14 +17,16 @@ class PasswordRepository @Inject constructor(
 
     // Encrypt and store a new password entry
     suspend fun addPassword(siteUrl: String, username: String, plainPassword: String): Long {
+        val normalizedSiteUrl = extractDomain(siteUrl)
         val encryptedPassword = EncryptionUtil.encrypt(plainPassword)
         val passwordEntity = PasswordEntity(
-            siteUrl = siteUrl,
+            siteUrl = normalizedSiteUrl,
             username = username,
             encryptedPassword = encryptedPassword
         )
         return passwordDao.insertPassword(passwordEntity)
     }
+
 
     // Encrypt and update an existing password entry
     suspend fun updatePassword(passwordEntity: PasswordEntity, plainPassword: String) {

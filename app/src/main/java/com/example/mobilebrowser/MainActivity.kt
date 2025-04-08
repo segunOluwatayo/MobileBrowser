@@ -463,41 +463,36 @@ class MainActivity : ComponentActivity() {
                         val geckoResult = GeckoResult<GeckoSession.PromptDelegate.PromptResponse>()
                         val currentDomain = extractDomain(currentUrl)
 
+                        Log.d("PasswordAutofill", "Attempting autofill for domain: $currentDomain")
+
                         lifecycleScope.launch {
                             try {
                                 val credentials = passwordViewModel.getCredentialsForSite(currentUrl)
                                 if (credentials != null) {
-                                    // Get the decrypted password.
+                                    Log.d("PasswordAutofill", "Found stored credentials for domain: ${extractDomain(credentials.siteUrl)}")
                                     val decryptedPassword = passwordViewModel.getDecryptedPassword(credentials.encryptedPassword)
-                                    // Get options from the request.
                                     val options = request.options
                                     if (options.isNotEmpty()) {
-                                        // (Optionally) retrieve the original option.
-                                        // val option = options[0]
-
-                                        // Create a new LoginEntry with our credentials.
                                         val loginEntry = Autocomplete.LoginEntry.Builder()
                                             .origin(currentDomain)
                                             .username(credentials.username)
                                             .password(decryptedPassword)
                                             .build()
-
-                                        // Use the single-argument constructor.
                                         val updatedOption = Autocomplete.LoginSelectOption(loginEntry)
 
-                                        // Confirm with the updated option.
+                                        Log.d("PasswordAutofill", "Autofill data: username=${credentials.username}, password length=${decryptedPassword.length}")
+
                                         geckoResult.complete(request.confirm(updatedOption))
-                                        Log.d("PasswordAutofill", "Credentials provided for $currentDomain")
                                     } else {
-                                        Log.d("PasswordAutofill", "No options available in the request")
+                                        Log.d("PasswordAutofill", "No options provided in the prompt; dismissing")
                                         geckoResult.complete(request.dismiss())
                                     }
                                 } else {
-                                    Log.d("PasswordAutofill", "No credentials found for $currentDomain")
+                                    Log.d("PasswordAutofill", "No credentials found for domain: $currentDomain; dismissing prompt")
                                     geckoResult.complete(request.dismiss())
                                 }
                             } catch (e: Exception) {
-                                Log.e("PasswordAutofill", "Error providing credentials: ${e.message}", e)
+                                Log.e("PasswordAutofill", "Error during autofill: ${e.message}", e)
                                 geckoResult.complete(request.dismiss())
                             }
                         }
@@ -576,7 +571,8 @@ class MainActivity : ComponentActivity() {
                                         },
                                         onCanGoBack = { canGoBack = it },
                                         onCanGoForward = { canGoForward = it },
-                                        downloadDelegate = geckoDownloadDelegate
+                                        downloadDelegate = geckoDownloadDelegate,
+
                                     )
                                     tabViewModel.switchToTab(newTabId)
                                     currentUrl = url

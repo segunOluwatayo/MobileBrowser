@@ -26,15 +26,31 @@ fun PasswordSaveDialog(
 ) {
     val scope = rememberCoroutineScope()
 
+    // A helper to extract just the domain from a full URL
+    fun extractDomain(url: String): String {
+        return try {
+            val uri = java.net.URI(if (url.startsWith("http")) url else "https://$url")
+            var domain = uri.host ?: url
+            if (domain.startsWith("www.")) domain = domain.substring(4)
+            domain
+        } catch (e: Exception) {
+            url
+        }
+    }
+
+    val domain = extractDomain(siteUrl)
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(text = "Save Credentials") },
-        text = { Text(text = "Would you like to save your username and password for $siteUrl?") },
+        text = {
+            Text(text = "Would you like to save your username and password for $domain?")
+        },
         confirmButton = {
             TextButton(onClick = {
-                // Use a coroutine to call the onSave suspend function
                 scope.launch {
-                    onSave(siteUrl, username, plainPassword)
+                    // Pass the domain instead of the full path
+                    onSave(domain, username, plainPassword)
                     onDismiss()
                 }
             }) {
