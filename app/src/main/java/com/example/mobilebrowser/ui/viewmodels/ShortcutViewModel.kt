@@ -120,49 +120,52 @@ class ShortcutViewModel @Inject constructor(
     }
 
     // Function to update dynamic shortcuts based on history
-    suspend fun updateDynamicShortcuts() {
-        try {
-            // Get top visited sites from history
-            val topSites = historyRepository.getAllHistory().first()
-                .sortedByDescending { it.visitCount }
-                .take(maxDynamicShortcuts * 2) // Get more than needed to filter against existing pinned
-
-            // Get current shortcuts
-            val currentShortcuts = shortcutRepository.getAllShortcuts().first()
-            val pinnedUrls = currentShortcuts.filter { it.isPinned }.map { it.url }
-
-            // Filter out URLs that are already pinned
-            val candidateUrls = topSites.filter { historyEntry ->
-                !pinnedUrls.contains(historyEntry.url)
-            }.take(maxDynamicShortcuts)
-
-            // Delete existing dynamic shortcuts
-            currentShortcuts
-                .filter { it.shortcutType == ShortcutType.DYNAMIC && !it.isPinned }
-                .forEach { shortcutRepository.deleteShortcut(it) }
-
-            // Add new dynamic shortcuts
-            candidateUrls.forEach { historyEntry ->
-                val favicon = historyEntry.favicon
-
-                // Determine icon resource based on domain or use default
-                val iconRes = getIconResForUrl(historyEntry.url)
-
-                val shortcut = ShortcutEntity(
-                    label = historyEntry.title.takeIf { it.isNotBlank() }
-                        ?: extractDomainFromUrl(historyEntry.url),
-                    url = historyEntry.url,
-                    iconRes = iconRes,
-                    isPinned = false,
-                    shortcutType = ShortcutType.DYNAMIC,
-                    visitCount = historyEntry.visitCount,
-                    lastVisited = historyEntry.lastVisited.time
-                )
-                shortcutRepository.insertShortcut(shortcut)
-            }
-        } catch (e: Exception) {
-            Log.e("ShortcutViewModel", "Error updating dynamic shortcuts", e)
-        }
+//    suspend fun updateDynamicShortcuts() {
+//        try {
+//            // Get top visited sites from history
+//            val topSites = historyRepository.getAllHistory().first()
+//                .sortedByDescending { it.visitCount }
+//                .take(maxDynamicShortcuts * 2) // Get more than needed to filter against existing pinned
+//
+//            // Get current shortcuts
+//            val currentShortcuts = shortcutRepository.getAllShortcuts().first()
+//            val pinnedUrls = currentShortcuts.filter { it.isPinned }.map { it.url }
+//
+//            // Filter out URLs that are already pinned
+//            val candidateUrls = topSites.filter { historyEntry ->
+//                !pinnedUrls.contains(historyEntry.url)
+//            }.take(maxDynamicShortcuts)
+//
+//            // Delete existing dynamic shortcuts
+//            currentShortcuts
+//                .filter { it.shortcutType == ShortcutType.DYNAMIC && !it.isPinned }
+//                .forEach { shortcutRepository.deleteShortcut(it) }
+//
+//            // Add new dynamic shortcuts
+//            candidateUrls.forEach { historyEntry ->
+//                val favicon = historyEntry.favicon
+//
+//                // Determine icon resource based on domain or use default
+//                val iconRes = getIconResForUrl(historyEntry.url)
+//
+//                val shortcut = ShortcutEntity(
+//                    label = historyEntry.title.takeIf { it.isNotBlank() }
+//                        ?: extractDomainFromUrl(historyEntry.url),
+//                    url = historyEntry.url,
+//                    iconRes = iconRes,
+//                    isPinned = false,
+//                    shortcutType = ShortcutType.DYNAMIC,
+//                    visitCount = historyEntry.visitCount,
+//                    lastVisited = historyEntry.lastVisited.time
+//                )
+//                shortcutRepository.insertShortcut(shortcut)
+//            }
+//        } catch (e: Exception) {
+//            Log.e("ShortcutViewModel", "Error updating dynamic shortcuts", e)
+//        }
+//    }
+    fun updateDynamicShortcuts() = viewModelScope.launch {
+        shortcutRepository.updateDynamicShortcuts(historyRepository)
     }
 
     // Helper function to extract domain from URL

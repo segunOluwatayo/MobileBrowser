@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt.android)
+    id("org.jetbrains.kotlin.kapt")
 }
 
 
@@ -86,7 +87,9 @@ dependencies {
 
     // Hilt
     implementation(libs.hilt.android)
-    ksp(libs.hilt.compiler)
+//    ksp(libs.hilt.compiler)
+    kapt (libs.androidx.hilt.compiler)
+    kapt (libs.hilt.android.compiler)
 
     // Debug
     debugImplementation(libs.androidx.ui.tooling)

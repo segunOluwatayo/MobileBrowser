@@ -10,6 +10,8 @@ import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import com.example.mobilebrowser.data.repository.HistoryRepository
+import com.example.mobilebrowser.data.repository.ShortcutRepository
 import com.example.mobilebrowser.ui.viewmodels.ShortcutViewModel
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -19,12 +21,13 @@ import java.util.concurrent.TimeUnit
 class DynamicShortcutWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted workerParams: WorkerParameters,
-    private val shortcutViewModel: ShortcutViewModel
+    private val shortcutRepository: ShortcutRepository,
+    private val historyRepository: HistoryRepository
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
         return try {
-            shortcutViewModel.updateDynamicShortcuts()
+            shortcutRepository.updateDynamicShortcuts(historyRepository)
             Result.success()
         } catch (e: Exception) {
             Log.e("DynamicShortcutWorker", "Error updating shortcuts", e)
@@ -35,14 +38,11 @@ class DynamicShortcutWorker @AssistedInject constructor(
     companion object {
         fun schedule(context: Context) {
             val workManager = WorkManager.getInstance(context)
-
-            // Define constraints - run when device is idle and has network
             val constraints = Constraints.Builder()
                 .setRequiresDeviceIdle(true)
                 .setRequiredNetworkType(NetworkType.CONNECTED)
                 .build()
 
-            // Create a periodic work request
             val workRequest = PeriodicWorkRequestBuilder<DynamicShortcutWorker>(
                 repeatInterval = 6,
                 repeatIntervalTimeUnit = TimeUnit.HOURS
@@ -50,7 +50,6 @@ class DynamicShortcutWorker @AssistedInject constructor(
                 .setConstraints(constraints)
                 .build()
 
-            // Enqueue the work
             workManager.enqueueUniquePeriodicWork(
                 "dynamic_shortcut_update",
                 ExistingPeriodicWorkPolicy.KEEP,
