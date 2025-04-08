@@ -53,6 +53,13 @@ fun AuthSettingsScreen(
         "Last Sync: ${sdf.format(Date(timestamp))}"
     } ?: "Never Synced"
 
+    LaunchedEffect(lastSyncTimestamp) {
+        if (lastSyncTimestamp != null && syncStatus is SyncStatusState.Idle) {
+            // If we have a timestamp but status is Idle, update to Synced
+            viewModel.updateSyncStatus(SyncStatusState.Synced)
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(

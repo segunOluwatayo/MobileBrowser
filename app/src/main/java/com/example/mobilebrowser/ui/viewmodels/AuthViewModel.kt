@@ -171,4 +171,8 @@ class AuthViewModel @Inject constructor(
             userDataStore.updateSyncTabsEnabled(enabled)
         }
     }
+
+    fun updateSyncStatus(newStatus: SyncStatusState) {
+        _syncStatus.value = newStatus
+    }
 }
