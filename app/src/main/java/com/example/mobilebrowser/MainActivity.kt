@@ -26,6 +26,9 @@ import kotlinx.coroutines.launch
 import org.mozilla.geckoview.GeckoSession
 import android.view.View
 import android.widget.Toast
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -143,6 +146,32 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun BrowserApp() {
+
+        // Obtain the LifecycleOwner
+        val lifecycleOwner = LocalLifecycleOwner.current
+        // Get the AuthViewModel instance via Hilt
+        val authViewModel: AuthViewModel = hiltViewModel()
+
+        // Observe lifecycle events and start/stop the auto-sync accordingly
+        DisposableEffect(lifecycleOwner) {
+            val observer = LifecycleEventObserver { _, event ->
+                when (event) {
+                    Lifecycle.Event.ON_RESUME -> {
+                        // App enters foreground: start the auto-sync timer.
+                        authViewModel.startAutoSync()
+                    }
+                    Lifecycle.Event.ON_PAUSE -> {
+                        // App goes to background: stop the auto-sync.
+                        authViewModel.stopAutoSync()
+                    }
+                    else -> Unit
+                }
+            }
+            lifecycleOwner.lifecycle.addObserver(observer)
+            onDispose {
+                lifecycleOwner.lifecycle.removeObserver(observer)
+            }
+        }
 
         data class PendingLogin(
             val siteUrl: String,

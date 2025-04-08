@@ -14,7 +14,10 @@ import com.example.mobilebrowser.sync.UserSyncManager
 import com.example.mobilebrowser.worker.SyncWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -61,6 +64,29 @@ class AuthViewModel @Inject constructor(
     // Sync status state flow to provide UI feedback
     private val _syncStatus = MutableStateFlow<SyncStatusState>(SyncStatusState.Idle)
     val syncStatus: StateFlow<SyncStatusState> = _syncStatus
+
+    // Job reference for auto-sync
+    private var autoSyncJob: Job? = null
+
+    // Start the foreground auto-sync timer (every 3 minutes)
+    fun startAutoSync() {
+        autoSyncJob?.cancel() // cancel any existing job
+        autoSyncJob = viewModelScope.launch {
+            while (isActive) {
+                // Optionally, check if not already syncing
+                if (_syncStatus.value != SyncStatusState.Syncing) {
+                    performManualSync()
+                }
+                // Wait for 3 minutes before next sync
+                delay(3 * 60 * 1000L)
+            }
+        }
+    }
+
+    // Stop the auto-sync loop
+    fun stopAutoSync() {
+        autoSyncJob?.cancel()
+    }
 
     // Sync preferences
 //    val syncHistoryEnabled = userDataStore.syncHistoryEnabled
