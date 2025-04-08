@@ -76,6 +76,8 @@ dependencies {
     implementation (libs.logging.interceptor)
     implementation (libs.androidx.hilt.work)
     implementation (libs.androidx.biometric)
+    implementation(libs.androidx.work.runtime.ktx.v271)
+
 
     // Room
     implementation(libs.androidx.room.runtime)

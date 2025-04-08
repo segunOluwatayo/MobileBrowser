@@ -26,6 +26,7 @@ hiltCommon = "1.2.0"
 securityCrypto = "1.1.0-alpha06"
 workRuntimeKtx = "2.10.0"
 testing = "1.0.0"
+workRuntimeKtxVersion = "2.10.0"
 
 
 [libraries]
@@ -39,6 +40,7 @@ androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref =
 androidx-room-ktx = { module = "androidx.room:room-ktx", version.ref = "roomRuntime" }
 androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "roomRuntime" }
 androidx-security-crypto = { module = "androidx.security:security-crypto", version.ref = "securityCrypto" }
+androidx-work-runtime-ktx-v271 = { module = "androidx.work:work-runtime-ktx", version.ref = "workRuntimeKtxVersion" }
 coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coilCompose" }
 converter-gson = { module = "com.squareup.retrofit2:converter-gson", version.ref = "converterGson" }
 geckoview = { module = "org.mozilla.geckoview:geckoview", version.ref = "geckoview" }

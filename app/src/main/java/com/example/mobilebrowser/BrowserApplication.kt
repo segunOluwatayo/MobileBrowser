@@ -8,7 +8,7 @@ import androidx.work.Configuration
 import javax.inject.Inject
 
 @HiltAndroidApp
-class BrowserApplication : Application(), HasAuthService {
+class BrowserApplication : Application(), HasAuthService, Configuration.Provider {
     @Inject
     lateinit var authServiceInstance: AuthService
 
@@ -17,9 +17,8 @@ class BrowserApplication : Application(), HasAuthService {
 
     override fun getAuthService(): AuthService = authServiceInstance
 
-    fun getWorkManagerConfiguration(): Configuration {
-        return Configuration.Builder()
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
             .setWorkerFactory(workerFactory)
             .build()
-    }
 }
