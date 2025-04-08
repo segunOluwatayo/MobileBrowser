@@ -20,4 +20,8 @@ interface PasswordDao {
 
     @Query("SELECT EXISTS(SELECT 1 FROM passwords WHERE siteUrl LIKE :url)")
     suspend fun passwordExistsForSite(url: String): Boolean
+
+    @Query("SELECT * FROM passwords WHERE siteUrl = :domain LIMIT 1")
+    suspend fun getPasswordByDomain(domain: String): PasswordEntity?
+
 }

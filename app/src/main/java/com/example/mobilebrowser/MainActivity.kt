@@ -461,43 +461,39 @@ class MainActivity : ComponentActivity() {
                         request: GeckoSession.PromptDelegate.AutocompleteRequest<Autocomplete.LoginSelectOption>
                     ): GeckoResult<GeckoSession.PromptDelegate.PromptResponse>? {
                         val geckoResult = GeckoResult<GeckoSession.PromptDelegate.PromptResponse>()
+                        // Extract the domain from the currentUrl.
                         val currentDomain = extractDomain(currentUrl)
-
-                        Log.d("PasswordAutofill", "Attempting autofill for domain: $currentDomain")
+                        Log.d("PromptDelegate", "onLoginSelect invoked. Current URL: $currentUrl, extracted domain: $currentDomain")
 
                         lifecycleScope.launch {
                             try {
                                 val credentials = passwordViewModel.getCredentialsForSite(currentUrl)
                                 if (credentials != null) {
-                                    Log.d("PasswordAutofill", "Found stored credentials for domain: ${extractDomain(credentials.siteUrl)}")
+                                    // Get the decrypted password.
                                     val decryptedPassword = passwordViewModel.getDecryptedPassword(credentials.encryptedPassword)
-                                    val options = request.options
-                                    if (options.isNotEmpty()) {
-                                        val loginEntry = Autocomplete.LoginEntry.Builder()
-                                            .origin(currentDomain)
-                                            .username(credentials.username)
-                                            .password(decryptedPassword)
-                                            .build()
-                                        val updatedOption = Autocomplete.LoginSelectOption(loginEntry)
+                                    // Log the credentials being used.
+                                    Log.d("PromptDelegate", "Found credentials for domain: $currentDomain. Username: ${credentials.username}")
 
-                                        Log.d("PasswordAutofill", "Autofill data: username=${credentials.username}, password length=${decryptedPassword.length}")
-
-                                        geckoResult.complete(request.confirm(updatedOption))
-                                    } else {
-                                        Log.d("PasswordAutofill", "No options provided in the prompt; dismissing")
-                                        geckoResult.complete(request.dismiss())
-                                    }
+                                    // Create the login entry to be used for autofill.
+                                    val loginEntry = Autocomplete.LoginEntry.Builder()
+                                        .origin(currentDomain)
+                                        .username(credentials.username)
+                                        .password(decryptedPassword)
+                                        .build()
+                                    val updatedOption = Autocomplete.LoginSelectOption(loginEntry)
+                                    geckoResult.complete(request.confirm(updatedOption))
                                 } else {
-                                    Log.d("PasswordAutofill", "No credentials found for domain: $currentDomain; dismissing prompt")
+                                    Log.d("PromptDelegate", "No credentials found for domain: $currentDomain")
                                     geckoResult.complete(request.dismiss())
                                 }
                             } catch (e: Exception) {
-                                Log.e("PasswordAutofill", "Error during autofill: ${e.message}", e)
+                                Log.e("PromptDelegate", "Error providing credentials: ${e.message}", e)
                                 geckoResult.complete(request.dismiss())
                             }
                         }
                         return geckoResult
                     }
+
 
                     // Helper function to extract domain from URL
                     private fun extractDomain(url: String): String {

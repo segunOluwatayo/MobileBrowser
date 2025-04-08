@@ -1,5 +1,6 @@
 package com.example.mobilebrowser.data.repository
 
+import android.util.Log
 import com.example.mobilebrowser.data.dao.PasswordDao
 import com.example.mobilebrowser.data.entity.PasswordEntity
 import com.example.mobilebrowser.data.util.EncryptionUtil
@@ -17,15 +18,19 @@ class PasswordRepository @Inject constructor(
 
     // Encrypt and store a new password entry
     suspend fun addPassword(siteUrl: String, username: String, plainPassword: String): Long {
-        val normalizedSiteUrl = extractDomain(siteUrl)
-        val encryptedPassword = EncryptionUtil.encrypt(plainPassword)
+        // Normalize the domain and log it.
+        val normalizedDomain = extractDomain(siteUrl)
+        Log.d("PasswordRepository", "Saving password. Original siteUrl: $siteUrl, normalized domain: $normalizedDomain")
+
+        // Here we save the normalized domain.
         val passwordEntity = PasswordEntity(
-            siteUrl = normalizedSiteUrl,
+            siteUrl = normalizedDomain,
             username = username,
-            encryptedPassword = encryptedPassword
+            encryptedPassword = EncryptionUtil.encrypt(plainPassword)
         )
         return passwordDao.insertPassword(passwordEntity)
     }
+
 
 
     // Encrypt and update an existing password entry
@@ -65,9 +70,17 @@ class PasswordRepository @Inject constructor(
     }
 
     suspend fun getCredentialsForSite(url: String): PasswordEntity? {
-        val domain = extractDomain(url)
-        return passwordDao.getAllPasswords().first().find {
-            extractDomain(it.siteUrl) == domain
+        // Extract and log the domain from the current URL.
+        val currentDomain = extractDomain(url)
+        Log.d("PasswordRepository", "Looking up credentials for currentUrl: $url, extracted domain: $currentDomain")
+
+        // Collect the stored passwords and compare each one after normalizing.
+        return passwordDao.getAllPasswords().first().find { entry ->
+            val storedDomain = extractDomain(entry.siteUrl)
+            Log.d("PasswordRepository", "Comparing stored password entry. Stored siteUrl: ${entry.siteUrl}, normalized domain: $storedDomain")
+            storedDomain == currentDomain
         }
     }
+
+
 }
