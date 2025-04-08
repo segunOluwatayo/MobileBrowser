@@ -68,6 +68,8 @@ class MainActivity : ComponentActivity() {
         DynamicShortcutWorker.schedule(this)
         SyncWorker.schedule(this)
 
+        monitorWorkManager()
+
         // Handle deep link if the activity was launched from one
         handleIncomingIntent(intent)
         setContent {
@@ -1020,6 +1022,27 @@ class MainActivity : ComponentActivity() {
             .observe(this) { workInfoList ->
                 for (workInfo in workInfoList) {
                     Log.d("WorkStatus", "Sync worker state: ${workInfo.state}")
+                }
+            }
+    }
+    private fun monitorWorkManager() {
+        val workManager = WorkManager.getInstance(applicationContext)
+
+        // Monitor periodic sync workers
+        workManager.getWorkInfosByTagLiveData("sync_worker")
+            .observe(this) { workInfoList ->
+                Log.d("WorkMonitor", "Found ${workInfoList.size} sync workers")
+                workInfoList.forEachIndexed { index, workInfo ->
+                    Log.d("WorkMonitor", "Sync worker #${index + 1}: id=${workInfo.id}, state=${workInfo.state}")
+                }
+            }
+
+        // Monitor one-time sync workers
+        workManager.getWorkInfosByTagLiveData("immediate_sync")
+            .observe(this) { workInfoList ->
+                Log.d("WorkMonitor", "Found ${workInfoList.size} immediate sync workers")
+                workInfoList.forEachIndexed { index, workInfo ->
+                    Log.d("WorkMonitor", "Immediate sync worker #${index + 1}: id=${workInfo.id}, state=${workInfo.state}")
                 }
             }
     }

@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -38,6 +39,9 @@ class UserDataStore @Inject constructor(
         val SYNC_BOOKMARKS_ENABLED_KEY = booleanPreferencesKey("sync_bookmarks_enabled")
         val SYNC_TABS_ENABLED_KEY = booleanPreferencesKey("sync_tabs_enabled")
 
+        // New key for last sync timestamp
+        val LAST_SYNC_TIMESTAMP_KEY = longPreferencesKey("last_sync_timestamp")
+
         // Default sync settings (all enabled by default)
         const val DEFAULT_SYNC_HISTORY_ENABLED = true
         const val DEFAULT_SYNC_BOOKMARKS_ENABLED = true
@@ -55,6 +59,19 @@ class UserDataStore @Inject constructor(
         }
         .map { preferences ->
             preferences[IS_SIGNED_IN_KEY] ?: false
+        }
+
+    // Flow for last sync timestamp
+    val lastSyncTimestamp: Flow<Long?> = dataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                emit(androidx.datastore.preferences.core.emptyPreferences())
+            } else {
+                throw exception
+            }
+        }
+        .map { preferences ->
+            preferences[LAST_SYNC_TIMESTAMP_KEY]
         }
 
     // Flow for user name (display name).
@@ -231,6 +248,13 @@ class UserDataStore @Inject constructor(
     suspend fun updateSyncTabsEnabled(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[SYNC_TABS_ENABLED_KEY] = enabled
+        }
+    }
+
+    // Update last sync timestamp
+    suspend fun updateLastSyncTimestamp(timestamp: Long) {
+        dataStore.edit { preferences ->
+            preferences[LAST_SYNC_TIMESTAMP_KEY] = timestamp
         }
     }
 }
