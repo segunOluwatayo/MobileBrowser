@@ -64,6 +64,9 @@ class MainActivity : ComponentActivity() {
     private val authSuccessState = mutableStateOf(false)
     private val needToCloseCurrentTab = mutableStateOf(false)
     private var maliciousUrlState by mutableStateOf<MaliciousUrlState?>(null)
+    private val isHomepageActive = mutableStateOf(true)
+    private val isHomepageState = mutableStateOf(true)
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -77,12 +80,16 @@ class MainActivity : ComponentActivity() {
             needToCloseCurrentTab.value = true
         }
         sessionManager.setMaliciousUrlCallback { url, verdict, proceedCallback, goBackCallback ->
+            // Get the current homepage state when malicious URL is detected
+            val isFromHomepage = isHomepageState.value
+
             // Set the state to show the dialog
             maliciousUrlState = MaliciousUrlState(
                 url = url,
                 verdict = verdict,
                 onProceed = proceedCallback,
-                onGoBack = goBackCallback
+                onGoBack = goBackCallback,
+                isFromHomepage = isFromHomepage
             )
         }
         // Schedule the dynamic shortcut worker
@@ -197,13 +204,19 @@ class MainActivity : ComponentActivity() {
         val url: String,
         val verdict: String,
         val onProceed: () -> Unit,
-        val onGoBack: () -> Unit
+        val onGoBack: () -> Unit,
+        val isFromHomepage: Boolean
     )
 
     @Composable
     fun BrowserApp(maliciousUrlState: MaliciousUrlState?,
                    clearMaliciousState: () -> Unit) {
 
+        var isHomepageActive by remember { mutableStateOf(isHomepageState.value) }
+
+        LaunchedEffect(isHomepageActive) {
+            isHomepageState.value = isHomepageActive
+        }
         // Obtain the LifecycleOwner
         val lifecycleOwner = LocalLifecycleOwner.current
         // Get the AuthViewModel instance via Hilt
@@ -272,7 +285,7 @@ class MainActivity : ComponentActivity() {
         val isCurrentUrlBookmarked by bookmarkViewModel.isCurrentUrlBookmarked.collectAsState()
         val activeTab by tabViewModel.activeTab.collectAsState()
         val scope = rememberCoroutineScope()
-        var isHomepageActive by remember { mutableStateOf(true) }
+//        var isHomepageActive by remember { mutableStateOf(true) }
 
         // Handle authentication success
         LaunchedEffect(authSuccess, needToClose) {
@@ -1091,11 +1104,27 @@ class MainActivity : ComponentActivity() {
                     clearMaliciousState()
                 },
                 onGoBack = {
-                    state.onGoBack()
+                    if (state.isFromHomepage) {
+                        // If we were on homepage, return to homepage
+                        isHomepageActive = true
+                        currentUrl = ""
+                        currentPageTitle = "New Tab"
+                    } else {
+                        // If we were on a regular page, use normal back navigation
+                        state.onGoBack()
+                    }
                     clearMaliciousState()
                 },
                 onDismiss = {
-                    state.onGoBack()
+                    if (state.isFromHomepage) {
+                        // For homepage, return to homepage
+                        isHomepageActive = true
+                        currentUrl = ""
+                        currentPageTitle = "New Tab"
+                    } else {
+                        // For regular pages, use normal back navigation
+                        state.onGoBack()
+                    }
                     clearMaliciousState()
                 }
             )
