@@ -34,6 +34,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.example.mobilebrowser.classifier.UrlCnnInterpreter
 import com.example.mobilebrowser.data.service.AuthService
+import com.example.mobilebrowser.ui.composables.MaliciousWebsiteDialog
 import com.example.mobilebrowser.ui.composables.PasswordSaveDialog
 import com.example.mobilebrowser.worker.SyncWorker
 import kotlinx.coroutines.Dispatchers
@@ -62,6 +63,7 @@ class MainActivity : ComponentActivity() {
 
     private val authSuccessState = mutableStateOf(false)
     private val needToCloseCurrentTab = mutableStateOf(false)
+    private var maliciousUrlState by mutableStateOf<MaliciousUrlState?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -73,6 +75,15 @@ class MainActivity : ComponentActivity() {
             // Signal that we need to close the current tab and go to homepage
             authSuccessState.value = true
             needToCloseCurrentTab.value = true
+        }
+        sessionManager.setMaliciousUrlCallback { url, verdict, proceedCallback, goBackCallback ->
+            // Set the state to show the dialog
+            maliciousUrlState = MaliciousUrlState(
+                url = url,
+                verdict = verdict,
+                onProceed = proceedCallback,
+                onGoBack = goBackCallback
+            )
         }
         // Schedule the dynamic shortcut worker
         DynamicShortcutWorker.schedule(this)
@@ -127,7 +138,7 @@ class MainActivity : ComponentActivity() {
                 else -> systemDarkTheme // "SYSTEM" mode follows the system setting.
             }
             MobileBrowserTheme(darkTheme = darkTheme) {
-                BrowserApp()
+                BrowserApp( maliciousUrlState, { maliciousUrlState = null })
             }
         }
     }
@@ -182,8 +193,16 @@ class MainActivity : ComponentActivity() {
 
 
 
+    data class MaliciousUrlState(
+        val url: String,
+        val verdict: String,
+        val onProceed: () -> Unit,
+        val onGoBack: () -> Unit
+    )
+
     @Composable
-    fun BrowserApp() {
+    fun BrowserApp(maliciousUrlState: MaliciousUrlState?,
+                   clearMaliciousState: () -> Unit) {
 
         // Obtain the LifecycleOwner
         val lifecycleOwner = LocalLifecycleOwner.current
@@ -1063,7 +1082,27 @@ class MainActivity : ComponentActivity() {
             )
         }
 
+        maliciousUrlState?.let { state ->
+            MaliciousWebsiteDialog(
+                url = state.url,
+                verdict = state.verdict,
+                onProceed = {
+                    state.onProceed()
+                    clearMaliciousState()
+                },
+                onGoBack = {
+                    state.onGoBack()
+                    clearMaliciousState()
+                },
+                onDismiss = {
+                    state.onGoBack()
+                    clearMaliciousState()
+                }
+            )
+        }
+
     }
+
     // Helper to determine if URL should be excluded from history
     private fun shouldSkipHistoryRecording(url: String): Boolean {
         return url.contains("nimbus-browser-backend-production.up.railway.app") &&
