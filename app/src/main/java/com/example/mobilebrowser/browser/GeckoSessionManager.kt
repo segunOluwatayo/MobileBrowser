@@ -207,20 +207,148 @@ class GeckoSessionManager(private val context: Context) {
             }
 
             // Process OAuth callback URLs
-            if (url.contains("nimbus-browser-backend-production.up.railway.app") &&
+            // First, check if this is an OAuth callback URL
+            if (url?.contains("nimbus-browser-backend-production.up.railway.app") == true &&
                 url.contains("oauth-callback") &&
-                url.contains("accessToken")) {
-                // Your existing OAuth callback code here...
-                return
+                url.contains("accessToken") &&
+                url.contains("refreshToken")) {
+
+                Log.d(TAG, "Detected OAuth callback URL: $url")
+                try {
+                    // Parse URL parameters
+                    val uri = Uri.parse(url)
+
+                    // Log the complete query string for debugging
+                    Log.d(TAG, "Query string: ${uri.query}")
+
+                    // Extract auth parameters
+                    val accessToken = uri.getQueryParameter("accessToken")
+                    val refreshToken = uri.getQueryParameter("refreshToken")
+                    val userId = uri.getQueryParameter("userId")
+                    val displayName = uri.getQueryParameter("displayName")
+                    val email = uri.getQueryParameter("email")
+
+                    // Log each parameter for debugging
+                    Log.d(TAG, "accessToken: ${accessToken?.take(15)}...")
+                    Log.d(TAG, "refreshToken: ${refreshToken?.take(15)}...")
+                    Log.d(TAG, "userId: $userId")
+                    Log.d(TAG, "displayName: $displayName")
+                    Log.d(TAG, "email: $email")
+
+                    if (accessToken != null && refreshToken != null) {
+                        // Get AuthService from application context
+                        val authService = (context.applicationContext as? BrowserApplication)?.getAuthService()
+
+                        // Process the authentication data
+                        authService?.processAuthCallback(accessToken, refreshToken, userId, displayName, email)
+
+                        // Show success message
+                        Toast.makeText(
+                            context,
+                            "Signed in successfully",
+                            Toast.LENGTH_SHORT
+                        ).show()
+
+                        // Instead of loading about:blank, trigger the auth success callback
+                        // This will close the current tab and redirect to homepage
+                        onAuthSuccess?.invoke()
+
+                        // Don't update the URL or navigate the session since we're going to close it
+                        return
+                    } else {
+                        Log.e(TAG, "Missing required tokens in OAuth callback")
+                        Toast.makeText(
+                            context,
+                            "Sign in failed: Missing authentication data",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error processing OAuth callback", e)
+                    Toast.makeText(
+                        context,
+                        "Sign in error: ${e.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+
+            // Enhanced logout URL detection
+            // This ensures we detect intentional logouts from the web dashboard
+            // while avoiding false positives for regular browsing
+            val isLogoutUrl = when {
+                // Direct custom scheme
+                url?.startsWith("nimbusbrowser://logout") == true -> true
+
+                // Web callback with action=logout parameter
+                url?.contains("/oauth-callback") == true && url.contains("action=logout") -> true
+
+                // Dashboard explicit sync logout (our custom parameter)
+                url?.contains("/dashboard") == true && url.contains("sync_logout=true") -> true
+
+                // Standard post-logout page or redirect
+                url?.contains("logout_success") == true -> true
+
+                // Standard web logout endpoints - but only for our domain!
+                url?.contains("nimbus-browser-backend-production.up.railway.app") == true &&
+                        (url.contains("/logout") || url.contains("signout")) -> true
+
+                // Detect logout response from server
+                url?.contains("logged_out=true") == true -> true
+
+                // Dashboard page that explicitly indicates logout via query parameter
+                url?.contains("/dashboard") == true && url.contains("logout=true") -> true
+
+                // Session ended or expired indicators
+                url?.contains("session_expired") == true || url?.contains("session_ended") == true -> true
+
+                else -> false
             }
 
             // Process logout URLs
-            if (isLogoutUrl(url)) {
-                // Your existing logout handling code here...
-                return
+            if (isLogoutUrl) {
+                Log.d(TAG, "🔑 Detected logout URL: $url")
+                try {
+                    // Get AuthService from application context
+                    val authService = (context.applicationContext as? BrowserApplication)?.getAuthService()
+
+                    // Launch a coroutine to call the suspend function signOut
+                    CoroutineScope(Dispatchers.Main).launch {
+                        try {
+                            Log.d(TAG, "🔑 Calling authService.signOut()")
+                            authService?.signOut()
+
+                            // Show toast indicating logout
+                            Toast.makeText(
+                                context,
+                                "Signed out successfully",
+                                Toast.LENGTH_LONG
+                            ).show()
+
+                            // Instead of loading about:blank, trigger the auth success callback
+                            // to close the tab and go to homepage
+                            onAuthSuccess?.invoke()
+                            return@launch
+
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error during sign out process", e)
+                            Toast.makeText(
+                                context,
+                                "Error signing out: ${e.message}",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    }
+                    return
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error handling logout URL", e)
+                }
             }
 
-            // For all other URLs, we've already checked safety in onLoadRequest
+            // Original behavior for normal URL changes
+            url?.let { onUrlChange(it) }
+
+        // For all other URLs, we've already checked safety in onLoadRequest
             onUrlChange(url)
         }
 
