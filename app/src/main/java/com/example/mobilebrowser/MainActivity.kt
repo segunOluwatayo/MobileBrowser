@@ -32,10 +32,14 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import com.example.mobilebrowser.classifier.UrlCnnInterpreter
 import com.example.mobilebrowser.data.service.AuthService
 import com.example.mobilebrowser.ui.composables.PasswordSaveDialog
 import com.example.mobilebrowser.worker.SyncWorker
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.mozilla.geckoview.Autocomplete
+import org.mozilla.geckoview.BuildConfig
 import org.mozilla.geckoview.GeckoResult
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
@@ -48,6 +52,9 @@ enum class OverlayScreen {
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    //    private val bloom by lazy { Bloom(applicationContext) }
+    private lateinit var scanner: UrlCnnInterpreter
+
     @Inject
     lateinit var authService: AuthService
     private lateinit var sessionManager: GeckoSessionManager
@@ -72,6 +79,37 @@ class MainActivity : ComponentActivity() {
         SyncWorker.schedule(this)
 
         monitorWorkManager()
+
+        scanner = UrlCnnInterpreter(this)
+
+        val tests = listOf(
+            "https://fantasticfilms.ru",
+            "https://github.com",
+            "https://google.com",
+            "https://apple.com/store",
+            "http://free-gift-cards.xyz",
+            "http://amazonn-signin.com/login.php",
+            "https://www.very.ie",
+            "https://www.gardensrestaurantandcatering.com/",
+            "https://www.scamadviser.com",
+            "https://www.scamwatch.gov.au",
+            "https://www.scamwatch.gov.au/report-a-scam",
+            "https://anix.com.pl/",
+            "https://tiffanycoshop.com",
+            "Luvasti.com",
+            "https://www.likaraoke.com",
+            "https://www.vegweb.com",
+            "https://en.m.wikipedia.org/wiki/Cooking"
+        )
+
+        lifecycleScope.launch {
+            withContext(Dispatchers.Default) {
+                tests.forEach { url ->
+                    val v = scanner.verdict(url)
+                    println("$url  ->  $v")
+                }
+            }
+        }
 
         // Handle deep link if the activity was launched from one
         handleIncomingIntent(intent)

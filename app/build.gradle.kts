@@ -11,6 +11,9 @@ plugins {
 android {
     namespace = "com.example.mobilebrowser"
     compileSdk = 35
+    aaptOptions {
+        noCompress += listOf("tflite", "bloom")
+    }
 
     defaultConfig {
         applicationId = "com.example.mobilebrowser"
@@ -60,6 +63,16 @@ dependencies {
     implementation(libs.androidx.hilt.common)
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.testing)
+//    implementation(libs.litert) {
+//        // Kotlin-DSL style
+//        exclude(group = "org.tensorflow", module = "tensorflow-lite")
+//        exclude(group = "org.tensorflow", module = "tensorflow-lite-api")
+//    }
+//    implementation(libs.litert.support.api) {
+//        exclude(group = "org.tensorflow", module = "tensorflow-lite-api")
+//    }
+    implementation(libs.tensorflow.lite.metadata)
+    implementation (libs.tensorflow.lite.support)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -78,6 +91,7 @@ dependencies {
     implementation (libs.androidx.hilt.work)
     implementation (libs.androidx.biometric)
     implementation(libs.androidx.work.runtime.ktx.v271)
+
 
 
     // Room
