@@ -87,6 +87,7 @@ class GeckoSessionManager(private val context: Context) {
         currentSession = null
     }
 
+    private val canGoBackState = ConcurrentHashMap<GeckoSession, Boolean>()
     private fun createNavigationDelegate(
         onUrlChange: (String) -> Unit,
         onCanGoBack: (Boolean) -> Unit,
@@ -129,6 +130,7 @@ class GeckoSessionManager(private val context: Context) {
                 pendingSecurityChecks.remove(url)
                 return GeckoResult.fromValue(AllowOrDeny.ALLOW)
             }
+
 
             // Check URL safety asynchronously
             CoroutineScope(Dispatchers.Default).launch {
@@ -353,6 +355,9 @@ class GeckoSessionManager(private val context: Context) {
         }
 
         override fun onCanGoBack(session: GeckoSession, canGoBack: Boolean) {
+            // 1) Store it
+            canGoBackState[session] = canGoBack
+            // 2) Bubble it up to your UI
             onCanGoBack(canGoBack)
         }
 

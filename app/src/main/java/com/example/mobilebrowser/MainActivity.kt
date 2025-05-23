@@ -1097,33 +1097,40 @@ class MainActivity : ComponentActivity() {
 
         maliciousUrlState?.let { state ->
             MaliciousWebsiteDialog(
-                url = state.url,
+                url     = state.url,
                 verdict = state.verdict,
+
                 onProceed = {
                     state.onProceed()
                     clearMaliciousState()
                 },
+
                 onGoBack = {
-                    if (state.isFromHomepage) {
-                        // If we were on homepage, return to homepage
-                        isHomepageActive = true
-                        currentUrl = ""
-                        currentPageTitle = "New Tab"
+                    Log.d("BrowserApp", "Malicious dialog → invoking session.goBack()")
+                    // Always drive the GeckoSession back one step:
+                    currentSession?.goBack()
+
+                    // THEN update your Compose state for “homepage” if needed:
+                    if (!state.isFromHomepage) {
+                        // Skip the Google redirect page that’s now on top:
+                        currentSession?.goBack()
                     } else {
-                        // If we were on a regular page, use normal back navigation
-                        state.onGoBack()
+                        // We were on a blank/home tab → just reset UI state
+                        isHomepageActive = true
+                        currentUrl       = ""
+                        currentPageTitle = "New Tab"
                     }
                     clearMaliciousState()
                 },
+
                 onDismiss = {
-                    if (state.isFromHomepage) {
-                        // For homepage, return to homepage
-                        isHomepageActive = true
-                        currentUrl = ""
-                        currentPageTitle = "New Tab"
+                    currentSession?.goBack()
+                    if (!state.isFromHomepage) {
+                        currentSession?.goBack()
                     } else {
-                        // For regular pages, use normal back navigation
-                        state.onGoBack()
+                        isHomepageActive = true
+                        currentUrl       = ""
+                        currentPageTitle = "New Tab"
                     }
                     clearMaliciousState()
                 }
