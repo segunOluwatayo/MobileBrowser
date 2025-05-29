@@ -138,6 +138,18 @@ fun BrowserContent(
         focusManager.clearFocus()
     }
 
+    BackHandler(
+        enabled = !isEditing && !isHomepageActive
+    ) {
+        if (canGoBack) {
+            // If we can go back in browser history, do that
+            onBack()
+        } else {
+            // If we can't go back but we're browsing, go to homepage
+            onNavigate("")
+        }
+    }
+
     // Whenever URL changes or homepage is toggled, update displayed text if not editing.
     LaunchedEffect(currentUrl, isHomepageActive) {
         if (!isEditing) {

@@ -26,6 +26,7 @@ import kotlinx.coroutines.launch
 import org.mozilla.geckoview.GeckoSession
 import android.view.View
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -597,6 +598,16 @@ class MainActivity : ComponentActivity() {
                     delay(1500)
                     safelyCaptureThumbnail(tab.id)
                 }
+            }
+        }
+
+        BackHandler(enabled = currentOverlay != OverlayScreen.None) {
+            when (currentOverlay) {
+                OverlayScreen.BookmarkEdit -> {
+                    bookmarkEditId  = null
+                    currentOverlay  = OverlayScreen.Bookmarks
+                }
+                else -> currentOverlay = OverlayScreen.None
             }
         }
 
