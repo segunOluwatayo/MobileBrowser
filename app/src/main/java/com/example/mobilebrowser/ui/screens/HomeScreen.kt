@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.mobilebrowser.data.entity.BookmarkEntity
 import com.example.mobilebrowser.data.entity.HistoryEntity
 import com.example.mobilebrowser.data.entity.ShortcutEntity
 import com.example.mobilebrowser.data.entity.ShortcutType
@@ -50,6 +51,7 @@ fun HomeScreen(
     recentHistory: List<HistoryEntity>,
     onRecentHistoryClick: (HistoryEntity) -> Unit,
     onShowAllHistory: () -> Unit,
+    onBookmarkClick: (BookmarkEntity) -> Unit,
     // Add all the visibility parameters with true as default
     showShortcuts: Boolean = true,
     showRecentTab: Boolean = true,
@@ -207,9 +209,7 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(16.dp))
             BookmarkSection(
                 bookmarks = bookmarks,
-                onBookmarkClick = { bookmark ->
-                    // Handle the bookmark click (e.g., navigate to the bookmark's URL)
-                },
+                onBookmarkClick = onBookmarkClick,
                 onSeeAllClick = { onShowBookmarks() }
             )
         }

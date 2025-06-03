@@ -199,6 +199,7 @@ fun BrowserContent(
                     showBookmarks = bookmarksEnabled,
                     showHistory = historyEnabled,
                     isAddressBarAtTop = isAddressBarAtTop,
+                    onBookmarkClick = { bookmark -> onNavigate(bookmark.url) },
                     modifier = Modifier.fillMaxSize()
                 )
             }
