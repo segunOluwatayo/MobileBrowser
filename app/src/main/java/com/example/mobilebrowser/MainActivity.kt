@@ -2,6 +2,7 @@ package com.example.mobilebrowser
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -27,6 +28,8 @@ import org.mozilla.geckoview.GeckoSession
 import android.view.View
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.FileProvider
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -43,6 +46,7 @@ import kotlinx.coroutines.withContext
 import org.mozilla.geckoview.Autocomplete
 import org.mozilla.geckoview.BuildConfig
 import org.mozilla.geckoview.GeckoResult
+import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 
@@ -56,6 +60,45 @@ enum class OverlayScreen {
 class MainActivity : ComponentActivity() {
     //    private val bloom by lazy { Bloom(applicationContext) }
     private lateinit var scanner: UrlCnnInterpreter
+
+    // ─── File-chooser state ───────────────────────────────────────────────
+    private var pendingFilePrompt: GeckoSession.PromptDelegate.FilePrompt? = null
+    private var pendingFileResult: GeckoResult<GeckoSession.PromptDelegate.PromptResponse>? = null
+    private var tempPhotoUri: Uri? = null
+
+    // 1-file picker
+    private val pickOne =
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+            handleChooserResult(uri?.let { arrayOf(it) })
+        }
+
+    // multi-file picker
+    private val pickMany =
+        registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+            handleChooserResult(if (uris.isEmpty()) null else uris.toTypedArray())
+        }
+
+    // camera capture
+    private val takePicture =
+        registerForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
+            val uri = tempPhotoUri                    // local val ⇒ smart-cast works
+            handleChooserResult(if (ok && uri != null) arrayOf(uri) else null)
+            tempPhotoUri = null                       // optional: clear afterwards
+        }
+
+    // Called by all three launchers to finish or cancel the prompt
+    private fun handleChooserResult(uris: Array<Uri>?) {
+        val prompt = pendingFilePrompt
+        val res    = pendingFileResult
+        pendingFilePrompt = null
+        pendingFileResult = null
+
+        if (prompt == null || res == null) return
+        if (uris == null)  res.complete(prompt.dismiss())
+        else               res.complete(prompt.confirm(this, uris))
+    }
+
+
 
     @Inject
     lateinit var authService: AuthService
@@ -574,6 +617,45 @@ class MainActivity : ComponentActivity() {
                         return geckoResult
                     }
 
+                    override fun onFilePrompt(
+                        session: GeckoSession,
+                        prompt: GeckoSession.PromptDelegate.FilePrompt
+                    ): GeckoResult<GeckoSession.PromptDelegate.PromptResponse> {
+
+                        val result = GeckoResult<GeckoSession.PromptDelegate.PromptResponse>()
+                        pendingFilePrompt = prompt
+                        pendingFileResult = result
+
+                        // ── Feature flags (current GeckoView API) ─────────────────────────
+                        val wantsCapture = prompt.capture !=
+                                GeckoSession.PromptDelegate.FilePrompt.Capture.NONE
+
+                        val allowMultiple = prompt.type ==
+                                GeckoSession.PromptDelegate.FilePrompt.Type.MULTIPLE
+
+                        val types: Array<String> = prompt.mimeTypes ?: arrayOf("*/*")
+                        // ──────────────────────────────────────────────────────────────────
+
+                        when {
+                            wantsCapture -> {                         // <input capture>
+                                val photoFile = File.createTempFile("gv_cam_", ".jpg", cacheDir)
+                                val uri       = FileProvider.getUriForFile(
+                                    this@MainActivity, "$packageName.provider", photoFile
+                                )
+                                tempPhotoUri  = uri
+                                takePicture.launch(uri)               // camera intent
+                            }
+
+                            allowMultiple -> {
+                                pickMany.launch(types)               // SAF multi-select
+                            }
+
+                            else -> {
+                                pickOne.launch(types)                // SAF single-select
+                            }
+                        }
+                        return result                                // Gecko waits here
+                    }
 
                     // Helper function to extract domain from URL
                     private fun extractDomain(url: String): String {

@@ -232,7 +232,7 @@ fun MaliciousWebsiteDialog(
                                 Spacer(modifier = Modifier.height(4.dp))
 
                                 Text(
-                                    text = verdict,
+                                    text = "This website may contain harmful content or attempt to steal your personal information. Proceed with caution.",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
