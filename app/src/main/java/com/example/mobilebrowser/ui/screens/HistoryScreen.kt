@@ -317,7 +317,7 @@ private fun ModernHistoryItem(
             ) {
                 AsyncImage(
                     model = ImageRequest.Builder(context)
-                        .data(favicon ?: "https://$domain/favicon.ico")
+                        .data(favicon ?: "https://www.google.com/s2/favicons?domain=$domain&sz=64")
                         .crossfade(true)
                         .build(),
                     contentDescription = null,

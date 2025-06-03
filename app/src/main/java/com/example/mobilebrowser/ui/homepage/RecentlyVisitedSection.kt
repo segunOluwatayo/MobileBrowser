@@ -103,7 +103,7 @@ private fun ModernHistoryCard(
             ) {
                 AsyncImage(
                     model = ImageRequest.Builder(context)
-                        .data(historyEntry.favicon ?: "https://$domain/favicon.ico")
+                        .data(historyEntry.favicon ?: "https://www.google.com/s2/favicons?domain=$domain&sz=64")
                         .crossfade(true)
                         .build(),
                     contentDescription = null,

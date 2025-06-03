@@ -202,7 +202,7 @@ private fun ModernBookmarkItem(
                 ) {
                     AsyncImage(
                         model = ImageRequest.Builder(context)
-                            .data("https://$domain/favicon.ico")
+                            .data("https://www.google.com/s2/favicons?domain=$domain&sz=64")
                             .crossfade(true)
                             .build(),
                         contentDescription = null,
