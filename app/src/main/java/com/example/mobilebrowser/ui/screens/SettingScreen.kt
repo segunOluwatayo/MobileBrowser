@@ -21,6 +21,12 @@ import com.example.mobilebrowser.ui.composables.SearchEngine
 import com.example.mobilebrowser.ui.viewmodels.SettingsViewModel
 import com.example.mobilebrowser.ui.viewmodels.AuthViewModel
 import com.example.mobilebrowser.R
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import coil.compose.SubcomposeAsyncImage
+import coil.compose.SubcomposeAsyncImageContent
+import coil.compose.AsyncImagePainter
+import coil.request.ImageRequest
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,6 +83,7 @@ fun SettingsScreen(
     val isSignedIn by authViewModel.isSignedIn.collectAsState()
     val userName by authViewModel.userName.collectAsState()
     val userEmail by authViewModel.userEmail.collectAsState()
+    val profilePictureUrl by authViewModel.profilePicture.collectAsState()
 
     // Convert the theme mode value to a user-friendly string.
     val themeDisplayName = when (currentThemeMode) {
@@ -123,26 +130,98 @@ fun SettingsScreen(
                             .clickable { onNavigateToAccount() },
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .background(
-                                    brush = Brush.verticalGradient(
-                                        colors = listOf(
-                                            Color(0xFF4285F4),
-                                            Color(0xFF9C27B0)
-                                        )
+                        // Profile picture with fallback to gradient
+                        if (profilePictureUrl.isNotEmpty()) {
+                            SubcomposeAsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(profilePictureUrl)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = "Profile Picture",
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(CircleShape),
+                                contentScale = ContentScale.Crop
+                            ) {
+                                when (painter.state) {
+                                    is AsyncImagePainter.State.Loading,
+                                    is AsyncImagePainter.State.Error,
+                                    is AsyncImagePainter.State.Empty -> {
+                                        // Show gradient circle while loading or on error
+                                        Box(
+                                            modifier = Modifier
+                                                .size(48.dp)
+                                                .background(
+                                                    brush = Brush.verticalGradient(
+                                                        colors = listOf(
+                                                            Color(0xFF4285F4),
+                                                            Color(0xFF9C27B0)
+                                                        )
+                                                    ),
+                                                    shape = CircleShape
+                                                ),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Person,
+                                                contentDescription = "Profile",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(28.dp)
+                                            )
+                                        }
+                                    }
+                                    is AsyncImagePainter.State.Success -> {
+                                        SubcomposeAsyncImageContent()
+                                    }
+                                    else -> {
+                                        // Fallback to gradient just in case
+                                        Box(
+                                            modifier = Modifier
+                                                .size(48.dp)
+                                                .background(
+                                                    brush = Brush.verticalGradient(
+                                                        colors = listOf(
+                                                            Color(0xFF4285F4),
+                                                            Color(0xFF9C27B0)
+                                                        )
+                                                    ),
+                                                    shape = CircleShape
+                                                ),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Person,
+                                                contentDescription = "Profile",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(28.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            // Show default gradient box if no URL
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .background(
+                                        brush = Brush.verticalGradient(
+                                            colors = listOf(
+                                                Color(0xFF4285F4),
+                                                Color(0xFF9C27B0)
+                                            )
+                                        ),
+                                        shape = CircleShape
                                     ),
-                                    shape = CircleShape
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Person,
-                                contentDescription = "Profile",
-                                tint = Color.White,
-                                modifier = Modifier.size(28.dp)
-                            )
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Person,
+                                    contentDescription = "Profile",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
                         }
 
                         Spacer(modifier = Modifier.width(16.dp))

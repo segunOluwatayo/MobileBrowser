@@ -33,6 +33,8 @@ class UserDataStore @Inject constructor(
         val USER_EMAIL_KEY = stringPreferencesKey("user_email")
         val IS_SIGNED_IN_KEY = booleanPreferencesKey("is_signed_in")
         val DEVICE_ID_KEY = stringPreferencesKey("device_id")
+        val PROFILE_PICTURE_KEY = stringPreferencesKey("profile_picture")
+        val LAST_PROFILE_UPDATE_KEY = longPreferencesKey("last_profile_update")
 
         // New keys for sync preferences
         val SYNC_HISTORY_ENABLED_KEY = booleanPreferencesKey("sync_history_enabled")
@@ -47,6 +49,32 @@ class UserDataStore @Inject constructor(
         const val DEFAULT_SYNC_BOOKMARKS_ENABLED = true
         const val DEFAULT_SYNC_TABS_ENABLED = true
     }
+
+    // Add flow for profile picture
+    val profilePicture: Flow<String> = dataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                emit(androidx.datastore.preferences.core.emptyPreferences())
+            } else {
+                throw exception
+            }
+        }
+        .map { preferences ->
+            preferences[PROFILE_PICTURE_KEY] ?: ""
+        }
+
+    // Add flow for last profile update timestamp
+    val lastProfileUpdate: Flow<Long> = dataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                emit(androidx.datastore.preferences.core.emptyPreferences())
+            } else {
+                throw exception
+            }
+        }
+        .map { preferences ->
+            preferences[LAST_PROFILE_UPDATE_KEY] ?: 0L
+        }
 
     // Expose authentication state as a Flow.
     val isSignedIn: Flow<Boolean> = dataStore.data
@@ -209,8 +237,26 @@ class UserDataStore @Inject constructor(
             preferences[USER_NAME_KEY] = displayName
             preferences[USER_EMAIL_KEY] = email
             preferences[IS_SIGNED_IN_KEY] = true
+            preferences[LAST_PROFILE_UPDATE_KEY] = System.currentTimeMillis()
             deviceId?.let {
                 preferences[DEVICE_ID_KEY] = it
+            }
+        }
+    }
+
+    // Add new method for profile updates:
+    suspend fun updateUserProfile(
+        displayName: String,
+        email: String,
+        profilePicture: String? = null,
+        lastUpdate: Long = System.currentTimeMillis()
+    ) {
+        dataStore.edit { preferences ->
+            preferences[USER_NAME_KEY] = displayName
+            preferences[USER_EMAIL_KEY] = email
+            preferences[LAST_PROFILE_UPDATE_KEY] = lastUpdate
+            profilePicture?.let {
+                preferences[PROFILE_PICTURE_KEY] = it
             }
         }
     }

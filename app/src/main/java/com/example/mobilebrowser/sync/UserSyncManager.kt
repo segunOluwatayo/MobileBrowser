@@ -123,6 +123,7 @@ import android.util.Log
 import com.example.mobilebrowser.api.BookmarkApiService
 import com.example.mobilebrowser.api.HistoryApiService
 import com.example.mobilebrowser.api.TabApiService
+import com.example.mobilebrowser.api.UserApiService
 import com.example.mobilebrowser.data.dao.TabDao
 import com.example.mobilebrowser.data.dto.ApiResponse
 import com.example.mobilebrowser.data.dto.BookmarkDto
@@ -176,11 +177,45 @@ class UserSyncManager @Inject constructor(
 ) {
     private val TAG = "UserSyncManager"
 
+    @Inject
+    lateinit var userApiService: UserApiService
+
+    /**
+     * Syncs user profile from the server
+     */
+    private suspend fun syncUserProfile(accessToken: String) {
+        try {
+            Log.d(TAG, "Syncing user profile from server")
+            val userProfile = userApiService.getUserProfile("Bearer $accessToken")
+
+            // Update local user data if the server data is newer
+            val lastLocalUpdate = userDataStore.lastProfileUpdate.first()
+            val serverUpdateTime = userProfile.updatedAt.time
+
+            if (serverUpdateTime > lastLocalUpdate) {
+                userDataStore.updateUserProfile(
+                    displayName = userProfile.name,
+                    email = userProfile.email,
+                    profilePicture = userProfile.profilePicture,
+                    lastUpdate = serverUpdateTime
+                )
+                Log.d(TAG, "User profile updated from server: ${userProfile.name}")
+            } else {
+                Log.d(TAG, "Local profile is up to date")
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error syncing user profile: ${e.message}", e)
+            // Don't throw - profile sync failure shouldn't break data sync
+        }
+    }
     /**
      * Main sync method that respects user's sync preferences
      */
     suspend fun performSync(accessToken: String, deviceId: String, userId: String) {
         try {
+            // Sync user profile first
+            syncUserProfile(accessToken)
             // Get sync preferences
             val syncHistory = userDataStore.syncHistoryEnabled.first()
             val syncBookmarks = userDataStore.syncBookmarksEnabled.first()

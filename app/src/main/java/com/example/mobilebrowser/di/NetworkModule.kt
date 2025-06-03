@@ -3,6 +3,7 @@ package com.example.mobilebrowser.di
 import com.example.mobilebrowser.api.BookmarkApiService
 import com.example.mobilebrowser.api.HistoryApiService
 import com.example.mobilebrowser.api.TabApiService
+import com.example.mobilebrowser.api.UserApiService
 import com.example.mobilebrowser.data.util.UserDataStore
 import dagger.Module
 import dagger.Provides
@@ -76,6 +77,12 @@ object NetworkModule {
     @Singleton
     fun provideTabApiService(retrofit: Retrofit): TabApiService {
         return retrofit.create(TabApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideUserApiService(retrofit: Retrofit): UserApiService {
+        return retrofit.create(UserApiService::class.java)
     }
 
 }

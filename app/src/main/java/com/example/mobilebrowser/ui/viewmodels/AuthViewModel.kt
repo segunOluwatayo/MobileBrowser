@@ -53,6 +53,12 @@ class AuthViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UserDataStore.DEFAULT_SYNC_TABS_ENABLED)
 
 
+    val profilePicture: StateFlow<String> = userDataStore.profilePicture.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = ""
+    )
+
     // Use the timestamp from DataStore instead of internal state
     val lastSyncTimestamp: StateFlow<Long?> = userDataStore.lastSyncTimestamp
         .stateIn(

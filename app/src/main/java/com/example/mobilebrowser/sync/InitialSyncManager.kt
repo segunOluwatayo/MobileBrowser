@@ -4,6 +4,7 @@ import android.util.Log
 import com.example.mobilebrowser.api.HistoryApiService
 import com.example.mobilebrowser.api.BookmarkApiService
 import com.example.mobilebrowser.api.TabApiService
+import com.example.mobilebrowser.api.UserApiService
 import com.example.mobilebrowser.data.dto.ApiResponse
 import com.example.mobilebrowser.data.dto.HistoryDto
 import com.example.mobilebrowser.data.dto.BookmarkDto
@@ -29,9 +30,28 @@ class InitialSyncManager @Inject constructor(
     private val tabRepository: TabRepository,
     private val tabApiService: TabApiService,
     private val tabDao: com.example.mobilebrowser.data.dao.TabDao,
-    private val userDataStore: UserDataStore
+    private val userDataStore: UserDataStore,
+    private val userApiService: UserApiService
 ) {
     private val TAG = "InitialSyncManager"
+    private suspend fun syncUserProfile(accessToken: String) {
+        try {
+            Log.d(TAG, "Syncing user profile during initial sync")
+
+            val userProfile = userApiService.getUserProfile("Bearer $accessToken")
+
+            userDataStore.updateUserProfile(
+                displayName = userProfile.name,
+                email = userProfile.email,
+                profilePicture = userProfile.profilePicture,
+                lastUpdate = userProfile.updatedAt.time
+            )
+
+            Log.d(TAG, "User profile synced during initial sync: ${userProfile.name}")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error syncing user profile during initial sync: ${e.message}", e)
+        }
+    }
 
     /**
      * Performs a complete initial synchronization of all data types based on sync preferences.
@@ -59,6 +79,8 @@ class InitialSyncManager @Inject constructor(
                 Log.e(TAG, "Cannot sync: Missing auth credentials. Token: ${accessToken.isNotBlank()}, UserID: ${userId.isNotBlank()}")
                 throw IllegalStateException("Authentication credentials not available for sync")
             }
+            // Sync user profile first
+            syncUserProfile(accessToken)
 
             Log.d(TAG, "Auth credentials obtained. UserID: $userId, DeviceID: $deviceId")
 
