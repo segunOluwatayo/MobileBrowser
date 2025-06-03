@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -13,6 +14,10 @@ import androidx.compose.ui.unit.dp
 import com.example.mobilebrowser.R
 import com.example.mobilebrowser.data.entity.ShortcutEntity
 import com.example.mobilebrowser.data.entity.ShortcutType
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 
 
 data class Shortcut(
@@ -30,6 +35,17 @@ fun ShortcutTile(
     onLongPress: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+
+    // Extract domain for favicon fallback
+    val domain = remember(shortcut.url) {
+        try {
+            val uri = java.net.URI(shortcut.url)
+            uri.host?.removePrefix("www.")
+        } catch (e: Exception) {
+            null
+        }
+    }
     // Choose container color based on pinned/dynamic status
     val containerColor = when {
         shortcut.isPinned -> MaterialTheme.colorScheme.primaryContainer
@@ -91,11 +107,35 @@ fun ShortcutTile(
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Icon(
-                    painter = painterResource(id = shortcut.iconRes),
-                    contentDescription = shortcut.label,
-                    modifier = Modifier.size(36.dp)
-                )
+                // Favicon with fallback to hardcoded icon
+                if (!shortcut.favicon.isNullOrEmpty() || domain != null) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(context)
+                            .data(
+                                shortcut.favicon ?: "https://www.google.com/s2/favicons?domain=$domain&sz=64"
+                            )
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = shortcut.label,
+                        modifier = Modifier.size(36.dp),
+                        error = painterResource(id = shortcut.iconRes), // Fallback to hardcoded icon
+                        fallback = painterResource(id = shortcut.iconRes)
+                    )
+                } else {
+                    // Use hardcoded icon if no favicon available
+                    Icon(
+                        painter = painterResource(id = shortcut.iconRes),
+                        contentDescription = shortcut.label,
+                        modifier = Modifier.size(36.dp),
+                        tint = Color.Unspecified
+                    )
+                }
+//                Icon(
+//                    painter = painterResource(id = shortcut.iconRes),
+//                    contentDescription = shortcut.label,
+//                    modifier = Modifier.size(36.dp),
+//                    tint = Color.Unspecified
+//                )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = shortcut.label,

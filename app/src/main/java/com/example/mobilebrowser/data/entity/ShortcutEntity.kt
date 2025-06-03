@@ -18,7 +18,8 @@ data class ShortcutEntity(
     val shortcutType: ShortcutType = ShortcutType.MANUAL,
     val visitCount: Int = 0,
     val lastVisited: Long = System.currentTimeMillis(),
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    val favicon: String? = null
 )
 
 enum class ShortcutType {

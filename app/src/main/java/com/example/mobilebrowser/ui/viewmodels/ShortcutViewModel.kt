@@ -188,7 +188,7 @@ class ShortcutViewModel @Inject constructor(
             url.contains("wikipedia.org") -> R.drawable.wikipedia_icon
             url.contains("ebay.com") -> R.drawable.ebay_icon
             // Add more mappings as needed
-            else -> R.drawable.ic_launcher_foreground // Default icon
+            else -> R.drawable.generic_searchengine// Default icon
         }
     }
 
@@ -317,7 +317,8 @@ class ShortcutViewModel @Inject constructor(
                             isPinned = false,
                             shortcutType = ShortcutType.DYNAMIC,
                             visitCount = historyEntry.visitCount,
-                            lastVisited = historyEntry.lastVisited.time
+                            lastVisited = historyEntry.lastVisited.time,
+                            favicon = historyEntry.favicon
                         )
 
                         // If we're at the limit, replace the least visited

@@ -135,7 +135,7 @@ class ShortcutRepository @Inject constructor(
             url.contains("wikipedia.org") -> R.drawable.wikipedia_icon
             url.contains("ebay.com") -> R.drawable.ebay_icon
             // Add more mappings as needed
-            else -> R.drawable.ic_launcher_foreground // Default icon
+            else -> R.drawable.generic_searchengine// Default icon
         }
     }
 }

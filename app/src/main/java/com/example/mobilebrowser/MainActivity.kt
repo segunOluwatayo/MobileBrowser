@@ -350,14 +350,23 @@ class MainActivity : ComponentActivity() {
                 return
             }
 
-            if (title.isNotBlank() && title != "Loading..." &&
-                (normalizedUrl != lastRecordedUrl || title != lastRecordedTitle)
-            ) {
+//            if (title.isNotBlank() && title != "Loading..." &&
+//                (normalizedUrl != lastRecordedUrl || title != lastRecordedTitle)
+//            ) {
+//                lastRecordedUrl = normalizedUrl
+//                lastRecordedTitle = title
+//                historyViewModel.addHistoryEntry(normalizedUrl, title)
+//
+//                // Also update shortcut visit count if this URL is a shortcut.
+//                scope.launch {
+//                    shortcutViewModel.recordVisit(normalizedUrl)
+//                }
+//            }
+            if (title.isNotBlank() && title != "Loading...") {
                 lastRecordedUrl = normalizedUrl
                 lastRecordedTitle = title
                 historyViewModel.addHistoryEntry(normalizedUrl, title)
 
-                // Also update shortcut visit count if this URL is a shortcut.
                 scope.launch {
                     shortcutViewModel.recordVisit(normalizedUrl)
                 }
