@@ -7,13 +7,21 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.WarningAmber
-import androidx.compose.material3.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -27,6 +35,21 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.toSize
+import androidx.compose.ui.composed
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.absolutePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.foundation.layout.BoxWithConstraints
 
 /**
  * A full-screen dialog that warns the user about potentially malicious websites.
@@ -53,10 +76,11 @@ fun MaliciousWebsiteDialog(
         }
     }
 
-    // Create a semi-transparent background with subtle gradient
-    Box(
+    // Full-screen container, respecting system bars and applying gradient overlay
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
+            .systemBarsPadding()
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
@@ -67,7 +91,25 @@ fun MaliciousWebsiteDialog(
             ),
         contentAlignment = Alignment.Center
     ) {
-        // Animated card container
+        val maxH = maxHeight
+        // Define breakpoints for "compact" mode if device height is small
+        val isCompact = maxH < 600.dp
+
+        val outerPadding = if (isCompact) 16.dp else 24.dp
+        val iconSize = if (isCompact) 48.dp else 64.dp
+        val smallIconSize = 28.dp
+        val warningIconSize = if (isCompact) (iconSize * 0.56f) else 36.dp
+        val titleStyle = if (isCompact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall
+        val subtitleStyle = if (isCompact) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.titleMedium
+        val bodyPaddingHorizontal = if (isCompact) 4.dp else 8.dp
+        val afterIconSpacer = if (isCompact) 8.dp else 20.dp
+        val afterTitleSpacer = if (isCompact) 4.dp else 8.dp
+        val afterSubtitleSpacer = if (isCompact) 12.dp else 16.dp
+        val betweenElementsSpacer = if (isCompact) 12.dp else 16.dp
+        val afterUrlCardSpacer = if (isCompact) 12.dp else 16.dp
+        val betweenButtonsSpacer = if (isCompact) 8.dp else 12.dp
+        val bottomSpacer = if (isCompact) 8.dp else 12.dp
+
         AnimatedVisibility(
             visibleState = animationState,
             enter = fadeIn(animationSpec = tween(300)) +
@@ -88,29 +130,29 @@ fun MaliciousWebsiteDialog(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(24.dp),
+                        // Make content scrollable to avoid compression
+                        .verticalScroll(rememberScrollState())
+                        .padding(outerPadding),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Top security icon with custom design
+                    // Top security icons row
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
-                        // Shield icon on left side
                         Icon(
                             imageVector = Icons.Default.Shield,
                             contentDescription = null,
-                            modifier = Modifier.size(28.dp),
+                            modifier = Modifier.size(smallIconSize),
                             tint = MaterialTheme.colorScheme.primary
                         )
 
                         Spacer(modifier = Modifier.width(12.dp))
 
-                        // Warning icon with more prominent display
                         Box(
                             modifier = Modifier
-                                .size(64.dp)
+                                .size(iconSize)
                                 .background(
                                     color = MaterialTheme.colorScheme.errorContainer,
                                     shape = CircleShape
@@ -120,59 +162,58 @@ fun MaliciousWebsiteDialog(
                             Icon(
                                 imageVector = Icons.Rounded.WarningAmber,
                                 contentDescription = "Security Warning",
-                                modifier = Modifier.size(36.dp),
+                                modifier = Modifier.size(warningIconSize),
                                 tint = MaterialTheme.colorScheme.error
                             )
                         }
 
                         Spacer(modifier = Modifier.width(12.dp))
 
-                        // Shield icon on right side for symmetry
                         Icon(
                             imageVector = Icons.Default.Shield,
                             contentDescription = null,
-                            modifier = Modifier.size(28.dp),
+                            modifier = Modifier.size(smallIconSize),
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(afterIconSpacer))
 
-                    // Title with more modern typography
+                    // Title
                     Text(
                         text = "Security Warning",
-                        style = MaterialTheme.typography.headlineSmall,
+                        style = titleStyle,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(afterTitleSpacer))
 
-                    // Subtitle with color accent
+                    // Subtitle
                     Text(
                         text = "Potential security threat detected",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = subtitleStyle,
                         color = MaterialTheme.colorScheme.error,
                         fontWeight = FontWeight.Medium
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(afterSubtitleSpacer))
 
-                    // Description with better spacing
+                    // Description
                     Text(
                         text = "Our security system has identified this website as potentially harmful:",
                         style = MaterialTheme.typography.bodyLarge,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(horizontal = 8.dp)
+                        modifier = Modifier.padding(horizontal = bodyPaddingHorizontal)
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(betweenElementsSpacer))
 
-                    // URL Display with modern card design
+                    // URL Display card
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 8.dp),
+                            .padding(vertical = betweenElementsSpacer),
                         color = MaterialTheme.colorScheme.surfaceVariant,
                         shape = RoundedCornerShape(12.dp),
                         tonalElevation = 2.dp
@@ -209,9 +250,9 @@ fun MaliciousWebsiteDialog(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(afterUrlCardSpacer))
 
-                    // ML Verdict with more informative display
+                    // ML Verdict section (if available)
                     if (verdict.isNotEmpty()) {
                         Surface(
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
@@ -238,9 +279,9 @@ fun MaliciousWebsiteDialog(
                                 )
                             }
                         }
-                    }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                        Spacer(modifier = Modifier.height(betweenElementsSpacer))
+                    }
 
                     // Risk explanation
                     Text(
@@ -248,12 +289,12 @@ fun MaliciousWebsiteDialog(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(horizontal = 16.dp)
+                        modifier = Modifier.padding(horizontal = bodyPaddingHorizontal)
                     )
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(if (isCompact) 16.dp else 24.dp))
 
-                    // Action Buttons with clear distinction
+                    // Action Buttons
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally
@@ -278,12 +319,12 @@ fun MaliciousWebsiteDialog(
                             Spacer(modifier = Modifier.width(8.dp))
 
                             Text(
-                                "Go Back (Recommended)",
+                                "Go Back",
                                 style = MaterialTheme.typography.titleMedium
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(betweenButtonsSpacer))
 
                         // Secondary risky action
                         OutlinedButton(
@@ -303,7 +344,7 @@ fun MaliciousWebsiteDialog(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(bottomSpacer))
 
                     // Protection note
                     Text(
@@ -311,7 +352,7 @@ fun MaliciousWebsiteDialog(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(horizontal = 16.dp)
+                        modifier = Modifier.padding(horizontal = bodyPaddingHorizontal)
                     )
                 }
             }

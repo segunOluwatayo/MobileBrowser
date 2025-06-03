@@ -247,7 +247,7 @@ fun HistoryScreen(
                         ModernDeleteOption("All time", HistoryTimeRange.ALL) {
                             showDeleteDialog = false
 //                            showDeleteConfirmation = it
-                            viewModel.deleteHistoryByTimeRange(HistoryTimeRange.YESTERDAY)
+                            viewModel.deleteHistoryByTimeRange(HistoryTimeRange.ALL)
                         }
                     }
                 },
