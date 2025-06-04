@@ -220,7 +220,6 @@ class SyncWorker @AssistedInject constructor(
         fun schedule(context: Context) {
             Log.d(TAG, "Scheduling background sync worker (every 3 minutes)")
 
-            // Create constraints - only run when network is available
             val constraints = Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)
                 .build()
@@ -231,20 +230,17 @@ class SyncWorker @AssistedInject constructor(
                 30, TimeUnit.SECONDS  // With 30 seconds flex time for battery optimization
             )
                 .setConstraints(constraints)
-                // Add an initial delay to avoid immediate execution conflicts
                 .setInitialDelay(10, TimeUnit.SECONDS)
-                .addTag("sync_worker")  // Add a tag for easier debugging
+                .addTag("sync_worker")
                 .build()
 
-            // Use REPLACE instead of KEEP to ensure the latest configuration is used
             WorkManager.getInstance(context)
                 .enqueueUniquePeriodicWork(
                     WORK_NAME,
-                    ExistingPeriodicWorkPolicy.REPLACE,  // Changed from KEEP to REPLACE
+                    ExistingPeriodicWorkPolicy.REPLACE,
                     syncRequest
                 )
 
-            // Also schedule an immediate one-time sync to verify functionality
             val immediateSync = OneTimeWorkRequestBuilder<SyncWorker>()
                 .setConstraints(constraints)
                 .addTag("immediate_sync")
@@ -271,12 +267,11 @@ class SyncWorker @AssistedInject constructor(
     fun scheduleImmediate(context: Context) {
         Log.d(TAG, "Scheduling immediate one-time sync")
 
-        // Create constraints - only run when network is available
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .build()
 
-        // Create a one-time work request
+        // Create a one time work request
         val syncRequest = OneTimeWorkRequestBuilder<SyncWorker>()
             .setConstraints(constraints)
             .addTag("immediate_sync")

@@ -71,15 +71,13 @@ class AuthViewModel @Inject constructor(
     private val _syncStatus = MutableStateFlow<SyncStatusState>(SyncStatusState.Idle)
     val syncStatus: StateFlow<SyncStatusState> = _syncStatus
 
-    // Job reference for auto-sync
     private var autoSyncJob: Job? = null
 
-    // Start the foreground auto-sync timer (every 3 minutes)
+    // Start the foreground auto sync timer (every 3 minutes)
     fun startAutoSync() {
         autoSyncJob?.cancel() // cancel any existing job
         autoSyncJob = viewModelScope.launch {
             while (isActive) {
-                // Optionally, check if not already syncing
                 if (_syncStatus.value != SyncStatusState.Syncing) {
                     performManualSync()
                 }
@@ -99,7 +97,6 @@ class AuthViewModel @Inject constructor(
 //    val syncBookmarksEnabled = userDataStore.syncBookmarksEnabled
 //    val syncTabsEnabled = userDataStore.syncTabsEnabled
 
-    // Sign out the current user
     suspend fun signOut() {
         authService.signOut()
     }
@@ -119,7 +116,6 @@ class AuthViewModel @Inject constructor(
                 Log.d("AuthViewModel", "Starting manual sync")
                 _syncStatus.value = SyncStatusState.Syncing
 
-                // Get auth data
                 val accessToken = userDataStore.accessToken.first()
                 val deviceId = userDataStore.deviceId.first().ifEmpty { "android-device" }
                 val userId = userDataStore.userId.first()
@@ -129,10 +125,8 @@ class AuthViewModel @Inject constructor(
                     return@launch
                 }
 
-                // Perform sync
                 userSyncManager.performSync(accessToken, deviceId, userId)
 
-                // Update timestamp after successful sync
                 val currentTime = System.currentTimeMillis()
                 userDataStore.updateLastSyncTimestamp(currentTime)
 

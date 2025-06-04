@@ -23,7 +23,7 @@ data class ShortcutEntity(
 )
 
 enum class ShortcutType {
-    MANUAL,   // User manually added
-    DYNAMIC,  // Automatically generated based on browsing history
-    PINNED    // User pinned (can be initially MANUAL or DYNAMIC)
+    MANUAL,
+    DYNAMIC,
+    PINNED
 }

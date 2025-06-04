@@ -43,7 +43,7 @@ fun BookmarkTile(
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            // Thumbnail area (takes most of the space)
+            // Thumbnail area
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -84,7 +84,6 @@ fun BookmarkTile(
                     FallbackThumbnail(bookmark.url)
                 }
 
-                // Optional: Add a gradient overlay to make text more readable
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -99,7 +98,6 @@ fun BookmarkTile(
                             )
                         )
                 ) {
-                    // Domain indicator
                 }
             }
 

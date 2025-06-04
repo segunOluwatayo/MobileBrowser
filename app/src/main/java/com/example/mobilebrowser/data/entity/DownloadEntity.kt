@@ -30,7 +30,7 @@ data class DownloadEntity(
     // When the download was initiated
     val dateAdded: Date = Date(),
 
-    // When the download was completed (null if not completed)
+    // When the download was completed
     val dateCompleted: Date? = null,
 
     // MIME type of the file

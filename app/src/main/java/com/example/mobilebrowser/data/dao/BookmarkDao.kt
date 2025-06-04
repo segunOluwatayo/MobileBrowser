@@ -11,7 +11,7 @@ interface BookmarkDao {
     @Query("SELECT * FROM bookmarks ORDER BY dateAdded DESC")
     fun getAllBookmarks(): Flow<List<BookmarkEntity>>
 
-    // Retrieve all bookmarks as a List (not a Flow) for sync operations.
+    // Retrieve all bookmarks as a List for sync operations.
     @Query("SELECT * FROM bookmarks ORDER BY dateAdded DESC")
     suspend fun getAllBookmarksAsList(): List<BookmarkEntity>
 

@@ -70,16 +70,15 @@ class UrlCnnInterpreter(context: Context) {
 
     fun predict(url: String): Float {
 
-        // 1 ─ build the two feature vectors exactly like Python
-        val chVec  = CharEncoder.encode(url)                       // int[200]
-        val numVec = scaler.transform(FeatureExtractor.features(url)) // float[8]
+        // build the two feature vectors exactly like Python
+        val chVec  = CharEncoder.encode(url)
+        val numVec = scaler.transform(FeatureExtractor.features(url))
 
-        // 2 ─ wrap each in a batch dimension: shape becomes [1,⋯]
-        val inputs = arrayOfNulls<Any>(2)      // inputTensorCount == 2
-        inputs[idxCh]  = arrayOf(chVec)        // [[I]  – INT32
-        inputs[idxNum] = arrayOf(numVec)       // [[F]  – FLOAT32
+        val inputs = arrayOfNulls<Any>(2)
+        inputs[idxCh]  = arrayOf(chVec)
+        inputs[idxNum] = arrayOf(numVec)
 
-        // 3 ─ run and pull the single scalar output
+        // run and pull the single scalar output
         val outputs = hashMapOf<Int, Any>().apply {
             put(0, Array(1) { FloatArray(1) })
         }

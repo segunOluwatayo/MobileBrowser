@@ -114,7 +114,7 @@ class BookmarkRepository @Inject constructor(
     ) {
         if (isUserSignedIn && bookmark.userId.isNotBlank()) {
             try {
-                // If we have a server ID, try to delete directly on server
+                // If there is a server ID, try to delete directly on server
                 if (!bookmark.serverId.isNullOrBlank()) {
                     bookmarkApiService.deleteBookmark("Bearer $accessToken", bookmark.serverId)
                     // Success! Remove locally
@@ -131,10 +131,8 @@ class BookmarkRepository @Inject constructor(
                         syncStatus = SyncStatus.PENDING_DELETE
                     )
 
-                    // Insert the shadow tracking entry
                     bookmarkDao.insertBookmark(shadowEntry)
 
-                    // Delete the original entry so it disappears from UI
                     bookmarkDao.deleteBookmark(bookmark)
                 }
             } catch (e: Exception) {
@@ -142,7 +140,7 @@ class BookmarkRepository @Inject constructor(
 
                 // API failure - create shadow entry and delete original
                 val shadowEntry = bookmark.copy(
-                    id = 0, // Important: Reset ID to avoid primary key conflict
+                    id = 0,
                     url = "PENDING_DELETE:" + bookmark.url,
                     syncStatus = SyncStatus.PENDING_DELETE
                 )

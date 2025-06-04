@@ -19,7 +19,6 @@ fun BookmarkSection(
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.padding(horizontal = 16.dp)) {
-        // Header with "Bookmarks" title and "See All" clickable text.
         Row(
             modifier = Modifier
                 .fillMaxWidth()

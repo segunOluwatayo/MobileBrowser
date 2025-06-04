@@ -92,8 +92,6 @@ interface TabDao {
     /**
      * Marks all open tabs (where closedAt is null) that were created before the threshold date as closed.
      *
-     * @param threshold The cutoff date. Tabs created before this date will be marked as closed.
-     * @param closedAt The timestamp to set as the closed time (usually the current time).
      */
     @Query("UPDATE tabs SET closedAt = :closedAt WHERE closedAt IS NULL AND createdAt < :threshold")
     suspend fun markOpenTabsOlderThan(threshold: Date, closedAt: Date)

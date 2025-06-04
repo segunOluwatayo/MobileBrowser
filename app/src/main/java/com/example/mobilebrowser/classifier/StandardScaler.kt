@@ -20,9 +20,9 @@ import java.nio.charset.StandardCharsets
 //        FloatArray(x.size) { i -> (x[i] - mean[i]) / scale[i] }
 //}
 
-/**
- * Implements sklearn's StandardScaler functionality for feature normalization
- */
+
+// Implements sklearn's StandardScaler functionality for feature normalization
+
 class StandardScaler(jsonBytes: ByteArray) {
     private val mean: FloatArray
     private val scale: FloatArray
@@ -30,7 +30,6 @@ class StandardScaler(jsonBytes: ByteArray) {
     init {
         val json = JSONObject(String(jsonBytes))
 
-        // Parse mean and scale from the JSON
         val meanArray = json.getJSONArray("mean")
         val scaleArray = json.getJSONArray("scale")
 
@@ -43,15 +42,12 @@ class StandardScaler(jsonBytes: ByteArray) {
         }
     }
 
-    /**
-     * Transform features using the loaded mean and scale values
-     * This matches exactly what sklearn's StandardScaler does
-     */
+//     Transform features using the loaded mean and scale values
+
     fun transform(features: FloatArray): FloatArray {
         val result = FloatArray(features.size)
 
         for (i in features.indices) {
-            // Apply the same transformation as in Python: (x - mean) / scale
             result[i] = (features[i] - mean[i]) / scale[i]
         }
 

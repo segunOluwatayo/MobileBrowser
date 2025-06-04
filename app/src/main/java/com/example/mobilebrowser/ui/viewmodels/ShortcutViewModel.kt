@@ -32,11 +32,9 @@ class ShortcutViewModel @Inject constructor(
     private val historyRepository: HistoryRepository
 ) : ViewModel() {
 
-    // Existing shortcuts state flow
     private val _shortcuts = MutableStateFlow<List<ShortcutEntity>>(emptyList())
     val shortcuts: StateFlow<List<ShortcutEntity>> = _shortcuts
 
-    // Separate flows for pinned and dynamic shortcuts
     val pinnedShortcuts = _shortcuts.map { shortcuts ->
         shortcuts.filter { it.isPinned }
     }.stateIn(
@@ -59,7 +57,6 @@ class ShortcutViewModel @Inject constructor(
     init {
         // Observe changes from the repository and update the state flow.
         viewModelScope.launch {
-            // Check the real DB state
             val existingShortcuts = shortcutRepository.getAllShortcuts().first()
             if (existingShortcuts.isEmpty()) {
                 insertShortcut(
@@ -87,7 +84,6 @@ class ShortcutViewModel @Inject constructor(
                     )
                 )
             }
-            // Then collect for UI updates
             shortcutRepository.getAllShortcuts().collectLatest { shortcutList ->
                 _shortcuts.value = shortcutList
             }
@@ -114,7 +110,7 @@ class ShortcutViewModel @Inject constructor(
         viewModelScope.launch {
             while (true) {
                 updateDynamicShortcuts()
-                delay(3600000) // Update every hour
+                delay(3600000)
             }
         }
     }
@@ -233,7 +229,6 @@ class ShortcutViewModel @Inject constructor(
 
     /**
      * Handles a shortcut tap event.
-     * Here, you might navigate to the URL associated with the shortcut.
      *
      * @param shortcut The shortcut that was tapped.
      */
@@ -283,11 +278,9 @@ class ShortcutViewModel @Inject constructor(
     fun recordVisit(url: String) {
         viewModelScope.launch {
             try {
-                // Try to increment visit count for existing shortcuts
                 try {
                     shortcutRepository.incrementShortcutVisit(url)
                 } catch (e: Exception) {
-                    // Ignore if not already a shortcut
                 }
 
                 // Check if this URL should be added as a dynamic shortcut
@@ -305,7 +298,6 @@ class ShortcutViewModel @Inject constructor(
                             it.shortcutType == ShortcutType.DYNAMIC && !it.isPinned
                         }
 
-                        // Create the new shortcut
                         val iconRes = getIconResForUrl(url)
                         val label = historyEntry.title.takeIf { it.isNotBlank() }
                             ?: extractDomainFromUrl(url)
@@ -321,19 +313,15 @@ class ShortcutViewModel @Inject constructor(
                             favicon = historyEntry.favicon
                         )
 
-                        // If we're at the limit, replace the least visited
                         if (dynamicShortcuts.size >= maxDynamicShortcuts) {
-                            // Find the least visited dynamic shortcut
                             val leastVisited = dynamicShortcuts.minByOrNull { it.visitCount }
 
-                            // Only replace if the new one has more visits
                             if (leastVisited != null && historyEntry.visitCount > leastVisited.visitCount) {
                                 Log.d("ShortcutViewModel", "Replacing least visited shortcut: ${leastVisited.url} with: $url")
                                 shortcutRepository.deleteShortcut(leastVisited)
                                 shortcutRepository.insertShortcut(newShortcut)
                             }
                         } else {
-                            // We have room for another shortcut
                             Log.d("ShortcutViewModel", "Adding dynamic shortcut for: $url with visit count: ${historyEntry.visitCount}")
                             shortcutRepository.insertShortcut(newShortcut)
                         }
@@ -347,17 +335,14 @@ class ShortcutViewModel @Inject constructor(
 
     fun restoreDefaultShortcuts() {
         viewModelScope.launch {
-            // Define default shortcuts
             val defaultShortcuts = listOf(
                 Triple("Google", "https://www.google.com", R.drawable.google_icon),
                 Triple("Bing", "https://www.bing.com", R.drawable.bing_icon),
                 Triple("DuckDuckGo", "https://www.duckduckgo.com", R.drawable.duckduckgo_icon)
             )
 
-            // Get all current shortcuts to check if defaults exist
             val currentShortcuts = shortcutRepository.getAllShortcuts().first()
 
-            // Process each default shortcut
             for ((label, url, iconRes) in defaultShortcuts) {
                 // Check if the shortcut exists
                 val existingShortcut = currentShortcuts.find { it.url == url }
@@ -372,7 +357,7 @@ class ShortcutViewModel @Inject constructor(
                         Log.d("ShortcutViewModel", "Repinned existing shortcut: $label")
                     }
                 } else {
-                    // Shortcut doesn't exist - create a new one
+                    // Shortcut doesn't exist create a new one
                     val newShortcut = ShortcutEntity(
                         label = label,
                         url = url,

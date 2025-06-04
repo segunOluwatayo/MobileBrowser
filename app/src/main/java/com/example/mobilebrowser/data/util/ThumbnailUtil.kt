@@ -36,7 +36,6 @@ object ThumbnailUtil {
 
     /**
      * Saves the given bitmap as a PNG file.
-     * This method now runs on the IO dispatcher.
      * Returns the absolute path of the saved file.
      */
     suspend fun saveBitmapToFile(bitmap: Bitmap, file: File): String? = withContext(Dispatchers.IO) {
@@ -56,7 +55,6 @@ object ThumbnailUtil {
 
     /**
      * Verifies if the thumbnail file exists and is valid.
-     * Runs on the IO dispatcher.
      */
     suspend fun verifyThumbnailFile(filePath: String): Boolean = withContext(Dispatchers.IO) {
         val file = File(filePath)

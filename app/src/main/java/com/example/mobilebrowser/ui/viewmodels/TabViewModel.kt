@@ -96,7 +96,7 @@ class TabViewModel @Inject constructor(
         // Initialize browser with default tab on startup
         viewModelScope.launch {
             initializeDefaultTab()
-            // Schedule auto-close worker based on the current policy at startup.
+            // Schedule auto close worker based on the current policy at startup.
             scheduleTabAutoClose(currentTabPolicy.value)
         }
     }
@@ -154,7 +154,7 @@ class TabViewModel @Inject constructor(
                 if (count == 0) {
                     Log.d("TabViewModel", "Initializing with default tab...")
                     val newTabId = createTab()
-                    switchToTab(newTabId)  // Ensuring it's set as active
+                    switchToTab(newTabId)
                     _isInitialized.value = true
                 }
             } catch (e: Exception) {
@@ -177,7 +177,7 @@ class TabViewModel @Inject constructor(
             val syncStatus = if (title != "Loading..." && url.isNotBlank()) {
                 SyncStatus.PENDING_UPLOAD
             } else {
-                SyncStatus.SYNCED  // Don't mark for sync yet
+                SyncStatus.SYNCED
             }
 
             val tab = TabEntity(
@@ -228,11 +228,10 @@ class TabViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 activeTab.value?.let { tab ->
-                    // Only mark for sync if title is not "Loading..."
                     val syncStatus = if (title != "Loading...") {
                         SyncStatus.PENDING_UPLOAD
                     } else {
-                        tab.syncStatus  // Keep existing sync status
+                        tab.syncStatus
                     }
 
                     repository.updateTab(
@@ -273,7 +272,7 @@ class TabViewModel @Inject constructor(
                     )
 
                     // Trigger sync to clean up
-                    // Don't pull tabs right after deletion to avoid re-adding
+                    // Don't pull tabs right after deletion to avoid re adding
                     // Just push the deletion to server
                     viewModelScope.launch {
                         try {
@@ -285,7 +284,7 @@ class TabViewModel @Inject constructor(
                         }
                     }
                 } else {
-                    // Just delete locally for non-signed in users
+                    // Just delete locally for non signed in users
                     repository.deleteTab(tab)
                     Log.d("TabViewModel", "Deleted local tab (anonymous user): ${tab.url}")
                 }
@@ -380,7 +379,6 @@ class TabViewModel @Inject constructor(
                 }
                 clearSelection()
                 toggleSelectionMode()
-                // If we closed all tabs, create a new one
                 if (tabCount.value == 0) {
                     createTab()
                 }

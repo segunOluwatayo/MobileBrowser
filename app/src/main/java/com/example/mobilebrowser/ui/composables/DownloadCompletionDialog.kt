@@ -33,14 +33,12 @@ fun DownloadCompletionDialog(
     val isCompleted by viewModel.shouldShowCompletionDialog(downloadId)
         .collectAsState(initial = false)
 
-    // Control visibility of the banner
     var visible by remember { mutableStateOf(isCompleted) }
 
-    // When isCompleted becomes true, show the banner and then hide it after 5 seconds.
     LaunchedEffect(isCompleted) {
         if (isCompleted) {
             visible = true
-            // Wait 5 seconds before auto-dismissing
+            // Wait 5 seconds before auto dismissing
             delay(5000)
             visible = false
             onDismissRequest()

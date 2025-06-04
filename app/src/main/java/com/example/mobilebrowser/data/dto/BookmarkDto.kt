@@ -44,9 +44,9 @@ import java.util.Date
 data class BookmarkDto(
     val id: String? = null,
     val userId: String? = null,  // Made nullable in case server doesn't return it
-    val title: String? = null,   // Made nullable in case server doesn't return it
+    val title: String? = null,
     val url: String,             // URL is the only required field
     val favicon: String? = null,
     val tags: String? = null,
-    val timestamp: Date? = null  // Made nullable to match server behavior
+    val timestamp: Date? = null
 )

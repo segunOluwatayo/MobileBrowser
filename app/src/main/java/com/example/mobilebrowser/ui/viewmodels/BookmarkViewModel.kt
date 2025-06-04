@@ -137,9 +137,9 @@ class BookmarkViewModel @Inject constructor(
                 title = bookmarkTitle,
                 userId = userId,
                 url = url,
-                favicon = null, // TODO: Implement favicon fetching
+                favicon = null,
                 lastVisited = Date(),
-                tags = null // No tags by default
+                tags = null
             )
             repository.addBookmark(bookmark)
             _isCurrentUrlBookmarked.value = true
@@ -175,7 +175,7 @@ class BookmarkViewModel @Inject constructor(
                     // Trigger sync to clean up any pending deletes
                     triggerBookmarkSync()
                 } else {
-                    // Anonymous user — just delete locally
+                    // Anonymous user just delete locally
                     repository.deleteBookmark(bookmark)
                 }
 

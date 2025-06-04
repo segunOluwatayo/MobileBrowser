@@ -20,11 +20,9 @@ class HistoryRepository @Inject constructor(
     // Retrieve all history entries from the local database.
     fun getAllHistory(): Flow<List<HistoryEntity>> = historyDao.getAllHistory()
 
-    // Search history entries by a query string.
     fun searchHistory(query: String): Flow<List<HistoryEntity>> =
         historyDao.searchHistory("%$query%")
 
-    // Retrieve history entries within a specific date range.
     fun getHistoryInRange(startDate: Date, endDate: Date): Flow<List<HistoryEntity>> =
         historyDao.getHistoryInRange(startDate, endDate)
 
@@ -77,13 +75,6 @@ class HistoryRepository @Inject constructor(
 
     /**
      * Adds a new history entry or updates an existing one.
-     * New or updated entries are marked as PENDING_UPLOAD to signal
-     * that they need to be synchronized with the backend.
-     *
-     * @param url The URL of the visited page.
-     * @param title The title of the visited page.
-     * @param favicon Optional favicon URL.
-     * @param userId The identifier of the currently logged in user.
      */
     suspend fun addHistoryEntry(url: String, title: String, favicon: String? = null, userId: String): HistoryEntity {
         val existingEntry = historyDao.getHistoryByUrl(url)
@@ -95,7 +86,7 @@ class HistoryRepository @Inject constructor(
                 syncStatus = SyncStatus.PENDING_UPLOAD
             )
             historyDao.updateHistory(updatedEntry)
-            updatedEntry  // Return the updated entry
+            updatedEntry
         } else {
             val newEntry = HistoryEntity(
                 userId = userId,
@@ -120,9 +111,6 @@ class HistoryRepository @Inject constructor(
      * Deletes a history entry properly based on user sign-in status.
      * If user is signed in, the entry is marked for server deletion before local removal.
      * If not signed in, the entry is just deleted locally.
-     *
-     * @param history The history entry to be deleted
-     * @param isUserSignedIn Whether the user is currently signed in
      */
     suspend fun deleteHistoryEntry(history: HistoryEntity, isUserSignedIn: Boolean) {
         if (isUserSignedIn && history.userId.isNotBlank()) {
@@ -146,7 +134,7 @@ class HistoryRepository @Inject constructor(
     ) {
         if (isUserSignedIn && history.userId.isNotBlank()) {
             try {
-                // If we have a server ID, try to delete directly on server
+                // If there is a server ID, try to delete directly on server
                 if (!history.serverId.isNullOrBlank()) {
                     historyApiService.deleteHistoryEntry("Bearer $accessToken", history.serverId)
                     // Success! Remove locally
@@ -187,10 +175,6 @@ class HistoryRepository @Inject constructor(
     /**
      * Deletes history entries within a specific date range.
      * When signed in, entries are first marked for server deletion.
-     *
-     * @param startDate Beginning of the time range
-     * @param endDate End of the time range
-     * @param isUserSignedIn Whether the user is currently signed in
      */
     suspend fun deleteHistoryInRange(startDate: Date, endDate: Date, isUserSignedIn: Boolean) {
         if (isUserSignedIn) {
@@ -215,12 +199,10 @@ class HistoryRepository @Inject constructor(
     /**
      * Deletes all history entries.
      * When signed in, entries are first marked for server deletion.
-     *
-     * @param isUserSignedIn Whether the user is currently signed in
      */
     suspend fun deleteAllHistory(isUserSignedIn: Boolean) {
         if (isUserSignedIn) {
-            // For signed-in users, first get all entries and mark them for server deletion
+            // For signed in users, first get all entries and mark them for server deletion
             val allEntries = historyDao.getAllHistoryAsList()
             for (entry in allEntries) {
                 // Only mark entries with a valid userId
@@ -234,12 +216,12 @@ class HistoryRepository @Inject constructor(
             }
         }
 
-        // Delete all entries from local database regardless of sign-in status
+        // Delete all entries from local database regardless of sign in status
         historyDao.deleteAllHistory()
     }
 
     /**
-     * Get all history as a List for processing (not as a Flow)
+     * Get all history as a List for processing
      */
     suspend fun getAllHistoryAsList(): List<HistoryEntity> {
         return historyDao.getAllHistoryAsList()
@@ -294,8 +276,6 @@ class HistoryRepository @Inject constructor(
 
     /**
      * Once the server confirms deletion, remove the entry from the local database.
-     *
-     * @param history The history entry to be permanently removed.
      */
     suspend fun finalizeDeletion(history: HistoryEntity) {
         historyDao.deleteHistory(history)
@@ -303,9 +283,6 @@ class HistoryRepository @Inject constructor(
 
     /**
      * Update an existing local history entry with data from the remote DTO.
-     * Uses remote timestamp for conflict resolution (last-write-wins).
-     *
-     * @param remote The HistoryDto received from the server.
      */
     suspend fun updateHistoryFromDto(remote: HistoryDto) {
         val localEntry = historyDao.getHistoryByUrl(remote.url)
@@ -327,8 +304,6 @@ class HistoryRepository @Inject constructor(
 
     /**
      * Inserts a new history entry based on data from the remote DTO.
-     *
-     * @param remote The HistoryDto received from the server.
      */
     suspend fun insertHistoryFromDto(remote: HistoryDto) {
         val newEntry = HistoryEntity(
@@ -349,9 +324,6 @@ class HistoryRepository @Inject constructor(
     /**
      * Marks a local history entry as synchronized.
      * Updates syncStatus to SYNCED and stores the server-assigned ID if provided.
-     *
-     * @param localEntry The local history entry to update.
-     * @param updatedServerId The server ID returned from the backend (if any).
      */
     suspend fun markAsSynced(localEntry: HistoryEntity, updatedServerId: String?) {
         val updatedEntry = localEntry.copy(
@@ -366,9 +338,6 @@ class HistoryRepository @Inject constructor(
 /**
  * Extension function to convert a HistoryEntity to a HistoryDto.
  * Adapts the local model to the backend schema by including the device identifier.
- *
- * @param deviceId The device identification to be sent with the API request.
- * @return A HistoryDto instance.
  */
 fun HistoryEntity.toDto(deviceId: String): HistoryDto {
     return HistoryDto(

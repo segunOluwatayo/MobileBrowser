@@ -22,7 +22,6 @@ class BookmarkThumbnailService @Inject constructor(
     private val TAG = "BookmarkThumbnailService"
     private val scope = CoroutineScope(Dispatchers.IO)
 
-    // Where we store the bookmark thumbnails
     private val thumbnailFolder by lazy {
         File(context.cacheDir, "bookmark_thumbnails").apply {
             if (!exists()) mkdirs()
@@ -36,14 +35,12 @@ class BookmarkThumbnailService @Inject constructor(
     fun saveThumbnailForBookmark(bookmark: BookmarkEntity, bitmap: Bitmap) {
         scope.launch {
             try {
-                // Save to e.g. /data/data/your.package/cache/bookmark_thumbnails/bookmark_{id}.png
                 val thumbnailFile = File(thumbnailFolder, "bookmark_${bookmark.id}.png")
                 FileOutputStream(thumbnailFile).use { out ->
                     bitmap.compress(Bitmap.CompressFormat.PNG, 90, out)
                 }
                 Log.d(TAG, "Thumbnail saved at: ${thumbnailFile.absolutePath}")
 
-                // Update bookmark record with the local file:// path
                 val updatedBookmark = bookmark.copy(favicon = "file://${thumbnailFile.absolutePath}")
                 bookmarkRepository.updateBookmark(updatedBookmark)
                 Log.d(TAG, "Bookmark updated with thumbnail path: ${updatedBookmark.favicon}")

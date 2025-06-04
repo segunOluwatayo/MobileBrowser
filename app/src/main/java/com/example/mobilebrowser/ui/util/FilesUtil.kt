@@ -37,7 +37,6 @@ object FileUtils {
 
     fun createOpenIntent(context: Context, file: File, mimeType: String): Intent {
         val uri = getUriForFile(context, file)
-        // If mimeType is generic, infer the MIME type from the file extension.
         val actualMimeType = if (mimeType == "application/octet-stream") {
             val ext = file.extension.lowercase()
             MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: mimeType
@@ -48,7 +47,6 @@ object FileUtils {
         return Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(uri, actualMimeType)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            // Ensure we have the new task flag if the context isn’t an Activity
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
     }
@@ -94,8 +92,6 @@ object FileUtils {
     }
 
     fun extractFileNameFromContentDisposition(contentDisposition: String): String? {
-        // This regex tries to match:
-        //   filename*=UTF-8''<encoded-filename> OR filename="<filename>"
         val regex = Regex("filename\\*=UTF-8''([^;]+)|filename=\"?([^;\"]+)\"?")
         val matchResult = regex.find(contentDisposition)
         return when {
@@ -108,7 +104,6 @@ object FileUtils {
         try {
             val connection = URL(url).openConnection() as HttpURLConnection
             connection.requestMethod = "HEAD"
-            // Request the uncompressed length
             connection.setRequestProperty("Accept-Encoding", "identity")
             connection.connectTimeout = 5000
             connection.readTimeout = 5000

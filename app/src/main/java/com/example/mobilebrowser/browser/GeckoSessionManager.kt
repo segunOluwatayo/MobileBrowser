@@ -43,6 +43,7 @@ class GeckoSessionManager(private val context: Context) {
         onMaliciousUrlDetected = callback
     }
 
+    // Method to get or create a session
     fun getOrCreateSession(
         tabId: Long,
         url: String = "about:blank",
@@ -56,17 +57,16 @@ class GeckoSessionManager(private val context: Context) {
             GeckoSession().apply {
                 open(geckoRuntime)
                 navigationDelegate = createNavigationDelegate(onUrlChange, onCanGoBack, onCanGoForward)
-                // Use a combined content delegate
                 contentDelegate = createCombinedContentDelegate(onTitleChange, downloadDelegate)
                 loadUri(url)
             }
         }.apply {
             navigationDelegate = createNavigationDelegate(onUrlChange, onCanGoBack, onCanGoForward)
-            // Always update, in case callbacks change. Crucial!
             contentDelegate = createCombinedContentDelegate(onTitleChange, downloadDelegate)
         }
     }
 
+    // Method to switch to a session
     fun switchToSession(tabId: Long): GeckoSession? {
         return sessions[tabId]?.also { currentSession = it }
     }
@@ -120,10 +120,9 @@ class GeckoSessionManager(private val context: Context) {
                 return GeckoResult.fromValue(AllowOrDeny.ALLOW)
             }
 
-            // Create a GeckoResult we can complete later
             val result = GeckoResult<AllowOrDeny>()
 
-            // Check if we already verified this URL to avoid duplicates
+            // Check if the URL was already checked for safety to avoid duplicates
             val pending = pendingSecurityChecks.getOrPut(url) { AtomicBoolean(false) }
             if (pending.getAndSet(true)) {
                 // This URL is already being checked, allow navigation to avoid duplicates
@@ -168,7 +167,6 @@ class GeckoSessionManager(private val context: Context) {
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error during URL safety check", e)
-                    // On error, allow navigation to continue
                     withContext(Dispatchers.Main) {
                         result.complete(AllowOrDeny.ALLOW)
                         pendingSecurityChecks.remove(url)
@@ -192,8 +190,6 @@ class GeckoSessionManager(private val context: Context) {
                     url.contains("session_expired") || url.contains("session_ended")
         }
 
-        // Keep your existing onLocationChange method, but simplify it since
-        // the security check now happens in onLoadRequest
         override fun onLocationChange(
             session: GeckoSession,
             url: String?,
@@ -202,13 +198,11 @@ class GeckoSessionManager(private val context: Context) {
             // Log all URLs for debugging
             Log.d(TAG, "URL changed to: $url")
 
-            // Skip null or empty URLs
             if (url.isNullOrEmpty() || url == "about:blank") {
                 onUrlChange("")
                 return
             }
 
-            // Process OAuth callback URLs
             // First, check if this is an OAuth callback URL
             if (url?.contains("nimbus-browser-backend-production.up.railway.app") == true &&
                 url.contains("oauth-callback") &&
@@ -217,10 +211,8 @@ class GeckoSessionManager(private val context: Context) {
 
                 Log.d(TAG, "Detected OAuth callback URL: $url")
                 try {
-                    // Parse URL parameters
                     val uri = Uri.parse(url)
 
-                    // Log the complete query string for debugging
                     Log.d(TAG, "Query string: ${uri.query}")
 
                     // Extract auth parameters
@@ -241,21 +233,14 @@ class GeckoSessionManager(private val context: Context) {
                         // Get AuthService from application context
                         val authService = (context.applicationContext as? BrowserApplication)?.getAuthService()
 
-                        // Process the authentication data
                         authService?.processAuthCallback(accessToken, refreshToken, userId, displayName, email)
-
-                        // Show success message
                         Toast.makeText(
                             context,
                             "Signed in successfully",
                             Toast.LENGTH_SHORT
                         ).show()
-
-                        // Instead of loading about:blank, trigger the auth success callback
-                        // This will close the current tab and redirect to homepage
                         onAuthSuccess?.invoke()
 
-                        // Don't update the URL or navigate the session since we're going to close it
                         return
                     } else {
                         Log.e(TAG, "Missing required tokens in OAuth callback")
@@ -276,32 +261,23 @@ class GeckoSessionManager(private val context: Context) {
             }
 
             // Enhanced logout URL detection
-            // This ensures we detect intentional logouts from the web dashboard
-            // while avoiding false positives for regular browsing
+            // This ensures the detection intentional logouts from the web dashboard
             val isLogoutUrl = when {
-                // Direct custom scheme
                 url?.startsWith("nimbusbrowser://logout") == true -> true
 
-                // Web callback with action=logout parameter
                 url?.contains("/oauth-callback") == true && url.contains("action=logout") -> true
 
-                // Dashboard explicit sync logout (our custom parameter)
                 url?.contains("/dashboard") == true && url.contains("sync_logout=true") -> true
 
-                // Standard post-logout page or redirect
                 url?.contains("logout_success") == true -> true
 
-                // Standard web logout endpoints - but only for our domain!
                 url?.contains("nimbus-browser-backend-production.up.railway.app") == true &&
                         (url.contains("/logout") || url.contains("signout")) -> true
 
-                // Detect logout response from server
                 url?.contains("logged_out=true") == true -> true
 
-                // Dashboard page that explicitly indicates logout via query parameter
                 url?.contains("/dashboard") == true && url.contains("logout=true") -> true
 
-                // Session ended or expired indicators
                 url?.contains("session_expired") == true || url?.contains("session_ended") == true -> true
 
                 else -> false
@@ -309,18 +285,14 @@ class GeckoSessionManager(private val context: Context) {
 
             // Process logout URLs
             if (isLogoutUrl) {
-                Log.d(TAG, "🔑 Detected logout URL: $url")
+                Log.d(TAG, "Detected logout URL: $url")
                 try {
-                    // Get AuthService from application context
                     val authService = (context.applicationContext as? BrowserApplication)?.getAuthService()
 
-                    // Launch a coroutine to call the suspend function signOut
                     CoroutineScope(Dispatchers.Main).launch {
                         try {
-                            Log.d(TAG, "🔑 Calling authService.signOut()")
+                            Log.d(TAG, "Calling authService.signOut()")
                             authService?.signOut()
-
-                            // Show toast indicating logout
                             Toast.makeText(
                                 context,
                                 "Signed out successfully",
@@ -347,17 +319,13 @@ class GeckoSessionManager(private val context: Context) {
                 }
             }
 
-            // Original behavior for normal URL changes
             url?.let { onUrlChange(it) }
 
-        // For all other URLs, we've already checked safety in onLoadRequest
             onUrlChange(url)
         }
 
         override fun onCanGoBack(session: GeckoSession, canGoBack: Boolean) {
-            // 1) Store it
             canGoBackState[session] = canGoBack
-            // 2) Bubble it up to your UI
             onCanGoBack(canGoBack)
         }
 

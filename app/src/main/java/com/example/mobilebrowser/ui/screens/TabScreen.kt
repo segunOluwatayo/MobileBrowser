@@ -112,7 +112,6 @@ fun TabScreen(
         }
     ) { padding ->
         if (displayTabs.isEmpty()) {
-            // Empty state - show prompt to create a new tab
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -150,7 +149,6 @@ fun TabScreen(
                 }
             }
         } else {
-            // Grid of tabs with Chrome-style cards
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(minSize = 160.dp),
                 state = gridState,
@@ -161,7 +159,6 @@ fun TabScreen(
                     .fillMaxSize()
                     .padding(padding)
             ) {
-                // Existing tabs
                 items(
                     items = tabs,
                     key = { it.id }
@@ -170,7 +167,7 @@ fun TabScreen(
                         tab = tab,
                         isSelected = selectedTabs.contains(tab.id),
                         isSelectionMode = isSelectionMode,
-                        isDragging = false, // No dragging in grid mode
+                        isDragging = false,
                         onTabClick = {
                             if (isSelectionMode) {
                                 viewModel.toggleTabSelection(tab.id)
@@ -184,7 +181,6 @@ fun TabScreen(
                     )
                 }
 
-                // New Tab card at the end
                 item {
                     TabListItemNewTabCard(
                         onClick = {

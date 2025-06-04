@@ -61,18 +61,17 @@ class MainActivity : ComponentActivity() {
     //    private val bloom by lazy { Bloom(applicationContext) }
     private lateinit var scanner: UrlCnnInterpreter
 
-    // ─── File-chooser state ───────────────────────────────────────────────
     private var pendingFilePrompt: GeckoSession.PromptDelegate.FilePrompt? = null
     private var pendingFileResult: GeckoResult<GeckoSession.PromptDelegate.PromptResponse>? = null
     private var tempPhotoUri: Uri? = null
 
-    // 1-file picker
+    // file picker
     private val pickOne =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
             handleChooserResult(uri?.let { arrayOf(it) })
         }
 
-    // multi-file picker
+    // multi file picker
     private val pickMany =
         registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
             handleChooserResult(if (uris.isEmpty()) null else uris.toTypedArray())
@@ -119,7 +118,6 @@ class MainActivity : ComponentActivity() {
         // Set up the auth success callback
         sessionManager.setAuthSuccessCallback {
             Log.d("MainActivity", "Authentication success callback triggered")
-            // Signal that we need to close the current tab and go to homepage
             authSuccessState.value = true
             needToCloseCurrentTab.value = true
         }
@@ -176,17 +174,17 @@ class MainActivity : ComponentActivity() {
         // Handle deep link if the activity was launched from one
         handleIncomingIntent(intent)
         setContent {
-            // Obtain the SettingsViewModel via Hilt.
+            // Obtain the SettingsViewModel via Hilt
             val settingsViewModel: SettingsViewModel = hiltViewModel()
-            // Observe the current theme mode from DataStore.
+            // Observe the current theme mode from DataStore
             val themeMode by settingsViewModel.themeMode.collectAsState()
-            // Get the system default dark theme value.
+            // Get the system default dark theme value
             val systemDarkTheme = isSystemInDarkTheme()
-            // Determine darkTheme boolean based on user selection.
+            // Determine darkTheme boolean based on user selection
             val darkTheme = when (themeMode) {
                 "LIGHT" -> false
                 "DARK" -> true
-                else -> systemDarkTheme // "SYSTEM" mode follows the system setting.
+                else -> systemDarkTheme
             }
             MobileBrowserTheme(darkTheme = darkTheme) {
                 BrowserApp( maliciousUrlState, { maliciousUrlState = null })
@@ -223,7 +221,6 @@ class MainActivity : ComponentActivity() {
             )
 
             if (accessToken != null && refreshToken != null) {
-                // Handle successful authentication here
                 val sharedPrefs = getSharedPreferences("browser_prefs", Context.MODE_PRIVATE)
                 sharedPrefs.edit()
                     .putString("access_token", accessToken)
@@ -266,16 +263,13 @@ class MainActivity : ComponentActivity() {
         // Get the AuthViewModel instance via Hilt
         val authViewModel: AuthViewModel = hiltViewModel()
 
-        // Observe lifecycle events and start/stop the auto-sync accordingly
         DisposableEffect(lifecycleOwner) {
             val observer = LifecycleEventObserver { _, event ->
                 when (event) {
                     Lifecycle.Event.ON_RESUME -> {
-                        // App enters foreground: start the auto-sync timer.
                         authViewModel.startAutoSync()
                     }
                     Lifecycle.Event.ON_PAUSE -> {
-                        // App goes to background: stop the auto-sync.
                         authViewModel.stopAutoSync()
                     }
                     else -> Unit
@@ -312,9 +306,7 @@ class MainActivity : ComponentActivity() {
         var lastRecordedUrl by remember { mutableStateOf("") }
         var lastRecordedTitle by remember { mutableStateOf("") }
 
-        // New state to track which screen is visible as an overlay
         var currentOverlay by remember { mutableStateOf(OverlayScreen.None) }
-        // State to track bookmark edit ID
         var bookmarkEditId by remember { mutableStateOf<Long?>(null) }
 
         val bookmarkViewModel: BookmarkViewModel = hiltViewModel()
@@ -336,7 +328,6 @@ class MainActivity : ComponentActivity() {
             if (authSuccess && needToClose) {
                 Log.d("MainActivity", "LaunchedEffect: Processing auth success")
 
-                // Reset state so we don't handle it again
                 authSuccessState.value = false
                 needToCloseCurrentTab.value = false
 
@@ -358,7 +349,6 @@ class MainActivity : ComponentActivity() {
 //                    currentPageTitle = "New Tab"
                     scope.launch {
                         try {
-                            // Trigger a one-time immediate sync via WorkManager
                             val immediateSync = OneTimeWorkRequestBuilder<SyncWorker>()
                                 .addTag("immediate_post_login_sync")
                                 .build()
@@ -436,7 +426,6 @@ class MainActivity : ComponentActivity() {
                     // Much longer delay to ensure full page load
                     delay(1500)
 
-                    // Verify AGAIN that the tab is still active (it could have changed during our delay)
                     if (activeTab?.id != tabId) {
                         Log.d("MainActivity", "Aborting thumbnail capture - tab is no longer active")
                         return@launch
@@ -510,11 +499,9 @@ class MainActivity : ComponentActivity() {
                             tabViewModel.updateActiveTabContent(currentUrl, newTitle)
                             recordHistory(currentUrl, newTitle)
 
-                            // Don't try to capture thumbnails immediately on title change
-                            // Instead, schedule a safe capture after the title indicates content is loaded
                             if (newTitle != "New Tab" && newTitle != "about:blank") {
                                 scope.launch {
-                                    delay(1000)  // Let the page finish rendering
+                                    delay(1000)
                                     safelyCaptureThumbnail(tab.id)
                                 }
                             }
@@ -522,7 +509,7 @@ class MainActivity : ComponentActivity() {
                     },
                     onCanGoBack = { canGoBack = it },
                     onCanGoForward = { canGoForward = it },
-                    downloadDelegate = geckoDownloadDelegate  // Pass the delegate
+                    downloadDelegate = geckoDownloadDelegate
                 )
 
                 currentSession?.promptDelegate = object : GeckoSession.PromptDelegate {
@@ -584,7 +571,7 @@ class MainActivity : ComponentActivity() {
                         request: GeckoSession.PromptDelegate.AutocompleteRequest<Autocomplete.LoginSelectOption>
                     ): GeckoResult<GeckoSession.PromptDelegate.PromptResponse>? {
                         val geckoResult = GeckoResult<GeckoSession.PromptDelegate.PromptResponse>()
-                        // Extract the domain from the currentUrl.
+                        // Extract the domain from the currentUrl
                         val currentDomain = extractDomain(currentUrl)
                         Log.d("PromptDelegate", "onLoginSelect invoked. Current URL: $currentUrl, extracted domain: $currentDomain")
 
@@ -592,12 +579,10 @@ class MainActivity : ComponentActivity() {
                             try {
                                 val credentials = passwordViewModel.getCredentialsForSite(currentUrl)
                                 if (credentials != null) {
-                                    // Get the decrypted password.
                                     val decryptedPassword = passwordViewModel.getDecryptedPassword(credentials.encryptedPassword)
-                                    // Log the credentials being used.
                                     Log.d("PromptDelegate", "Found credentials for domain: $currentDomain. Username: ${credentials.username}")
 
-                                    // Create the login entry to be used for autofill.
+                                    // Create the login entry to be used for autofill
                                     val loginEntry = Autocomplete.LoginEntry.Builder()
                                         .origin(currentDomain)
                                         .username(credentials.username)
@@ -626,7 +611,7 @@ class MainActivity : ComponentActivity() {
                         pendingFilePrompt = prompt
                         pendingFileResult = result
 
-                        // ── Feature flags (current GeckoView API) ─────────────────────────
+                        // Feature flags
                         val wantsCapture = prompt.capture !=
                                 GeckoSession.PromptDelegate.FilePrompt.Capture.NONE
 
@@ -634,27 +619,26 @@ class MainActivity : ComponentActivity() {
                                 GeckoSession.PromptDelegate.FilePrompt.Type.MULTIPLE
 
                         val types: Array<String> = prompt.mimeTypes ?: arrayOf("*/*")
-                        // ──────────────────────────────────────────────────────────────────
 
                         when {
-                            wantsCapture -> {                         // <input capture>
+                            wantsCapture -> {
                                 val photoFile = File.createTempFile("gv_cam_", ".jpg", cacheDir)
                                 val uri       = FileProvider.getUriForFile(
                                     this@MainActivity, "$packageName.provider", photoFile
                                 )
                                 tempPhotoUri  = uri
-                                takePicture.launch(uri)               // camera intent
+                                takePicture.launch(uri)
                             }
 
                             allowMultiple -> {
-                                pickMany.launch(types)               // SAF multi-select
+                                pickMany.launch(types)
                             }
 
                             else -> {
-                                pickOne.launch(types)                // SAF single-select
+                                pickOne.launch(types)
                             }
                         }
-                        return result                                // Gecko waits here
+                        return result
                     }
 
                     // Helper function to extract domain from URL
@@ -702,16 +686,14 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // Main Box that contains our entire UI
+        // Main Box that contains the entire UI
         Box(modifier = Modifier.fillMaxSize()) {
-            // Browser content is always present but potentially hidden
             currentSession?.let { session ->
                 BrowserContent(
                     geckoSession = session,
                     onNavigate = { url ->
                         if (url.isNotBlank()) {
                             if (isHomepageActive) {
-                                // We're on the homepage. Create a new tab for the search query.
                                 scope.launch {
                                     // Create a new tab with the search URL.
                                     val newTabId = tabViewModel.createTab(url = url, title = "Loading...")
@@ -747,7 +729,6 @@ class MainActivity : ComponentActivity() {
                                     isHomepageActive = false
                                 }
                             } else {
-                                // Not on homepage: update the current active tab.
                                 isHomepageActive = false
                                 currentUrl = url
                                 bookmarkViewModel.updateCurrentUrl(url)
@@ -787,7 +768,6 @@ class MainActivity : ComponentActivity() {
                         Log.d("MainActivity", "Received GeckoView reference: ${view::class.java}")
                         geckoViewReference = view
 
-                        // Use the existing scope from MainActivity
                         scope.launch {
                             activeTab?.let { tab ->
                                 // Add delay to ensure the GeckoView is fully initialized
@@ -830,7 +810,6 @@ class MainActivity : ComponentActivity() {
                                     downloadDelegate = geckoDownloadDelegate
                                 )
                             } else {
-                                // Otherwise, create a new blank tab.
                                 val newTabId = tabViewModel.createTab(url = "", title = "New Tab")
                                 val newSession = sessionManager.getOrCreateSession(
                                     tabId = newTabId,
@@ -882,7 +861,6 @@ class MainActivity : ComponentActivity() {
                 )
             }
 
-            // Animated overlay container
             AnimatedVisibility(
                 visible = currentOverlay != OverlayScreen.None,
                 enter = fadeIn() + slideInVertically(initialOffsetY = { it / 3 }),
@@ -906,7 +884,6 @@ class MainActivity : ComponentActivity() {
                                             currentPageTitle = tab.title
                                             bookmarkViewModel.updateCurrentUrl(tab.url)
 
-                                            // Check if this is a new tab that should show the homepage
                                             if (tab.url.isBlank() || tab.url == "about:blank") {
                                                 isHomepageActive = true
                                             } else {
@@ -917,14 +894,11 @@ class MainActivity : ComponentActivity() {
                                                 val lastVisited = tab.lastVisited.time
                                                 val tabAge = now - lastVisited
 
-                                                // 24 hours in milliseconds
                                                 val staleThreshold = 24 * 60 * 60 * 1000L
                                                 val isStale = tabAge > staleThreshold
 
-                                                // Switch to the session without explicitly reloading
                                                 currentSession = sessionManager.switchToSession(tabId)
 
-                                                // Only reload if the tab is stale (older than 24 hours)
                                                 if (isStale) {
                                                     Log.d("MainActivity", "Tab $tabId is stale, reloading content")
                                                     currentSession?.loadUri(tab.url)
@@ -937,7 +911,6 @@ class MainActivity : ComponentActivity() {
                                     }
                                 },
                                 onNewTabHome = {
-                                    // Simply set homepage state; no new blank tab is created.
                                     isHomepageActive = true
                                     currentUrl = ""
                                     currentPageTitle = "New Tab"
@@ -962,7 +935,6 @@ class MainActivity : ComponentActivity() {
                                     }
                                 },
                                 onNavigateToAccount = {
-                                    // Add logic to navigate to the Account screen
                                     currentOverlay = OverlayScreen.Account
                                 },
                             )
@@ -1000,9 +972,7 @@ class MainActivity : ComponentActivity() {
                                         scope.launch {
                                             try {
                                                 isNavigating = true
-                                                // First close the overlay to ensure UI responsiveness
                                                 currentOverlay = OverlayScreen.None
-                                                // Short delay to allow UI to update
                                                 delay(100)
 
                                                 // Create a new tab with the bookmark URL
@@ -1044,7 +1014,6 @@ class MainActivity : ComponentActivity() {
                                                 currentUrl = url
                                                 isHomepageActive = false
 
-                                                // Explicitly load the URL in the new session
                                                 currentSession?.loadUri(url)
                                             } catch (e: Exception) {
                                                 Log.e("MainActivity", "Error navigating to bookmark in new tab: ${e.message}")
@@ -1144,7 +1113,6 @@ class MainActivity : ComponentActivity() {
                                     scope.launch {
                                         if (url.isNotBlank()) {
                                             if (isHomepageActive) {
-                                                // Create a new tab for the URL if we're on homepage
                                                 val newTabId = tabViewModel.createTab(url = url, title = "Account Dashboard")
                                                 tabViewModel.switchToTab(newTabId)
                                                 currentSession = sessionManager.getOrCreateSession(
@@ -1170,7 +1138,6 @@ class MainActivity : ComponentActivity() {
                                                 isHomepageActive = false
                                                 currentUrl = url
                                             } else {
-                                                // Use current tab if we're already browsing
                                                 currentUrl = url
                                                 currentSession?.loadUri(url)
                                                 isHomepageActive = false
@@ -1209,15 +1176,11 @@ class MainActivity : ComponentActivity() {
 
                 onGoBack = {
                     Log.d("BrowserApp", "Malicious dialog → invoking session.goBack()")
-                    // Always drive the GeckoSession back one step:
                     currentSession?.goBack()
 
-                    // THEN update your Compose state for “homepage” if needed:
                     if (!state.isFromHomepage) {
-                        // Skip the Google redirect page that’s now on top:
                         currentSession?.goBack()
                     } else {
-                        // We were on a blank/home tab → just reset UI state
                         isHomepageActive = true
                         currentUrl       = ""
                         currentPageTitle = "New Tab"
@@ -1273,7 +1236,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-        // Monitor one-time sync workers
+        // Monitor one time sync workers
         workManager.getWorkInfosByTagLiveData("immediate_sync")
             .observe(this) { workInfoList ->
                 Log.d("WorkMonitor", "Found ${workInfoList.size} immediate sync workers")

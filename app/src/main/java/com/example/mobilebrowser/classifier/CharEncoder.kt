@@ -19,15 +19,13 @@
 //}
 package com.example.mobilebrowser.classifier
 
-/**
- * Encodes URL characters to match Python implementation exactly
- */
+// Encodes URL characters to match Python implementation exactly
 object CharEncoder {
     private const val PAD: Int = 0
     private const val UNK: Int = 1
     private const val MAX_LEN = 200
 
-    // Build vocab map for characters ASCII 32-126 (same as Python)
+    // Build vocab map for characters ASCII 32-126 (same as my Python code implementation)
     private val vocab: Map<Char, Int> = buildMap {
         for (i in 32..126) {
             val ch = i.toChar()
@@ -35,11 +33,9 @@ object CharEncoder {
         }
     }
 
-    /**
-     * Encode a URL's domain characters to integers exactly like Python
-     */
+//     Encode a URL's domain characters to integers exactly like Python
     fun encode(url: String): IntArray {
-        // Get the registered domain (or top domain under public suffix)
+        // Get the registered domain
         val dom = DomainUtils.registeredDomain(url)
 
         // Create the output array filled with PAD token

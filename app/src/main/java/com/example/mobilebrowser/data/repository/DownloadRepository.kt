@@ -21,10 +21,8 @@ class DownloadRepository @Inject constructor(
 ) {
     private val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
 
-    // Get all downloads
     fun getAllDownloads(): Flow<List<DownloadEntity>> = downloadDao.getAllDownloads()
 
-    // Get downloads by status
     fun getDownloadsByStatus(status: DownloadStatus): Flow<List<DownloadEntity>> =
         downloadDao.getDownloadsByStatus(status)
 
@@ -123,20 +121,16 @@ class DownloadRepository @Inject constructor(
             delay(500) // Check every half second
         }
     }
-    // Update download status
     suspend fun updateDownloadStatus(id: Long, status: DownloadStatus) {
         downloadDao.updateDownloadStatus(id, status)
     }
 
-    // Check if file is already downloaded
     suspend fun isFileDownloaded(fileName: String): Boolean =
         downloadDao.isFileDownloaded(fileName)
 
-    // Get download by ID
     suspend fun getDownloadById(id: Long): DownloadEntity? =
         downloadDao.getDownloadById(id)
 
-    // Delete download and its file
     suspend fun deleteDownload(download: DownloadEntity) {
         val file = File(download.localPath)
         if (file.exists()) {
@@ -145,7 +139,6 @@ class DownloadRepository @Inject constructor(
         downloadDao.deleteDownload(download)
     }
 
-    // Rename downloaded file
     suspend fun renameDownload(download: DownloadEntity, newFileName: String): Boolean {
         val oldFile = File(download.localPath)
         if (!oldFile.exists()) return false
@@ -167,7 +160,6 @@ class DownloadRepository @Inject constructor(
         }
     }
 
-    // Get download directory
     private fun getDownloadDirectory(): File {
         val downloadDir = File(
             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
@@ -179,7 +171,6 @@ class DownloadRepository @Inject constructor(
         return downloadDir
     }
 
-    // Get download by file name
     suspend fun getDownloadByFileName(fileName: String): DownloadEntity? =
         downloadDao.getDownloadByFileName(fileName)
 }

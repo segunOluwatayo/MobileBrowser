@@ -106,7 +106,7 @@ fun TabListItem(
                     }
                 }
 
-                // Close button overlay in top-right corner
+                // Close button overlay in top right corner
                 IconButton(
                     onClick = onCloseTab,
                     modifier = Modifier

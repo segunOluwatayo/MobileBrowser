@@ -39,19 +39,15 @@ class HistoryViewModel @Inject constructor(
     private val _syncStatus = MutableStateFlow<SyncStatusState>(SyncStatusState.Idle)
     val syncStatus: StateFlow<SyncStatusState> = _syncStatus.asStateFlow()
 
-    // Last sync timestamp
     private val _lastSyncTimestamp = MutableStateFlow<Long?>(null)
     val lastSyncTimestamp: StateFlow<Long?> = _lastSyncTimestamp.asStateFlow()
 
-    // Search query state
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
-    // Error state
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
-    // Today's start time
     private val todayStart: Date = Calendar.getInstance().apply {
         set(Calendar.HOUR_OF_DAY, 0)
         set(Calendar.MINUTE, 0)
@@ -59,10 +55,8 @@ class HistoryViewModel @Inject constructor(
         set(Calendar.MILLISECOND, 0)
     }.time
 
-    // Current time
     private val now = Date()
 
-    // Last week's start time (excluding today)
     private val lastWeekStart: Date = Calendar.getInstance().apply {
         add(Calendar.DAY_OF_YEAR, -7)
         set(Calendar.HOUR_OF_DAY, 0)
@@ -71,7 +65,6 @@ class HistoryViewModel @Inject constructor(
         set(Calendar.MILLISECOND, 0)
     }.time
 
-    // All history entries for combined display and debugging
     val allHistoryEntries = repository.getAllHistory()
         .map { entries ->
             entries.filter { !it.url.startsWith("PENDING_DELETE:") }
@@ -82,7 +75,6 @@ class HistoryViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
-    // Today's history entries
     val todayHistory = allHistoryEntries
         .map { entries ->
             entries.filter { entry ->
@@ -95,7 +87,6 @@ class HistoryViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
-    // Last week's history (excluding today)
     val lastWeekHistory = allHistoryEntries
         .map { entries ->
             entries.filter { entry ->
@@ -111,7 +102,7 @@ class HistoryViewModel @Inject constructor(
     // Search results
     @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
     val searchResults = _searchQuery
-        .debounce(300L) // Debounce search input
+        .debounce(300L)
         .flatMapLatest { query ->
             if (query.isBlank()) {
                 flowOf(emptyList())
@@ -125,7 +116,6 @@ class HistoryViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
-    // Recent history entries
     val recentHistory = repository.getRecentHistory()
         .stateIn(
             scope = viewModelScope,
@@ -133,7 +123,6 @@ class HistoryViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
-    // Update search query
     fun updateSearchQuery(query: String) {
         _searchQuery.value = query
     }
@@ -153,14 +142,11 @@ class HistoryViewModel @Inject constructor(
         }
         viewModelScope.launch {
             try {
-                // Get the current user ID from UserDataStore
                 val userId = userDataStore.userId.first()
 
-                // Only proceed with valid user ID if signed in
                 val isSignedIn = userDataStore.isSignedIn.first()
                 val effectiveUserId = if (isSignedIn && userId.isNotBlank()) userId else ""
 
-                // Add history entry with proper user ID
                 repository.addHistoryEntry(url, title, favicon, effectiveUserId)
             } catch (e: Exception) {
                 _error.value = "Failed to add history entry: ${e.message}"
@@ -227,7 +213,7 @@ class HistoryViewModel @Inject constructor(
                     // Trigger sync to clean up any pending deletes
                     triggerManualSync()
                 } else {
-                    // Anonymous user — just delete locally
+                    // Anonymous user just delete locally
                     repository.deleteHistoryEntry(history, isSignedIn)
                 }
             } catch (e: Exception) {
@@ -247,7 +233,6 @@ class HistoryViewModel @Inject constructor(
     fun deleteHistoryByTimeRange(timeRange: HistoryTimeRange) {
         viewModelScope.launch {
             try {
-                // Check if user is signed in
                 val isSignedIn = userDataStore.isSignedIn.first()
 
                 when (timeRange) {
@@ -264,7 +249,6 @@ class HistoryViewModel @Inject constructor(
                         repository.deleteAllHistory(isSignedIn)
                 }
 
-                // If user is signed in, trigger sync to update server
                 if (isSignedIn) {
                     triggerManualSync()
                 }
@@ -312,12 +296,10 @@ class HistoryViewModel @Inject constructor(
         }
     }
 
-    // Clear any error messages
     fun clearError() {
         _error.value = null
     }
 
-    // Expose all history entries for debugging purposes
     fun getAllHistoryForDebug(): Flow<List<HistoryEntity>> {
         return repository.getAllHistory()
     }

@@ -52,7 +52,6 @@ fun HomeScreen(
     onRecentHistoryClick: (HistoryEntity) -> Unit,
     onShowAllHistory: () -> Unit,
     onBookmarkClick: (BookmarkEntity) -> Unit,
-    // Add all the visibility parameters with true as default
     showShortcuts: Boolean = true,
     showRecentTab: Boolean = true,
     showBookmarks: Boolean = true,
@@ -74,7 +73,6 @@ fun HomeScreen(
     Column(
         modifier = modifier
             .padding(top = if (isAddressBarAtTop) 72.dp else 16.dp)
-            // Add verticalScroll modifier to make the column scrollable
             .verticalScroll(scrollState),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -85,7 +83,6 @@ fun HomeScreen(
             modifier = Modifier.padding(vertical = 24.dp)
         )
 
-        // Conditionally show shortcuts
         if (showShortcuts) {
             // Pinned Shortcuts Section
             Row(
@@ -258,7 +255,6 @@ fun HomeScreen(
             }
         }
 
-        // Add some padding at the bottom to ensure all content is visible
         Spacer(modifier = Modifier.height(32.dp))
     }
 }
@@ -274,7 +270,7 @@ fun <T> BoxedGrid(
     content: @Composable (T) -> Unit
 ) {
     Column(modifier = modifier) {
-        val rows = (items.size + columns - 1) / columns // Calculate number of rows (ceiling division)
+        val rows = (items.size + columns - 1) / columns
 
         for (row in 0 until rows) {
             Row(

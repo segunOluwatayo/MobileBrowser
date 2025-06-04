@@ -50,7 +50,6 @@ fun AddSearchEngineDialog(
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(
                         onDone = {
-                            // Optionally trigger onAddEngine when the user submits via keyboard.
                         }
                     )
                 )

@@ -14,8 +14,6 @@ import kotlinx.coroutines.flow.first
 /**
  *
  * It communicates with the ShortcutDao to perform CRUD operations.
- *
- * @property shortcutDao The data access object for shortcut operations.
  */
 @Singleton
 class ShortcutRepository @Inject constructor(
@@ -38,8 +36,6 @@ class ShortcutRepository @Inject constructor(
 
     /**
      * Inserts a new shortcut into the database.
-     *
-     * @param shortcut The shortcut entity to insert.
      */
     suspend fun insertShortcut(shortcut: ShortcutEntity) {
         shortcutDao.insertShortcut(shortcut)
@@ -47,8 +43,6 @@ class ShortcutRepository @Inject constructor(
 
     /**
      * Updates an existing shortcut in the database.
-     *
-     * @param shortcut The shortcut entity with updated values.
      */
     suspend fun updateShortcut(shortcut: ShortcutEntity) {
         shortcutDao.updateShortcut(shortcut)
@@ -56,8 +50,6 @@ class ShortcutRepository @Inject constructor(
 
     /**
      * Deletes a shortcut from the database.
-     *
-     * @param shortcut The shortcut entity to delete.
      */
     suspend fun deleteShortcut(shortcut: ShortcutEntity) {
         shortcutDao.deleteShortcut(shortcut)
@@ -134,7 +126,6 @@ class ShortcutRepository @Inject constructor(
             url.contains("qwant.com") -> R.drawable.qwant_icon
             url.contains("wikipedia.org") -> R.drawable.wikipedia_icon
             url.contains("ebay.com") -> R.drawable.ebay_icon
-            // Add more mappings as needed
             else -> R.drawable.generic_searchengine// Default icon
         }
     }

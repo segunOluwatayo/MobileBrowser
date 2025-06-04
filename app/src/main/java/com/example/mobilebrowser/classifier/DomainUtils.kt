@@ -24,14 +24,11 @@ import com.google.common.net.InternetDomainName
 import java.net.URI
 import java.net.URISyntaxException
 
-/**
- * Utility for domain extraction that matches Python's tldextract behavior
- */
+
+// Utility for domain extraction that matches Python's tldextract behavior
 object DomainUtils {
 
-    /**
-     * Extract the registered domain from a URL, matching Python's tldextract behavior
-     */
+//     Extract the registered domain from a URL, matching Python's tldextract behavior
     fun registeredDomain(url: String): String {
         try {
             // Handle cases with or without protocol
@@ -44,19 +41,16 @@ object DomainUtils {
             try {
                 val internetDomainName = InternetDomainName.from(host)
 
-                // If under public suffix, return the top private domain (equivalent to registered_domain)
+                // If under public suffix, return the top private domain
                 return if (internetDomainName.isUnderPublicSuffix) {
                     internetDomainName.topPrivateDomain().toString()
                 } else {
-                    // If not under public suffix, return the host
                     host
                 }
             } catch (e: Exception) {
-                // If domain parsing fails, fall back to host or original URL
                 return host
             }
         } catch (e: URISyntaxException) {
-            // If URI parsing fails, fall back to original URL
             return url
         }
     }

@@ -48,9 +48,6 @@ class DownloadViewModel @Inject constructor(
         return downloadId
     }
 
-
-    // Added method to show completion dialog only when download is actually complete
-    // Check download status
     fun shouldShowCompletionDialog(downloadId: Long): Flow<Boolean> {
         return downloads
             .map { downloadList ->
@@ -64,7 +61,6 @@ class DownloadViewModel @Inject constructor(
     suspend fun isFileDownloaded(fileName: String): Boolean =
         repository.isFileDownloaded(fileName)
 
-    // Delete download
     fun deleteDownload(download: DownloadEntity) {
         viewModelScope.launch {
             recentlyDeletedDownload = download
@@ -72,7 +68,6 @@ class DownloadViewModel @Inject constructor(
         }
     }
 
-    // Undo recent deletion
     fun undoDelete() {
         viewModelScope.launch {
             recentlyDeletedDownload?.let { download ->
@@ -90,7 +85,6 @@ class DownloadViewModel @Inject constructor(
         }
     }
 
-    // Rename download
     suspend fun renameDownload(download: DownloadEntity, newFileName: String): Boolean =
         repository.renameDownload(download, newFileName)
 }

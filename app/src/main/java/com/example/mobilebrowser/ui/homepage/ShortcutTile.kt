@@ -67,7 +67,6 @@ fun ShortcutTile(
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(
             containerColor = containerColor,
-            // Automatically picks a readable color for text/icons based on containerColor
             contentColor = contentColorFor(containerColor)
         )
     ) {

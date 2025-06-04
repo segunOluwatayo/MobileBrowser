@@ -31,14 +31,10 @@ class TabAutoCloseWorker @AssistedInject constructor(
             else -> 0L
         }
 
-        // If no valid delay is found, exit.
         if (delayMillis <= 0L) return Result.success()
 
-        // Calculate the threshold date: any tab opened before this date should be closed.
         val thresholdDate = Date(System.currentTimeMillis() - delayMillis)
 
-        // Mark all open tabs (where closedAt is null) that were created before thresholdDate as closed.
-        // We set the closedAt to the current time.
         database.tabDao().markOpenTabsOlderThan(thresholdDate, Date())
 
         return Result.success()

@@ -13,8 +13,8 @@ object EncryptionUtil {
     private const val ANDROID_KEY_STORE = "AndroidKeyStore"
     private const val KEY_ALIAS = "password_encryption_key"
     private const val TRANSFORMATION = "AES/GCM/NoPadding"
-    private const val IV_SIZE = 12 // Recommended IV size for GCM
-    private const val TAG_LENGTH = 128 // Authentication tag length in bits
+    private const val IV_SIZE = 12
+    private const val TAG_LENGTH = 128
 
     // Retrieves the secret key from the Android Keystore, creating one if it doesn't exist.
     private fun getSecretKey(): SecretKey {
@@ -46,7 +46,6 @@ object EncryptionUtil {
         cipher.init(Cipher.ENCRYPT_MODE, secretKey)
         val iv = cipher.iv
         val cipherText = cipher.doFinal(plainText.toByteArray(Charsets.UTF_8))
-        // Prepend the IV to the ciphertext and encode to Base64
         val combined = ByteArray(iv.size + cipherText.size)
         System.arraycopy(iv, 0, combined, 0, iv.size)
         System.arraycopy(cipherText, 0, combined, iv.size, cipherText.size)
@@ -56,7 +55,6 @@ object EncryptionUtil {
     // Decrypts the Base64-encoded string and returns the original plaintext.
     fun decrypt(encryptedData: String): String {
         val combined = Base64.decode(encryptedData, Base64.DEFAULT)
-        // Extract the IV and ciphertext from the combined array
         val iv = combined.copyOfRange(0, IV_SIZE)
         val cipherText = combined.copyOfRange(IV_SIZE, combined.size)
         val cipher = Cipher.getInstance(TRANSFORMATION)

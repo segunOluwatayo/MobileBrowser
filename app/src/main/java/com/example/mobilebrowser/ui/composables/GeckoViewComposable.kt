@@ -14,11 +14,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoView
 
-/**
- * This composable creates a GeckoView, sets up the necessary delegates,
- * and installs a scroll listener that waits for scrolling to stop (using a debounce)
- * before triggering a callback (onScrollStopped) so the thumbnail can be updated.
- */
 @Composable
 fun GeckoViewComponent(
     geckoSession: GeckoSession,
@@ -27,7 +22,7 @@ fun GeckoViewComponent(
     onCanGoBackChange: (Boolean) -> Unit,
     onCanGoForwardChange: (Boolean) -> Unit,
     onViewCreated: (View) -> Unit,
-    onScrollStopped: (View) -> Unit, // new callback invoked when scrolling stops
+    onScrollStopped: (View) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -36,16 +31,13 @@ fun GeckoViewComponent(
     // Debounce delay in milliseconds
     val scrollStopDelay = 300L
 
-    // Hold a reference to the created GeckoView
     var geckoViewRef = remember { mutableStateOf<View?>(null) }
 
-    // Set up a scroll delegate on the GeckoSession that debounces scroll events.
     DisposableEffect(geckoSession) {
         val scrollDelegate = object : GeckoSession.ScrollDelegate {
             override fun onScrollChanged(session: GeckoSession, scrollX: Int, scrollY: Int) {
-                // Reset any previous scroll-stop callback
+                // Reset any previous scroll stop callback
                 scrollHandler.removeCallbacksAndMessages(null)
-                // Post a delayed callback – if no further scroll events occur for scrollStopDelay, we trigger onScrollStopped.
                 scrollHandler.postDelayed({
                     geckoViewRef.value?.let { view ->
                         Log.d("GeckoViewComponent", "Scroll stopped; invoking onScrollStopped callback")

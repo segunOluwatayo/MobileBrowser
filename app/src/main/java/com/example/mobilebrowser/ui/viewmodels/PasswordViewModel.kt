@@ -41,7 +41,7 @@ class PasswordViewModel @Inject constructor(
         }
     }
 
-    // Decrypts a password (e.g., for display after successful authentication)
+    // Decrypts a password
     suspend fun getDecryptedPassword(encryptedPassword: String): String {
         return passwordRepository.decryptPassword(encryptedPassword)
     }

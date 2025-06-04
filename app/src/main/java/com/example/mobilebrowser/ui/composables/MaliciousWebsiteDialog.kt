@@ -76,7 +76,7 @@ fun MaliciousWebsiteDialog(
         }
     }
 
-    // Full-screen container, respecting system bars and applying gradient overlay
+    // Full screen container
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
@@ -92,7 +92,6 @@ fun MaliciousWebsiteDialog(
         contentAlignment = Alignment.Center
     ) {
         val maxH = maxHeight
-        // Define breakpoints for "compact" mode if device height is small
         val isCompact = maxH < 600.dp
 
         val outerPadding = if (isCompact) 16.dp else 24.dp

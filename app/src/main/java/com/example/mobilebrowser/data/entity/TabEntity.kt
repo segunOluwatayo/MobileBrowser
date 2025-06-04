@@ -12,31 +12,23 @@ data class TabEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
 
-    // The current URL being displayed in the tab
     val url: String,
 
-    // The title of the current page
     val title: String,
 
-    // Timestamp when the tab was created
     val createdAt: Date = Date(),
 
-    // Timestamp of the last visit/update
     val lastVisited: Date = Date(),
 
-    // Whether this tab is currently active/selected
     val isActive: Boolean = false,
 
-    // Position/order of the tab in the tab list
     val position: Int = 0,
 
-    // Records when the tab was closed. Null if the tab is still open.
     val closedAt: Date? = null,
 
-    // New thumbnail field to store the thumbnail URI/path
     val thumbnail: String? = null,
 
-    val userId: String = "", // User ID for ownership
-    val serverId: String? = null, // Server-assigned ID after sync
-    val syncStatus: SyncStatus = SyncStatus.PENDING_UPLOAD // Sync state
+    val userId: String = "",
+    val serverId: String? = null,
+    val syncStatus: SyncStatus = SyncStatus.PENDING_UPLOAD
 )

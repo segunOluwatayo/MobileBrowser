@@ -103,7 +103,6 @@ fun TabManagementSelectionScreen(
                         viewModel.updateTabManagementPolicy(policy.value)
                     }
                 )
-                // Add a divider between items except for the last one.
                 if (policy != policies.last()) {
                     HorizontalDivider(
                         thickness = 1.dp,

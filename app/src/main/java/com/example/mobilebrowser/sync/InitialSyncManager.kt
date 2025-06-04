@@ -178,7 +178,6 @@ class InitialSyncManager @Inject constructor(
         val syncBookmarks = userDataStore.syncBookmarksEnabled.first()
         val syncTabs = userDataStore.syncTabsEnabled.first()
 
-        // Call the main implementation with these preferences
         performInitialSync(
             syncHistory = syncHistory,
             syncBookmarks = syncBookmarks,
@@ -293,9 +292,6 @@ class InitialSyncManager @Inject constructor(
             // Get current userId for verification
             val currentUserId = userDataStore.userId.first()
             Log.d(TAG, "Current user ID: $currentUserId")
-
-            // First, get all shadow entries (bookmarks pending deletion)
-            // We'll use this to avoid re-adding bookmarks that were intentionally deleted
             val pendingDeletions = bookmarkRepository.getPendingDeletions()
             val pendingDeletionUrls = pendingDeletions.map {
                 // Extract the original URL by removing the "PENDING_DELETE:" prefix
@@ -346,7 +342,6 @@ class InitialSyncManager @Inject constructor(
                         val shouldUpdate = if (remoteEntry.timestamp != null && localEntry.dateAdded != null) {
                             remoteEntry.timestamp.after(localEntry.dateAdded)
                         } else {
-                            // If timestamps can't be compared, just update
                             true
                         }
 
@@ -447,7 +442,6 @@ class InitialSyncManager @Inject constructor(
                                 deletedFromServer = true
                                 Log.d(TAG, "Successfully deleted tab by URL lookup: $originalUrl")
                             } else {
-                                // If not found, consider it deleted
                                 deletedFromServer = true
                                 Log.d(TAG, "No matching tab found on server for URL: $originalUrl")
                             }

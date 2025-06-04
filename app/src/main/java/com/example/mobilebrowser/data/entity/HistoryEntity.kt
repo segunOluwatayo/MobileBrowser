@@ -24,37 +24,26 @@ enum class SyncStatus {
  */
 @Entity(tableName = "history")
 data class HistoryEntity(
-    // Auto-generated primary key for the local database.
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
 
-    // User identifier to associate this history entry with a specific authenticated user.
     val userId: String,
 
-    // Title of the visited webpage.
     val title: String,
 
-    // URL of the visited webpage.
     val url: String,
 
-    // Optional field to store the favicon URL of the visited page.
     val favicon: String?,
 
-    // The timestamp when the page was first visited.
     val firstVisited: Date = Date(),
 
-    // The timestamp when the page was last visited (updated on revisits).
     val lastVisited: Date = Date(),
 
-    // Number of times the page has been visited.
     val visitCount: Int = 1,
 
-    // Timestamp used for conflict resolution during synchronization.
     val lastModified: Date = Date(),
 
-    // Optional field to store the record's ID from the MongoDB server.
     val serverId: String? = null,
 
-    // Current sync status of the entry. Default is set to PENDING_UPLOAD, indicating a new entry to be synced.
     val syncStatus: SyncStatus = SyncStatus.PENDING_UPLOAD
 )

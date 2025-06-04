@@ -83,7 +83,6 @@ fun HomepageSelectionScreen(
                 onCheckedChange = { viewModel.updateHistoryEnabled(it) }
             )
 
-            // Add this section for Address Bar Position
             HorizontalDivider(
                 modifier = Modifier.padding(vertical = 16.dp),
                 thickness = 1.dp,

@@ -73,8 +73,6 @@ fun BrowserContent(
     historyViewModel: HistoryViewModel = hiltViewModel(),
     settingsViewModel: SettingsViewModel = hiltViewModel()
 ) {
-    // We still keep urlText for the user's typed input,
-    // but now we also track a separate "displayUrl" for the address bar
     var urlText by remember { mutableStateOf(currentUrl) }
     var isEditing by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
@@ -82,8 +80,6 @@ fun BrowserContent(
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
 
-    // A separate state that holds what we actually display
-    // when NOT editing in the address bar. We initialize it to currentUrl.
     var displayUrl by remember { mutableStateOf(currentUrl) }
 
     // The default + custom search engines
@@ -128,10 +124,9 @@ fun BrowserContent(
     val addressBarLocation by settingsViewModel.addressBarLocation.collectAsState(initial = "TOP")
     val isAddressBarAtTop = (addressBarLocation == "TOP")
 
-    // Add a state variable to track the UI-selected engine
+    // Add a state variable to track the UI selected engine
     var uiSelectedEngine by remember { mutableStateOf(currentEngine) }
 
-    // If user presses back while editing, end editing mode
     BackHandler(isEditing) {
         isEditing = false
         urlText = currentUrl
@@ -142,10 +137,8 @@ fun BrowserContent(
         enabled = !isEditing && !isHomepageActive
     ) {
         if (canGoBack) {
-            // If we can go back in browser history, do that
             onBack()
         } else {
-            // If we can't go back but we're browsing, go to homepage
             onNavigate("")
         }
     }
@@ -153,7 +146,6 @@ fun BrowserContent(
     // Whenever URL changes or homepage is toggled, update displayed text if not editing.
     LaunchedEffect(currentUrl, isHomepageActive) {
         if (!isEditing) {
-            // Use the "displayUrl" if homepage is inactive; otherwise blank on homepage
             displayUrl = if (isHomepageActive) "" else currentUrl
             urlText = displayUrl
         }
@@ -175,7 +167,6 @@ fun BrowserContent(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        // HOMEPAGE if active
         if (isHomepageActive) {
             Box(
                 modifier = Modifier
@@ -278,15 +269,12 @@ fun BrowserContent(
                 )
             }
 
-            // The main browsing area / GeckoView
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
             ) {
                 if (!isHomepageActive) {
-                    // pass "currentUrl" to GeckoView (the real URL),
-                    // but we do our display logic in onUrlChange
 //                    key(geckoSession, currentUrl) {
                         GeckoViewComponent(
                             geckoSession = geckoSession,
@@ -294,25 +282,20 @@ fun BrowserContent(
                             onUrlChange = { newUrl ->
                                 val normalizedUrl = if (newUrl == "about:blank") "" else newUrl
 
-                                // If the new page is a search result from our current engine:
                                 if (normalizedUrl.startsWith(currentEngine.searchUrl)) {
-                                    // Extract just the portion after the engine's base
                                     val extractedQuery = extractSearchQuery(
                                         fullUrl = normalizedUrl,
                                         searchBaseUrl = currentEngine.searchUrl
                                     )
-                                    // If we successfully got some text, use it as display text
                                     displayUrl = if (extractedQuery.isNotEmpty()) {
                                         extractedQuery
                                     } else {
-                                        normalizedUrl // fallback
+                                        normalizedUrl
                                     }
                                 } else {
-                                    // Otherwise, show the actual domain (or actual link)
                                     displayUrl = normalizedUrl
                                 }
 
-                                // Update the official "currentUrl" in the parent if we’re not editing
                                 if (!isEditing && normalizedUrl != currentUrl) {
                                     onNavigate(normalizedUrl)
                                 }

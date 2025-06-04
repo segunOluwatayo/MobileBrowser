@@ -96,7 +96,6 @@ fun DownloadScreen(
                                         )
                                         context.startActivity(intent)
                                     } catch (e: Exception) {
-                                        // Show error dialog if no app can handle the file
                                         showDialog = DownloadDialog.NoAppFound
                                     }
                                 }

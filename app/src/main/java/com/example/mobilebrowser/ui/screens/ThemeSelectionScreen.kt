@@ -21,7 +21,6 @@ fun ThemeSelectionScreen(
     // Observe the current theme mode from the view model.
     val themeMode by viewModel.themeMode.collectAsState()
 
-    // Define available options and their display names.
     val options = listOf("SYSTEM", "LIGHT", "DARK")
     val displayNames = mapOf(
         "SYSTEM" to "System Default",

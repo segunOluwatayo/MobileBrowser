@@ -56,22 +56,20 @@ package com.example.mobilebrowser.classifier
 
 import kotlin.math.ln
 
-/**
- * Extract features from a URL in exactly the same way as the Python implementation
- */
+// Extract features from a URL in exactly the same way as the Python implementation
 object FeatureExtractor {
 
     fun features(url: String): FloatArray {
-        // Get the registered domain using our utility
+        // Get the registered domain using the utility
         val dom = DomainUtils.registeredDomain(url)
 
-        // Length of the domain (avoid division by zero)
+        // Length of the domain
         val L = dom.length.coerceAtLeast(1)
 
         // Helper for character counting
         fun count(char: Char): Int = dom.count { it == char }
 
-        // Count of non-alphanumeric characters
+        // Count of non alphanumeric characters
         val nonAlnum = dom.count { !it.isLetterOrDigit() }
 
         // Count of hyphens
@@ -83,7 +81,7 @@ object FeatureExtractor {
         // Ratio of digits to total length
         val digitRatio = digits.toFloat() / L
 
-        // Extract domain length (without TLD)
+        // Extract domain length
         val domainPart = if (dom.contains('.')) dom.substringBeforeLast('.') else dom
         val domainLength = domainPart.length
 
@@ -95,24 +93,24 @@ object FeatureExtractor {
             // Subdomain count is the difference between host parts and domain parts
             (parts.size - domParts.size).coerceAtLeast(0) + 1
         } else {
-            1 // Default if no protocol or can't determine
+            1
         }
 
-        // Calculate entropy (Shannon entropy, same as Python implementation)
+        // Calculate entropy
         val entropy = dom.toSet().sumOf { char ->
             val p = count(char).toDouble() / L
             -p * ln(p) / ln(2.0)
         }
 
         return floatArrayOf(
-            L.toFloat(),               // 0: Length of domain
-            nonAlnum.toFloat(),        // 1: Count of non-alphanumeric chars
-            hyphens.toFloat(),         // 2: Count of hyphens
-            digits.toFloat(),          // 3: Count of digits
-            digitRatio,                // 4: Ratio of digits to length
-            domainLength.toFloat(),    // 5: Length of domain part (without TLD)
-            subdomainCount.toFloat(),  // 6: Count of subdomain parts
-            entropy.toFloat()          // 7: Shannon entropy
+            L.toFloat(),
+            nonAlnum.toFloat(),
+            hyphens.toFloat(),
+            digits.toFloat(),
+            digitRatio,
+            domainLength.toFloat(),
+            subdomainCount.toFloat(),
+            entropy.toFloat()
         )
     }
 }

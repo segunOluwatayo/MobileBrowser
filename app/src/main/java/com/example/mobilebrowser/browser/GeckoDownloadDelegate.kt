@@ -17,10 +17,10 @@ class GeckoDownloadDelegate(
     private val context: Context,
     private val downloadViewModel: DownloadViewModel,
     private val scope: CoroutineScope,
-    private val showDownloadConfirmation: (DownloadRequest) -> Unit // Callback function
+    private val showDownloadConfirmation: (DownloadRequest) -> Unit
 ) : GeckoSession.ContentDelegate {
 
-    data class DownloadRequest( // Keep DownloadRequest data class
+    data class DownloadRequest(
         val fileName: String,
         val url: String,
         val contentLength: Long,
@@ -28,7 +28,7 @@ class GeckoDownloadDelegate(
     )
 
     override fun onTitleChange(session: GeckoSession, title: String?) {
-        // Required override
+
     }
 
     override fun onExternalResponse(session: GeckoSession, response: WebResponse) {
@@ -41,7 +41,7 @@ class GeckoDownloadDelegate(
 
         val headers = response.headers
 
-        // Try to extract the filename from Content-Disposition header first.
+        // Try to extract the filename from Content Disposition header first.
         val contentDisposition = headers["Content-Disposition"]
         val rawFileName = if (contentDisposition != null) {
             FileUtils.extractFileNameFromContentDisposition(contentDisposition)
@@ -51,7 +51,6 @@ class GeckoDownloadDelegate(
 
         val safeFileName = FileUtils.getSafeFileName(rawFileName)
 
-        // Case-insensitive lookup for content-length header
         val contentLengthHeader = headers.entries.firstOrNull {
             it.key.equals(
                 "Content-Length",
@@ -65,7 +64,6 @@ class GeckoDownloadDelegate(
             scope.launch {
                 val headContentLength = fetchContentLength(response.uri)
                 Log.d("GeckoDownloadDelegate", "HEAD request content length: $headContentLength")
-                // Proceed with the rest of your logic using the value from the HEAD request
                 continueDownload(
                     safeFileName,
                     response.uri,

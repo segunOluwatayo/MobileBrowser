@@ -116,10 +116,8 @@ class TabRepository @Inject constructor(
     ) {
         if (isUserSignedIn && tab.userId.isNotBlank()) {
             try {
-                // If we have a server ID, try to delete directly on server
                 if (!tab.serverId.isNullOrBlank()) {
                     tabApiService.deleteTab("Bearer $accessToken", tab.serverId)
-                    // Success! Remove locally
                     tabDao.deleteTab(tab)
                 } else {
                     // No server ID, create a shadow entry and delete the original
@@ -159,7 +157,6 @@ class TabRepository @Inject constructor(
     suspend fun updateTabFromDto(remote: TabDto, userId: String) {
         val localTab = tabDao.getTabByUrl(remote.url)
         if (localTab != null) {
-            // Determine if we should update based on timestamp
             val shouldUpdate = if (remote.timestamp != null && localTab.lastVisited != null) {
                 remote.timestamp.after(localTab.lastVisited)
             } else {
@@ -167,7 +164,6 @@ class TabRepository @Inject constructor(
             }
             if (shouldUpdate) {
                 val currentTime = Date()
-                // Only update the title if the remote title is not "Loading..."
                 val updatedTitle = if (!remote.title.isNullOrBlank() && remote.title != "Loading...") {
                     remote.title
                 } else {
@@ -193,17 +189,15 @@ class TabRepository @Inject constructor(
 
         val newTab = TabEntity(
             url = remote.url,
-            title = remote.title ?: "Untitled Tab", // Default title if null
-            userId = remote.userId ?: userId,       // Use provided userId if null from server
+            title = remote.title ?: "Untitled Tab",
+            userId = remote.userId ?: userId,
 
-            // IMPORTANT: Handle null timestamps
             lastVisited = remote.timestamp ?: currentTime,
-            createdAt = remote.timestamp ?: currentTime, // This fixes the null parameter error
+            createdAt = remote.timestamp ?: currentTime,
 
             serverId = remote.id,
             syncStatus = SyncStatus.SYNCED,
 
-            // Other fields with defaults
             isActive = false,
             position = 0
         )
@@ -211,7 +205,7 @@ class TabRepository @Inject constructor(
     }
 
     /**
-     * Get all tabs as a List (not a Flow) for sync operations.
+     * Get all tabs as a List for sync operations.
      */
     suspend fun getAllTabsAsList(): List<TabEntity> = tabDao.getAllTabsAsList()
 

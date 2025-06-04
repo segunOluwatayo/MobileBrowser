@@ -85,7 +85,6 @@ fun SettingsScreen(
     val userEmail by authViewModel.userEmail.collectAsState()
     val profilePictureUrl by authViewModel.profilePicture.collectAsState()
 
-    // Convert the theme mode value to a user-friendly string.
     val themeDisplayName = when (currentThemeMode) {
         "LIGHT" -> "Light Mode"
         "DARK" -> "Dark Mode"
@@ -241,7 +240,7 @@ fun SettingsScreen(
                     }
                 }
             } else {
-                // For users who aren't signed in, show sign-in card
+                // For users who aren't signed in, show sign in card
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -410,7 +409,6 @@ fun SettingsScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    // Replace "TBD" with descriptive text
                     val homepageEnabled by viewModel.homepageEnabled.collectAsState()
                     val recentTabEnabled by viewModel.recentTabEnabled.collectAsState()
                     val bookmarksEnabled by viewModel.bookmarksEnabled.collectAsState()
@@ -438,7 +436,6 @@ fun SettingsScreen(
                 }
             }
 
-            // Divider line at the end of the settings list
             Divider(
                 modifier = Modifier.fillMaxWidth(),
                 color = MaterialTheme.colorScheme.outlineVariant,

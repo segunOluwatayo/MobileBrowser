@@ -180,7 +180,6 @@ class UserDataStore @Inject constructor(
             preferences[DEVICE_ID_KEY] ?: ""
         }
 
-    // New flows for sync preferences
 
     // History sync preference
     val syncHistoryEnabled: Flow<Boolean> = dataStore.data
@@ -270,11 +269,9 @@ class UserDataStore @Inject constructor(
             preferences[USER_NAME_KEY] = ""
             preferences[USER_EMAIL_KEY] = ""
             preferences[IS_SIGNED_IN_KEY] = false
-            // Optionally keep device ID for analytics or future sign-ins.
         }
     }
 
-    // Methods to update sync preferences
 
     // Update history sync preference
     suspend fun updateSyncHistoryEnabled(enabled: Boolean) {

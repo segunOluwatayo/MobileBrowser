@@ -9,7 +9,7 @@ import androidx.core.content.ContextCompat
 object PermissionHandler {
     fun hasStoragePermission(context: Context): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            true // Android 10 and above use scoped storage
+            true
         } else {
             ContextCompat.checkSelfPermission(
                 context,
@@ -20,7 +20,7 @@ object PermissionHandler {
 
     fun getRequiredPermissions(): Array<String> {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            emptyArray() // No permissions needed for Android 10 and above
+            emptyArray()
         } else {
             arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE)
         }

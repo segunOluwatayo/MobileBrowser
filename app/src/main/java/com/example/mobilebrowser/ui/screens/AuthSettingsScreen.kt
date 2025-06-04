@@ -55,7 +55,6 @@ fun AuthSettingsScreen(
 
     LaunchedEffect(lastSyncTimestamp) {
         if (lastSyncTimestamp != null && syncStatus is SyncStatusState.Idle) {
-            // If we have a timestamp but status is Idle, update to Synced
             viewModel.updateSyncStatus(SyncStatusState.Synced)
         }
     }

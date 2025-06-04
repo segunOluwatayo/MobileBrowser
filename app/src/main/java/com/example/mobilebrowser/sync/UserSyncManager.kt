@@ -163,16 +163,13 @@ sealed class SyncStatusState {
 
 @Singleton
 class UserSyncManager @Inject constructor(
-    // History dependencies
     private val historyRepository: HistoryRepository,
     private val historyApiService: HistoryApiService,
-    // Bookmark dependencies
     private val bookmarkRepository: BookmarkRepository,
     private val bookmarkApiService: BookmarkApiService,
     private val tabRepository: TabRepository,
     private val tabDao: TabDao,
     private val tabApiService: TabApiService,
-    // User Data Store for sync preferences
     private val userDataStore: UserDataStore
 ) {
     private val TAG = "UserSyncManager"
@@ -206,7 +203,6 @@ class UserSyncManager @Inject constructor(
 
         } catch (e: Exception) {
             Log.e(TAG, "Error syncing user profile: ${e.message}", e)
-            // Don't throw - profile sync failure shouldn't break data sync
         }
     }
     /**
@@ -256,11 +252,9 @@ class UserSyncManager @Inject constructor(
         }
     }
 
-    // ---------- History Sync Functions (Existing) ----------
 
     /**
      * Deletes a history entry from the server by its server ID.
-     * Throws an Exception if it fails (so you can catch/handle it).
      */
     suspend fun deleteHistoryEntryFromServer(historyId: String, accessToken: String) {
         try {
@@ -275,7 +269,6 @@ class UserSyncManager @Inject constructor(
      */
     suspend fun pushLocalChanges(accessToken: String, deviceId: String, userId: String) {
         withContext(Dispatchers.IO) {
-            /** -- 1) Handle PENDING_DELETE items -- **/
             try {
                 val pendingDeletes = historyRepository.getAllHistoryAsList()
                     .filter { it.syncStatus == SyncStatus.PENDING_DELETE }
@@ -314,7 +307,6 @@ class UserSyncManager @Inject constructor(
                 Log.e(TAG, "Error handling pending deletions: ${e.message}", e)
             }
 
-            /** -- 2) Handle PENDING_UPLOAD items -- **/
             try {
                 val pendingUploads = historyRepository.getPendingUploads().first()
                 Log.d(TAG, "Found ${pendingUploads.size} history entries pending upload")
@@ -340,14 +332,11 @@ class UserSyncManager @Inject constructor(
         }
     }
 
-    // ---------- Bookmark Sync Functions (New) ----------
-
     /**
      * Pushes all local bookmark changes (pending deletions and pending uploads) to the server.
      */
     suspend fun pushLocalBookmarkChanges(accessToken: String, deviceId: String, userId: String) {
         withContext(Dispatchers.IO) {
-            // --- Handle Bookmark Pending Deletions ---
             try {
                 val pendingDeletions = bookmarkRepository.getPendingDeletions()
                 Log.d(TAG, "Found ${pendingDeletions.size} bookmarks pending deletion")
@@ -366,7 +355,6 @@ class UserSyncManager @Inject constructor(
                         var deletedFromServer = false
 
                         if (!bookmark.serverId.isNullOrEmpty()) {
-                            // If we have server ID, delete by ID
                             Log.d(TAG, "Deleting bookmark from server by ID: ${bookmark.serverId}")
                             try {
                                 bookmarkApiService.deleteBookmark(
@@ -385,14 +373,14 @@ class UserSyncManager @Inject constructor(
                             Log.d(TAG, "Attempting to find and delete bookmark by URL: $originalUrl")
 
                             try {
-                                // 1. Get all bookmarks from server
+                                // Get all bookmarks from server
                                 val response = bookmarkApiService.getAllBookmarks("Bearer $accessToken")
 
-                                // 2. Find the bookmark with matching URL
+                                // Find the bookmark with matching URL
                                 val matchingBookmark = response.data.find { it.url == originalUrl }
 
                                 if (matchingBookmark?.id != null) {
-                                    // 3. Delete the bookmark using its server ID
+                                    // Delete the bookmark using its server ID
                                     Log.d(TAG, "Found matching bookmark on server with ID: ${matchingBookmark.id}")
                                     bookmarkApiService.deleteBookmark(
                                         authorization = "Bearer $accessToken",
@@ -402,7 +390,6 @@ class UserSyncManager @Inject constructor(
                                     Log.d(TAG, "Successfully deleted bookmark by URL lookup: $originalUrl")
                                 } else {
                                     Log.d(TAG, "No matching bookmark found on server for URL: $originalUrl")
-                                    // If bookmark doesn't exist on server, consider it "deleted"
                                     deletedFromServer = true
                                 }
                             } catch (e: Exception) {
@@ -410,8 +397,6 @@ class UserSyncManager @Inject constructor(
                             }
                         }
 
-                        // Only remove local shadow entry if we successfully deleted from server
-                        // or confirmed it doesn't exist on server
                         if (deletedFromServer) {
                             // Remove bookmark locally upon successful deletion
                             bookmarkRepository.deleteBookmark(bookmark)
@@ -427,7 +412,6 @@ class UserSyncManager @Inject constructor(
                 Log.e(TAG, "Error handling bookmark pending deletions: ${e.message}", e)
             }
 
-            // --- Handle Bookmark Pending Uploads ---
             try {
                 val pendingUploads = bookmarkRepository.getPendingUploads()
                 Log.d(TAG, "Found ${pendingUploads.size} bookmarks pending upload")
@@ -492,7 +476,6 @@ class UserSyncManager @Inject constructor(
                         var deletedFromServer = false
 
                         if (!tab.serverId.isNullOrEmpty()) {
-                            // If we have server ID, delete by ID
                             try {
                                 tabApiService.deleteTab(
                                     authorization = "Bearer $accessToken",
@@ -519,7 +502,6 @@ class UserSyncManager @Inject constructor(
                                     deletedFromServer = true
                                     Log.d(TAG, "Successfully deleted tab by URL lookup: $originalUrl")
                                 } else {
-                                    // If not found, consider it deleted
                                     deletedFromServer = true
                                     Log.d(TAG, "No matching tab found on server for URL: $originalUrl")
                                 }
@@ -528,7 +510,6 @@ class UserSyncManager @Inject constructor(
                             }
                         }
 
-                        // Remove local shadow entry if successful
                         if (deletedFromServer) {
                             tabRepository.deleteTab(tab)
                             Log.d(TAG, "Removed local shadow entry for deleted tab: ${tab.url}")
@@ -610,13 +591,11 @@ class UserSyncManager @Inject constructor(
                         return@forEach
                     }
 
-                    // Create default values for any potentially null fields
                     val currentTime = Date()
 
                     val localEntry = bookmarkRepository.getBookmarkByUrl(remoteEntry.url)
                     if (localEntry == null) {
-                        // Create a new bookmark entity with the CORRECT userId from the remote entry
-                        // and handle null timestamp safely
+
                         val newEntry = com.example.mobilebrowser.data.entity.BookmarkEntity(
                             title = remoteEntry.title ?: "Untitled",
                             url = remoteEntry.url,

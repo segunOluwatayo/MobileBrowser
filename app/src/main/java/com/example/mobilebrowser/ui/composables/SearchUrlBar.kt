@@ -46,7 +46,6 @@ fun SearchUrlBar(
     availableSearchEngines: List<SearchEngine>,
     isHomepageActive: Boolean,
     onSearchEngineChange: (SearchEngine) -> Unit,
-    // Add these new callback parameters
     onShowBookmarks: () -> Unit = {},
     onShowHistory: () -> Unit = {},
     onShowSearchSettings: () -> Unit = {},

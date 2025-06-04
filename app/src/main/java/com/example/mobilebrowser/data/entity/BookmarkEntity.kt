@@ -25,9 +25,7 @@ data class BookmarkEntity(
 
     val dateAdded: Date = Date(),
 
-    // New field: Stores the server-assigned identifier once synced.
     val serverId: String? = null,
 
-    // New field: Tracks the current synchronization status.
     val syncStatus: SyncStatus = SyncStatus.PENDING_UPLOAD
 )

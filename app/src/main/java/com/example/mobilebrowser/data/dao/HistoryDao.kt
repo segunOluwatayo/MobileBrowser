@@ -12,16 +12,15 @@ interface HistoryDao {
     @Query("SELECT * FROM history ORDER BY lastVisited DESC")
     fun getAllHistory(): Flow<List<HistoryEntity>>
 
-    // Get all history entries as a List (not a Flow) - needed for sync operations
+    // Get all history entries as a List needed for sync operations
     @Query("SELECT * FROM history ORDER BY lastVisited DESC")
     suspend fun getAllHistoryAsList(): List<HistoryEntity>
 
-    // Search history entries by title or URL (using a SQL LIKE query)
+    // Search history entries by title or URL
     @Query("SELECT * FROM history WHERE title LIKE :query OR url LIKE :query ORDER BY lastVisited DESC")
     fun searchHistory(query: String): Flow<List<HistoryEntity>>
 
     // Insert a new history entry.
-    // On conflict (e.g., same primary key), replace the old entry.
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertHistory(history: HistoryEntity): Long
 
@@ -37,7 +36,7 @@ interface HistoryDao {
     @Query("DELETE FROM history WHERE lastVisited BETWEEN :startDate AND :endDate")
     suspend fun deleteHistoryInRange(startDate: Date, endDate: Date)
 
-    // Get history entries within a specific time range as a List (not a Flow)
+    // Get history entries within a specific time range as a List
     @Query("SELECT * FROM history WHERE lastVisited BETWEEN :startDate AND :endDate ORDER BY lastVisited DESC")
     suspend fun getHistoryInRangeAsList(startDate: Date, endDate: Date): List<HistoryEntity>
 

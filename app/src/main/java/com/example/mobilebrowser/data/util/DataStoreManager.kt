@@ -15,7 +15,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
 
-// Create an extension property for DataStore
 val Context.dataStore by preferencesDataStore(name = "settings")
 
 /**
@@ -172,8 +171,6 @@ class DataStoreManager(private val context: Context) {
 
     /**
      * Updates the search engine setting.
-     *
-     * @param searchEngine The new search engine URL to persist.
      */
     suspend fun updateSearchEngine(searchEngine: String) {
         context.dataStore.edit { preferences ->

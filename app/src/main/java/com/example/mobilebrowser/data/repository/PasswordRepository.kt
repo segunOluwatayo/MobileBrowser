@@ -22,7 +22,6 @@ class PasswordRepository @Inject constructor(
         val normalizedDomain = extractDomain(siteUrl)
         Log.d("PasswordRepository", "Saving password. Original siteUrl: $siteUrl, normalized domain: $normalizedDomain")
 
-        // Here we save the normalized domain.
         val passwordEntity = PasswordEntity(
             siteUrl = normalizedDomain,
             username = username,
@@ -40,12 +39,10 @@ class PasswordRepository @Inject constructor(
         passwordDao.updatePassword(updatedEntity)
     }
 
-    // Delete a password entry
     suspend fun deletePassword(passwordEntity: PasswordEntity) {
         passwordDao.deletePassword(passwordEntity)
     }
 
-    // Decrypt a stored password when needed (e.g., after successful authentication)
     suspend fun decryptPassword(encryptedPassword: String): String {
         return EncryptionUtil.decrypt(encryptedPassword)
     }

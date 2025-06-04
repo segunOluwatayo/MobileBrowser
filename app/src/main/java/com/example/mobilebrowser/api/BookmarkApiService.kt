@@ -6,25 +6,14 @@ import retrofit2.http.*
 
 interface BookmarkApiService {
 
-    /**
-     * Adds a new bookmark to the server.
-     * @param authorization The bearer token in the format "Bearer {token}"
-     * @param bookmark The bookmark data transfer object
-     * @return ApiResponse containing the created BookmarkDto
-     */
+//      Add a new bookmark to the server.
     @POST("bookmarks")
     suspend fun addBookmark(
         @Header("Authorization") authorization: String,
         @Body bookmark: BookmarkDto
     ): ApiResponse<BookmarkDto>
 
-    /**
-     * Updates an existing bookmark.
-     * @param authorization The bearer token
-     * @param id The server-assigned identifier for the bookmark
-     * @param bookmark The updated bookmark DTO
-     * @return ApiResponse containing the updated BookmarkDto
-     */
+//    Updates an existing bookmark.
     @PUT("bookmarks/{id}")
     suspend fun updateBookmark(
         @Header("Authorization") authorization: String,
@@ -32,23 +21,16 @@ interface BookmarkApiService {
         @Body bookmark: BookmarkDto
     ): ApiResponse<BookmarkDto>
 
-    /**
-     * Deletes a bookmark from the server.
-     * @param authorization The bearer token
-     * @param id The server-assigned identifier of the bookmark to delete
-     * @return ApiResponse indicating success or failure
-     */
+//     Deletes a bookmark from the server.
+
     @DELETE("bookmarks/{id}")
     suspend fun deleteBookmark(
         @Header("Authorization") authorization: String,
         @Path("id") id: String
     ): ApiResponse<Any>
 
-    /**
-     * Retrieves all bookmarks for the authenticated user.
-     * @param authorization The bearer token
-     * @return ApiResponse containing a list of BookmarkDto entries
-     */
+//     * Retrieves all bookmarks for the authenticated user.
+
     @GET("bookmarks")
     suspend fun getAllBookmarks(
         @Header("Authorization") authorization: String

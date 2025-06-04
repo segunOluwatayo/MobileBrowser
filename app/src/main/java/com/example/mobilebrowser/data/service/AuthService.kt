@@ -25,10 +25,6 @@ class AuthService @Inject constructor(
     // Authentication server URL
     private val authServerUrl = "https://nimbus-browser-backend-production.up.railway.app/?mobile=true"
 
-    /**
-     * Opens the login page in the browser
-     * This is usually called from elsewhere in the app (not from GeckoSessionManager)
-     */
     fun openLoginPage() {
         // This is typically handled by navigating to the URL in your browser
         Log.d(TAG, "Login page URL: $authServerUrl")
@@ -40,16 +36,15 @@ class AuthService @Inject constructor(
      */
     suspend fun signOut() {
         try {
-            Log.d(TAG, "🔑 signOut() called, getting current tokens")
+            Log.d(TAG, " signOut() called, getting current tokens")
 
-            // Get the tokens first so we can make an API call to invalidate them
+            // Get the tokens first so I can make an API call to invalidate them
             val accessToken = userDataStore.accessToken.first()
             val refreshToken = userDataStore.refreshToken.first()
 
-            // If we have valid tokens, make an API call to invalidate them on the server
             if (accessToken.isNotBlank() && refreshToken.isNotBlank()) {
                 try {
-                    Log.d(TAG, "🔑 Attempting to invalidate tokens on server")
+                    Log.d(TAG, " Attempting to invalidate tokens on server")
                     // Make API call to logout endpoint
                     withContext(Dispatchers.IO) {
                         try {
@@ -67,32 +62,32 @@ class AuthService @Inject constructor(
                             }
 
                             val responseCode = connection.responseCode
-                            Log.d(TAG, "🔑 Server logout response code: $responseCode")
+                            Log.d(TAG, " Server logout response code: $responseCode")
 
                             connection.disconnect()
                         } catch (e: Exception) {
-                            Log.e(TAG, "🔑 Error making server logout request", e)
+                            Log.e(TAG, " Error making server logout request", e)
                         }
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "🔑 Error invalidating tokens: ${e.message}")
+                    Log.e(TAG, " Error invalidating tokens: ${e.message}")
                 }
             } else {
-                Log.d(TAG, "🔑 No valid tokens to invalidate, skipping server call")
+                Log.d(TAG, " No valid tokens to invalidate, skipping server call")
             }
 
             // Clear the local token data regardless of server response
-            Log.d(TAG, "🔑 Clearing local user data")
+            Log.d(TAG, " Clearing local user data")
             userDataStore.clearUserAuthData()
-            Log.d(TAG, "🔑 User signed out successfully")
+            Log.d(TAG, " User signed out successfully")
         } catch (e: Exception) {
-            Log.e(TAG, "🔑 Error during sign out: ${e.message}")
+            Log.e(TAG, " Error during sign out: ${e.message}")
             // Even on error, try to clear the data
             try {
                 userDataStore.clearUserAuthData()
-                Log.d(TAG, "🔑 User data cleared after error")
+                Log.d(TAG, " User data cleared after error")
             } catch (e2: Exception) {
-                Log.e(TAG, "🔑 Error clearing user data: ${e2.message}")
+                Log.e(TAG, " Error clearing user data: ${e2.message}")
             }
             throw e
         }
@@ -111,15 +106,14 @@ class AuthService @Inject constructor(
     ) {
         coroutineScope.launch {
             try {
-                Log.d(TAG, "🔑 Processing auth callback")
-                // If we didn't get user info in the URL params, extract it from the JWT token
+                Log.d(TAG, " Processing auth callback")
                 val extractedUserId = userId ?: extractUserIdFromToken(accessToken)
                 val extractedEmail = email ?: ""
 
                 // Extract a name from the JWT if possible, otherwise use a default
                 val extractedName = displayName ?: extractUserNameFromToken(accessToken) ?: "User"
 
-                Log.d(TAG, "🔑 Using extracted user data: id=$extractedUserId, name=$extractedName, email=$extractedEmail")
+                Log.d(TAG, " Using extracted user data: id=$extractedUserId, name=$extractedName, email=$extractedEmail")
 
                 userDataStore.saveUserAuthData(
                     accessToken = accessToken,
@@ -129,9 +123,9 @@ class AuthService @Inject constructor(
                     email = extractedEmail,
                     deviceId = null
                 )
-                Log.d(TAG, "🔑 Authentication data saved to DataStore")
+                Log.d(TAG, " Authentication data saved to DataStore")
             } catch (e: Exception) {
-                Log.e(TAG, "🔑 Error saving auth data to DataStore: ${e.message}")
+                Log.e(TAG, " Error saving auth data to DataStore: ${e.message}")
 
                 // Even if extraction fails, still try to save the tokens
                 try {
@@ -143,9 +137,9 @@ class AuthService @Inject constructor(
                         email = email ?: "",
                         deviceId = null
                     )
-                    Log.d(TAG, "🔑 Saved basic auth data with default values")
+                    Log.d(TAG, " Saved basic auth data with default values")
                 } catch (e2: Exception) {
-                    Log.e(TAG, "🔑 Failed to save even basic auth data: ${e2.message}")
+                    Log.e(TAG, " Failed to save even basic auth data: ${e2.message}")
                 }
             }
         }
@@ -156,18 +150,15 @@ class AuthService @Inject constructor(
      */
     private fun extractUserIdFromToken(token: String): String {
         try {
-            // JWT tokens have three parts separated by dots
             val parts = token.split(".")
             if (parts.size != 3) {
                 Log.e(TAG, "Invalid JWT token format")
                 return "unknown"
             }
 
-            // Decode the payload (middle part)
             val payload = String(android.util.Base64.decode(parts[1], android.util.Base64.URL_SAFE))
             val json = JSONObject(payload)
 
-            // JWT from our server should have an "id" field
             return if (json.has("id")) json.getString("id") else "unknown"
         } catch (e: Exception) {
             Log.e(TAG, "Error extracting user ID from token: ${e.message}")
@@ -180,18 +171,15 @@ class AuthService @Inject constructor(
      */
     private fun extractUserNameFromToken(token: String): String? {
         try {
-            // JWT tokens have three parts separated by dots
             val parts = token.split(".")
             if (parts.size != 3) {
                 Log.e(TAG, "Invalid JWT token format")
                 return null
             }
 
-            // Decode the payload (middle part)
             val payload = String(android.util.Base64.decode(parts[1], android.util.Base64.URL_SAFE))
             val json = JSONObject(payload)
 
-            // Try common name fields that might be in the JWT
             return when {
                 json.has("name") -> json.getString("name")
                 json.has("email") -> json.getString("email").split("@")[0]
@@ -205,10 +193,8 @@ class AuthService @Inject constructor(
 
     fun checkAuthState() {
         coroutineScope.launch {
-            // Assuming your UserDataStore provides a StateFlow<Boolean> for sign-in status
             val isSignedIn = userDataStore.isSignedIn.first()
-            Log.d(TAG, "🔑 User authentication state: $isSignedIn")
-            // Add additional logic as needed
+            Log.d(TAG, " User authentication state: $isSignedIn")
         }
     }
 }
