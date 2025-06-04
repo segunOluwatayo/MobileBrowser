@@ -46,6 +46,10 @@ fun SearchUrlBar(
     availableSearchEngines: List<SearchEngine>,
     isHomepageActive: Boolean,
     onSearchEngineChange: (SearchEngine) -> Unit,
+    // Add these new callback parameters
+    onShowBookmarks: () -> Unit = {},
+    onShowHistory: () -> Unit = {},
+    onShowSearchSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var showDropdown by remember { mutableStateOf(false) }
@@ -238,7 +242,10 @@ fun SearchUrlBar(
                         tint = MaterialTheme.colorScheme.onSurface
                     )
                 },
-                onClick = { showDropdown = false }
+                onClick = {
+                    showDropdown = false
+                    onShowBookmarks()
+                }
             )
             DropdownMenuItem(
                 text = { Text("History", color = MaterialTheme.colorScheme.onSurface) },
@@ -249,10 +256,13 @@ fun SearchUrlBar(
                         tint = MaterialTheme.colorScheme.onSurface
                     )
                 },
-                onClick = { showDropdown = false }
+                onClick = {
+                    showDropdown = false
+                    onShowHistory()
+                }
             )
             DropdownMenuItem(
-                text = { Text("Search settings", color = MaterialTheme.colorScheme.onSurface) },
+                text = { Text("Settings", color = MaterialTheme.colorScheme.onSurface) },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Settings,
@@ -260,7 +270,10 @@ fun SearchUrlBar(
                         tint = MaterialTheme.colorScheme.onSurface
                     )
                 },
-                onClick = { showDropdown = false }
+                onClick = {
+                    showDropdown = false
+                    onShowSearchSettings()
+                }
             )
         }
     }

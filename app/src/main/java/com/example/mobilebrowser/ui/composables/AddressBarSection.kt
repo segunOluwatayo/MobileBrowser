@@ -99,6 +99,10 @@ fun AddressBarSection(
             availableSearchEngines = availableSearchEngines,
             isHomepageActive = isHomepageActive,
             onSearchEngineChange = onSearchEngineChange,
+            // Pass through the navigation callbacks
+            onShowBookmarks = onShowBookmarks,
+            onShowHistory = onShowHistory,
+            onShowSearchSettings = onShowSettings, // Map to settings
             modifier = Modifier
                 .weight(1f, fill = !isEditing)
                 .focusRequester(focusRequester)
